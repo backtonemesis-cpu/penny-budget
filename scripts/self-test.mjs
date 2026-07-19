@@ -1,7 +1,28 @@
 import assert from "node:assert/strict";
-import { annualSummary, dueStatus, formatMoney, migrateState, mkKey, monthSummary } from "../src/finance.js";
+import { annualSummary, createBlankState, dueStatus, formatMoney, migrateState, mkKey, monthSummary } from "../src/finance.js";
 
 const now = new Date(2026, 6, 19);
+
+const everyMonthBlank = createBlankState(2020, 2035);
+assert.equal(Object.keys(everyMonthBlank.txnsByMonth).length, 192);
+assert.equal(Object.keys(everyMonthBlank.incomeByMonth).length, 192);
+assert.ok(Object.values(everyMonthBlank.txnsByMonth).every((rows) => Array.isArray(rows) && rows.length === 0));
+assert.ok(Object.values(everyMonthBlank.incomeByMonth).every((rows) => Array.isArray(rows) && rows.length === 0));
+assert.deepEqual(everyMonthBlank.txnsByMonth["2020-01"], []);
+assert.deepEqual(everyMonthBlank.txnsByMonth["2035-12"], []);
+assert.deepEqual(everyMonthBlank.budgets, {});
+assert.deepEqual(everyMonthBlank.dueDays, {});
+assert.equal(everyMonthBlank.savingsGoal, 0);
+assert.equal(everyMonthBlank.savingsBal, 0);
+assert.equal(everyMonthBlank.savingsContrib, 0);
+for (let year = 2020; year <= 2035; year += 1) {
+  const summary = annualSummary(everyMonthBlank, year);
+  assert.equal(summary.income, 0);
+  assert.equal(summary.expenses, 0);
+  assert.equal(summary.refunds, 0);
+  assert.equal(summary.available, 0);
+  assert.equal(summary.withData.length, 0);
+}
 
 const blank = migrateState({}, now);
 assert.deepEqual(blank.txnsByMonth, {});

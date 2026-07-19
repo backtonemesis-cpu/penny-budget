@@ -1,62 +1,95 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import { createBlankState } from './finance.js'
 
-const DATA_RESET_VERSION = '2026-07-20-force-clear-all-penny-data-v2'
-const BLANK_STATE = {
-  version: 2,
-  txnsByMonth: {},
-  incomeByMonth: {},
-  customCats: [],
-  hiddenCats: [],
-  budgets: {},
-  dueDays: {},
-  savingsGoal: 0,
-  savingsBal: 0,
-  savingsContrib: 0,
-}
+const DATA_RESET_VERSION = '2026-07-20-factory-reset-all-months-v3'
+const BLANK_STATE = createBlankState(2020, 2035)
 
-function removePennyKeys(storage) {
+function removeMatchingStorage(storage) {
   if (!storage) return
   const keys = []
   for (let index = 0; index < storage.length; index += 1) {
     const key = storage.key(index)
-    if (key && /(^|[_:.-])penny([_:.-]|$)/i.test(key)) keys.push(key)
+    if (key && /(penny|budget)/i.test(key)) keys.push(key)
   }
   keys.forEach((key) => storage.removeItem(key))
 }
 
-async function forceClearPennyData() {
+async function clearPennyCaches() {
+  if (!('caches' in window)) return
+  const cacheNames = await caches.keys()
+  await Promise.all(cacheNames.map(async (name) => {
+    if (/(penny|budget)/i.test(name)) {
+      await caches.delete(name)
+      return
+    }
+    const cache = await caches.open(name)
+    const requests = await cache.keys()
+    await Promise.all(
+      requests
+        .filter((request) => request.url.includes('/penny-budget/'))
+        .map((request) => cache.delete(request))
+    )
+  }))
+}
+
+async function clearPennyDatabases() {
+  if (!globalThis.indexedDB?.databases) return
+  const databases = await indexedDB.databases()
+  await Promise.all(
+    databases
+      .filter((database) => database.name && /(penny|budget)/i.test(database.name))
+      .map((database) => new Promise((resolve) => {
+        const request = indexedDB.deleteDatabase(database.name)
+        request.onsuccess = resolve
+        request.onerror = resolve
+        request.onblocked = resolve
+      }))
+  )
+}
+
+async function unregisterPennyWorkers() {
+  if (!navigator.serviceWorker?.getRegistrations) return
+  const registrations = await navigator.serviceWorker.getRegistrations()
+  await Promise.all(
+    registrations
+      .filter((registration) => registration.scope.includes('/penny-budget/'))
+      .map((registration) => registration.unregister())
+  )
+}
+
+function clearPennyCookies() {
+  document.cookie.split(';').forEach((cookie) => {
+    const name = cookie.split('=')[0].trim()
+    if (!name || !/(penny|budget)/i.test(name)) return
+    document.cookie = `${name}=; Max-Age=0; path=/penny-budget/`
+    document.cookie = `${name}=; Max-Age=0; path=/`
+  })
+}
+
+async function factoryResetEveryMonth() {
   try {
     if (localStorage.getItem('penny_data_reset_version') === DATA_RESET_VERSION) return
 
-    removePennyKeys(localStorage)
-    removePennyKeys(sessionStorage)
+    removeMatchingStorage(localStorage)
+    removeMatchingStorage(sessionStorage)
+    clearPennyCookies()
+
+    await Promise.all([
+      clearPennyCaches(),
+      clearPennyDatabases(),
+      unregisterPennyWorkers(),
+    ])
 
     localStorage.setItem('penny_state', JSON.stringify(BLANK_STATE))
     localStorage.setItem('penny_data_reset_version', DATA_RESET_VERSION)
-
-    if ('caches' in window) {
-      const cacheNames = await caches.keys()
-      await Promise.all(
-        cacheNames
-          .filter((name) => /penny/i.test(name))
-          .map((name) => caches.delete(name))
-      )
-    }
-
-    if (indexedDB?.databases) {
-      const databases = await indexedDB.databases()
-      databases
-        .filter((database) => database.name && /penny/i.test(database.name))
-        .forEach((database) => indexedDB.deleteDatabase(database.name))
-    }
   } catch {
     try {
       localStorage.setItem('penny_state', JSON.stringify(BLANK_STATE))
       localStorage.setItem('penny_data_reset_version', DATA_RESET_VERSION)
     } catch {
-      // Penny still opens if browser storage is unavailable.
+      // The in-memory app still starts blank if browser storage is unavailable.
     }
   }
 }
@@ -69,4 +102,4 @@ function renderApp() {
   )
 }
 
-forceClearPennyData().finally(renderApp)
+factoryResetEveryMonth().finally(renderApp)
