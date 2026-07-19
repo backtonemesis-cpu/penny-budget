@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import { createBlankState } from './finance.js'
+import './mobile-overflow-fix.css'
 
 const DATA_RESET_VERSION = '2026-07-20-factory-reset-all-months-v3'
 const BLANK_STATE = createBlankState(2020, 2035)
@@ -94,7 +95,35 @@ async function factoryResetEveryMonth() {
   }
 }
 
+function resetHorizontalPosition() {
+  const top = window.scrollY || document.documentElement.scrollTop || 0
+  document.documentElement.scrollLeft = 0
+  document.body.scrollLeft = 0
+  window.scrollTo(0, top)
+}
+
+function installHorizontalPositionGuard() {
+  resetHorizontalPosition()
+  requestAnimationFrame(() => {
+    resetHorizontalPosition()
+    requestAnimationFrame(resetHorizontalPosition)
+  })
+
+  const guard = () => {
+    if (window.scrollX !== 0 || document.documentElement.scrollLeft !== 0 || document.body.scrollLeft !== 0) {
+      resetHorizontalPosition()
+    }
+  }
+
+  window.addEventListener('pageshow', guard)
+  window.addEventListener('resize', guard)
+  window.addEventListener('orientationchange', guard)
+  window.addEventListener('scroll', guard, { passive: true })
+  window.visualViewport?.addEventListener('resize', guard)
+}
+
 function renderApp() {
+  installHorizontalPositionGuard()
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
       <App />
