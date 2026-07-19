@@ -96,7 +96,7 @@ export function migrateState(saved, now = new Date()) {
     hiddenCats: Array.isArray(saved?.hiddenCats) ? saved.hiddenCats : [],
     budgets: saved?.budgets && typeof saved.budgets === "object" ? saved.budgets : {},
     dueDays: saved?.dueDays && typeof saved.dueDays === "object" ? saved.dueDays : {},
-    savingsGoal: positiveNumber(saved?.savingsGoal ?? 25000),
+    savingsGoal: positiveNumber(saved?.savingsGoal ?? 0),
     savingsBal: positiveNumber(saved?.savingsBal ?? 0),
     savingsContrib: positiveNumber(saved?.savingsContrib ?? 0),
   };
