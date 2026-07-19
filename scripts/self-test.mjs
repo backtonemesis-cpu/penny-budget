@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import { annualSummary, dueStatus, formatMoney, migrateState, mkKey, monthSummary } from "../src/finance.js";
 
 const now = new Date(2026, 6, 19);
+
+const blank = migrateState({}, now);
+assert.deepEqual(blank.txnsByMonth, {});
+assert.deepEqual(blank.budgets, {});
+assert.deepEqual(blank.dueDays, {});
+assert.equal(blank.savingsGoal, 0);
+assert.equal(blank.savingsBal, 0);
+assert.equal(blank.savingsContrib, 0);
+assert.equal(monthSummary(blank, "2026-07").hasData, false);
+
 const migrated = migrateState({
   sources: [{ id: "salary", label: "Salary", amount: 3000 }],
   txnsByMonth: { "2026-06": [{ id: 1, type: "expense", amount: 100, date: "2026-06-01", category: "rent" }] },
