@@ -2,8 +2,10 @@
   "name": "penny-budget",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node scripts/self-test.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
