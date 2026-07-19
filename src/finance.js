@@ -5,6 +5,30 @@ export function mkKey(year, month) {
   return `${year}-${String(month + 1).padStart(2, "0")}`;
 }
 
+export function createBlankState(startYear = 2020, endYear = 2035) {
+  const txnsByMonth = {};
+  const incomeByMonth = {};
+  for (let year = startYear; year <= endYear; year += 1) {
+    for (let month = 0; month < 12; month += 1) {
+      const key = mkKey(year, month);
+      txnsByMonth[key] = [];
+      incomeByMonth[key] = [];
+    }
+  }
+  return {
+    version: 2,
+    txnsByMonth,
+    incomeByMonth,
+    customCats: [],
+    hiddenCats: [],
+    budgets: {},
+    dueDays: {},
+    savingsGoal: 0,
+    savingsBal: 0,
+    savingsContrib: 0,
+  };
+}
+
 export function createId(prefix = "id") {
   if (globalThis.crypto?.randomUUID) return `${prefix}_${globalThis.crypto.randomUUID()}`;
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
