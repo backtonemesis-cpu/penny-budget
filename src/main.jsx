@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import { currentLocalPeriod, millisecondsUntilNextLocalMonth } from './current-period.js'
 import { createBlankState } from './finance.js'
 import './mobile-overflow-fix.css'
 
@@ -122,8 +123,56 @@ function installHorizontalPositionGuard() {
   window.visualViewport?.addEventListener('resize', guard)
 }
 
+function installCurrentPeriodGuard() {
+  const openedPeriod = currentLocalPeriod().key
+  let returningFromBackground = document.visibilityState === 'hidden'
+  let monthRolloverTimer
+
+  const reloadIntoCurrentPeriod = () => {
+    returningFromBackground = false
+    window.location.reload()
+  }
+
+  const scheduleMonthRollover = () => {
+    clearTimeout(monthRolloverTimer)
+    monthRolloverTimer = window.setTimeout(
+      reloadIntoCurrentPeriod,
+      millisecondsUntilNextLocalMonth(),
+    )
+  }
+
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      returningFromBackground = true
+      return
+    }
+
+    if (returningFromBackground || currentLocalPeriod().key !== openedPeriod) {
+      reloadIntoCurrentPeriod()
+    }
+  }
+
+  const onFocus = () => {
+    if (returningFromBackground || currentLocalPeriod().key !== openedPeriod) {
+      reloadIntoCurrentPeriod()
+    }
+  }
+
+  const onPageShow = (event) => {
+    if (event.persisted || currentLocalPeriod().key !== openedPeriod) {
+      reloadIntoCurrentPeriod()
+    }
+  }
+
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('focus', onFocus)
+  window.addEventListener('pageshow', onPageShow)
+  scheduleMonthRollover()
+}
+
 function renderApp() {
   installHorizontalPositionGuard()
+  installCurrentPeriodGuard()
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
       <App />

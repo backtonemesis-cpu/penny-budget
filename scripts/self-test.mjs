@@ -1,7 +1,23 @@
 import assert from "node:assert/strict";
+import { currentLocalPeriod, millisecondsUntilNextLocalMonth } from "../src/current-period.js";
 import { annualSummary, createBlankState, dueStatus, formatMoney, migrateState, mkKey, monthSummary } from "../src/finance.js";
 
 const now = new Date(2026, 6, 19);
+
+assert.deepEqual(currentLocalPeriod(new Date(2026, 6, 20, 9, 30)), {
+  year: 2026,
+  month: 6,
+  key: "2026-07",
+});
+assert.deepEqual(currentLocalPeriod(new Date(2027, 0, 1, 0, 0)), {
+  year: 2027,
+  month: 0,
+  key: "2027-01",
+});
+assert.equal(
+  millisecondsUntilNextLocalMonth(new Date(2026, 11, 31, 23, 59, 59, 500)),
+  1500,
+);
 
 const everyMonthBlank = createBlankState(2020, 2035);
 assert.equal(Object.keys(everyMonthBlank.txnsByMonth).length, 192);
@@ -69,4 +85,4 @@ assert.equal(formatMoney(-500), "-£500.00");
 assert.equal(formatMoney(50, { plus: true }), "+£50.00");
 assert.equal(dueStatus(2026, 5, 10, false, now).label, "overdue");
 assert.equal(mkKey(2026, 0), "2026-01");
-console.log("Penny finance self-tests passed");
+console.log("Penny finance and current-period self-tests passed");
