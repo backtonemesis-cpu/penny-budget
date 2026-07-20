@@ -1,0 +1,33 @@
+/* Refund entry is no longer offered. Legacy imported refund rows remain readable. */
+.stat-button[aria-label^="Refunds / credits:"],
+.grid > .stat:not(.stat-button):nth-child(2) {
+  display: none;
+}
+
+/* Replace refund-specific explanatory copy without changing the audit-safe data model. */
+.grid > :nth-child(4) .sub,
+.grid > :nth-child(5) .sub,
+.card:has(#surplus-title) .sub,
+.modal-inner:has(#modal-monthly-income) > .rule-note {
+  font-size: 0;
+}
+
+.grid > :nth-child(4) .sub::after {
+  content: "Recorded spending";
+  font-size: 11px;
+}
+
+.grid > :nth-child(5) .sub::after {
+  content: "Income − bills − spending";
+  font-size: 11px;
+}
+
+.card:has(#surplus-title) .sub::after {
+  content: "Calculated from recorded income, fixed bills and gross spending. Transfers and card repayments marked as excluded do not change this figure.";
+  font-size: 11px;
+}
+
+.modal-inner:has(#modal-monthly-income) > .rule-note::after {
+  content: "Enter each source separately, including one-off rewards or sales.";
+  font-size: 12px;
+}

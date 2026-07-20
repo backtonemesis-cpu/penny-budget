@@ -9,6 +9,7 @@ const files = {
   currentPeriod: await read('../src/current-period.js'),
   finance: await read('../src/finance.js'),
   main: await read('../src/main.jsx'),
+  overviewCleanup: await read('../src/overview-cleanup.css'),
   state: await read('../src/state.js'),
   storage: await read('../src/storage.js'),
   selfTest: await read('./self-test.mjs'),
@@ -16,7 +17,7 @@ const files = {
   index: await read('../index.html'),
 };
 
-const publicSource = [files.app, files.catalog, files.currentPeriod, files.finance, files.main, files.state, files.storage].join('\n');
+const publicSource = [files.app, files.catalog, files.currentPeriod, files.finance, files.main, files.overviewCleanup, files.state, files.storage].join('\n');
 const auditedCode = [publicSource, files.selfTest, files.workflow].join('\n');
 const group = process.argv[2] || 'all';
 const blockedIdentityHashes = new Set([
@@ -56,7 +57,7 @@ function currencyAudit() {
 }
 
 function financeAudit() {
-  assert.match(files.finance, /available:\s*income \+ refunds - fixedBills - grossSpending/, 'Available-money formula must remain explicit.');
+  assert.match(files.finance, /available:\s*income \+ refunds - fixedBills - grossSpending/, 'Legacy refund records must remain financially safe during migration.');
   assert.match(files.catalog, /internal_transfer/);
   assert.match(files.catalog, /savings_transfer/);
   assert.match(files.catalog, /card_repayment/);
@@ -64,6 +65,9 @@ function financeAudit() {
   assert.match(files.app, /Everyday spending/);
   assert.match(files.app, /Fixed monthly bill/);
   assert.match(files.app, /icon-choice/);
+  assert.doesNotMatch(files.catalog, /id: 'refund'/, 'Refund entry must not be offered in Penny controls.');
+  assert.match(files.overviewCleanup, /Refunds \/ credits/);
+  assert.match(files.overviewCleanup, /Income − bills − spending/);
 }
 
 const audits = {
