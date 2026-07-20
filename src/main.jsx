@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './mobile-navigation.css';
+import './overview-cleanup.css';
 
 function resetHorizontalPosition() {
   document.documentElement.scrollLeft = 0;
