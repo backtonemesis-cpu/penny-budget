@@ -28,7 +28,6 @@ export const BASE_CATEGORIES = [
 
 export const TRANSACTION_TREATMENTS = [
   { id: 'expense', label: 'Expense', impact: 'Counts as spending' },
-  { id: 'refund', label: 'Refund / credit', impact: 'Adds money back' },
   { id: 'internal_transfer', label: 'Internal family transfer', impact: 'Visible, excluded from totals' },
   { id: 'savings_transfer', label: 'Savings transfer', impact: 'Visible, excluded from spending' },
   { id: 'card_repayment', label: 'Card repayment', impact: 'Visible, excluded when purchases are logged' },
