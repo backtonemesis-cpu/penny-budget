@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import './navigation-height-fix.css';
+import './mobile-navigation.css';
 
 function resetHorizontalPosition() {
   document.documentElement.scrollLeft = 0;
