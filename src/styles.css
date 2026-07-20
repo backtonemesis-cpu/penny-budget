@@ -765,3 +765,130 @@ button:disabled {
     border-left: 1px solid var(--border);
   }
 }
+
+
+.category-manager-toggle {
+  width: 100%;
+  margin: -2px 0 12px;
+}
+
+.category-manager-panel {
+  margin: 0 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(28, 34, 51, 0.55);
+}
+
+.category-manager-panel h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.category-type-picker,
+.icon-picker {
+  margin: 0 0 14px;
+  border: 0;
+  padding: 0;
+}
+
+.category-type-picker legend,
+.icon-picker legend {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.category-type-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.category-type-option {
+  display: flex;
+  min-height: 78px;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.category-type-option.selected {
+  border-color: var(--accent);
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.category-type-option input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.category-type-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.category-type-option strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.category-type-option small {
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.icon-choice {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  background: var(--surface);
+  font-size: 21px;
+}
+
+.icon-choice.selected {
+  border-color: var(--accent);
+  background: rgba(96, 165, 250, 0.13);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.category-list {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.category-list summary {
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.category-list-body {
+  margin-top: 8px;
+}
+
+@media (max-width: 420px) {
+  .category-type-picker {
+    grid-template-columns: 1fr;
+  }
+}

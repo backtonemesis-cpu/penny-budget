@@ -250,7 +250,6 @@ function App() {
           <Transactions
             transactions={summary.transactions}
             categoryMap={categoryMap}
-            onManageCategories={() => setModal('categories')}
             onDelete={deleteTransaction}
           />
         )}
@@ -307,6 +306,9 @@ function App() {
         <TransactionModal
           monthKey={monthKey}
           categories={visibleCategories}
+          allCategories={allCategories}
+          state={state}
+          mutate={mutate}
           onClose={() => setModal(null)}
           onSave={addTransaction}
         />
@@ -335,14 +337,6 @@ function App() {
         </SimpleModal>
       )}
 
-      {modal === 'categories' && (
-        <CategoryModal
-          categories={allCategories}
-          state={state}
-          mutate={mutate}
-          onClose={() => setModal(null)}
-        />
-      )}
     </div>
   );
 }
@@ -424,7 +418,7 @@ function transactionAmount(transaction) {
   return { text: `${formatMoney(transaction.amount)} excluded`, tone: 'neutral' };
 }
 
-function Transactions({ transactions, categoryMap, onManageCategories, onDelete }) {
+function Transactions({ transactions, categoryMap, onDelete }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const filtered = transactions.filter((transaction) => {
@@ -441,7 +435,7 @@ function Transactions({ transactions, categoryMap, onManageCategories, onDelete 
             <label htmlFor="transaction-search">Search</label>
             <input id="transaction-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Merchant or category" />
           </div>
-          <button className="secondary-button" onClick={onManageCategories}>Categories</button>
+
         </div>
         <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
           <label htmlFor="transaction-filter">Treatment</label>
@@ -726,12 +720,13 @@ function Year({ annual, year, categoryMap, onSelectMonth }) {
   );
 }
 
-function TransactionModal({ monthKey, categories, onClose, onSave }) {
+function TransactionModal({ monthKey, categories, allCategories, state, mutate, onClose, onSave }) {
   const currentMonthKey = currentLocalPeriod().key;
   const [type, setType] = useState('expense');
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [date, setDate] = useState(monthKey === currentMonthKey ? localDateKey() : `${monthKey}-01`);
   const treatment = TRANSACTION_TREATMENTS.find((item) => item.id === type);
   const needsCategory = type === 'expense' || type === 'refund';
@@ -756,13 +751,34 @@ function TransactionModal({ monthKey, categories, onClose, onSave }) {
         </div>
       </div>
       {needsCategory && (
-        <div className="field">
-          <label htmlFor="transaction-category">Category</label>
-          <select id="transaction-category" value={category} onChange={(event) => setCategory(event.target.value)}>
-            <option value="">Select category</option>
-            {categories.map((item) => <option key={item.id} value={item.id}>{item.icon} {item.label}</option>)}
-          </select>
-        </div>
+        <>
+          <div className="field">
+            <label htmlFor="transaction-category">Category</label>
+            <select id="transaction-category" value={category} onChange={(event) => setCategory(event.target.value)}>
+              <option value="">Select category</option>
+              {categories.map((item) => <option key={item.id} value={item.id}>{item.icon} {item.label}</option>)}
+            </select>
+          </div>
+          <button
+            type="button"
+            className="secondary-button category-manager-toggle"
+            aria-expanded={showCategoryManager}
+            onClick={() => setShowCategoryManager((open) => !open)}
+          >
+            {showCategoryManager ? 'Close category settings' : '+ Add or manage categories'}
+          </button>
+          {showCategoryManager && (
+            <CategoryManager
+              categories={allCategories}
+              state={state}
+              mutate={mutate}
+              onCategoryCreated={(categoryId) => {
+                setCategory(categoryId);
+                setShowCategoryManager(false);
+              }}
+            />
+          )}
+        </>
       )}
       <div className="field">
         <label htmlFor="transaction-date">Date</label>
@@ -814,20 +830,24 @@ function IncomeModal({ sources, onClose, onSave }) {
   );
 }
 
-function CategoryModal({ categories, state, mutate, onClose }) {
+const CATEGORY_ICON_OPTIONS = ['🏷️', '🛒', '🍽️', '🚗', '🏠', '💡', '📱', '🎁', '❤️', '✈️', '👶', '🐾', '🎓', '🧾', '💳'];
+
+function CategoryManager({ categories, state, mutate, onCategoryCreated }) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('🏷️');
-  const [bill, setBill] = useState(false);
+  const [categoryType, setCategoryType] = useState('spending');
 
   const addCategory = () => {
     const label = name.trim();
     if (!label) return;
+    const id = createId('category');
+    const bill = categoryType === 'fixed';
     mutate({
       type: 'ADD_CAT',
       cat: {
-        id: createId('category'),
+        id,
         label: label.slice(0, 80),
-        icon: (icon.trim() || '🏷️').slice(0, 8),
+        icon,
         group: bill ? 'Bills' : 'Other',
         bill,
         budgetable: true,
@@ -836,52 +856,83 @@ function CategoryModal({ categories, state, mutate, onClose }) {
     });
     setName('');
     setIcon('🏷️');
-    setBill(false);
+    setCategoryType('spending');
+    onCategoryCreated?.(id);
   };
 
   return (
-    <SimpleModal title="Categories" onClose={onClose}>
-      <div className="form-grid">
-        <div className="field">
-          <label htmlFor="new-category-name">New category</label>
-          <input id="new-category-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Category name" />
-        </div>
-        <div className="field">
-          <label htmlFor="new-category-icon">Icon</label>
-          <input id="new-category-icon" value={icon} onChange={(event) => setIcon(event.target.value)} maxLength="8" />
-        </div>
-      </div>
-      <label className="row" style={{ cursor: 'pointer' }}>
-        <input type="checkbox" checked={bill} onChange={(event) => setBill(event.target.checked)} />
-        <span>Treat this as a fixed monthly bill</span>
-      </label>
-      <button className="primary-button" style={{ width: '100%', margin: '12px 0' }} onClick={addCategory}>Add category</button>
+    <section className="category-manager-panel" aria-labelledby="category-manager-title">
+      <h3 id="category-manager-title">Category settings</h3>
+      <p className="rule-note">New categories default to everyday spending. Choose fixed monthly bill only for a regular committed cost that belongs in Bills.</p>
 
-      {categories.map((category) => {
-        const custom = !category.fixed;
-        const inUse = categoryInUse(state, category.id);
-        return (
-          <div className="row" key={category.id}>
-            <span aria-hidden="true">{category.icon}</span>
-            <div className="grow">
-              <div>{category.label}</div>
-              <div className="muted">{category.bill ? 'Fixed bill' : category.group}</div>
-            </div>
-            <button className="secondary-button" onClick={() => mutate({ type: 'TOGGLE_HIDE', id: category.id })}>{state.hiddenCats.includes(category.id) ? 'Show' : 'Hide'}</button>
-            {custom && (
-              <button
-                className="danger-button"
-                disabled={inUse}
-                title={inUse ? 'This category is used by transactions' : 'Delete category'}
-                onClick={() => !inUse && mutate({ type: 'REMOVE_CAT', id: category.id })}
-              >
-                {inUse ? 'In use' : 'Delete'}
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </SimpleModal>
+      <div className="field">
+        <label htmlFor="new-category-name">Category name</label>
+        <input id="new-category-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="For example: Childcare" />
+      </div>
+
+      <fieldset className="category-type-picker">
+        <legend>Category type</legend>
+        <label className={categoryType === 'spending' ? 'category-type-option selected' : 'category-type-option'}>
+          <input type="radio" name="category-type" value="spending" checked={categoryType === 'spending'} onChange={() => setCategoryType('spending')} />
+          <span><strong>Everyday spending</strong><small>Counts as normal gross spending.</small></span>
+        </label>
+        <label className={categoryType === 'fixed' ? 'category-type-option selected' : 'category-type-option'}>
+          <input type="radio" name="category-type" value="fixed" checked={categoryType === 'fixed'} onChange={() => setCategoryType('fixed')} />
+          <span><strong>Fixed monthly bill</strong><small>Appears in Bills and can have a due date.</small></span>
+        </label>
+      </fieldset>
+
+      <fieldset className="icon-picker">
+        <legend>Choose an icon</legend>
+        <div className="icon-grid">
+          {CATEGORY_ICON_OPTIONS.map((option) => (
+            <button
+              type="button"
+              key={option}
+              className={icon === option ? 'icon-choice selected' : 'icon-choice'}
+              aria-label={`Use ${option} icon`}
+              aria-pressed={icon === option}
+              onClick={() => setIcon(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <button type="button" className="primary-button" style={{ width: '100%' }} disabled={!name.trim()} onClick={addCategory}>Add category</button>
+
+      <details className="category-list">
+        <summary>Manage existing categories</summary>
+        <div className="category-list-body">
+          {categories.map((category) => {
+            const custom = !category.fixed;
+            const inUse = categoryInUse(state, category.id);
+            return (
+              <div className="row" key={category.id}>
+                <span aria-hidden="true">{category.icon}</span>
+                <div className="grow">
+                  <div>{category.label}</div>
+                  <div className="muted">{category.bill ? 'Fixed monthly bill' : 'Everyday spending'}</div>
+                </div>
+                <button type="button" className="secondary-button" onClick={() => mutate({ type: 'TOGGLE_HIDE', id: category.id })}>{state.hiddenCats.includes(category.id) ? 'Show' : 'Hide'}</button>
+                {custom && (
+                  <button
+                    type="button"
+                    className="danger-button"
+                    disabled={inUse}
+                    title={inUse ? 'This category is used by transactions' : 'Delete category'}
+                    onClick={() => !inUse && mutate({ type: 'REMOVE_CAT', id: category.id })}
+                  >
+                    {inUse ? 'In use' : 'Delete'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </details>
+    </section>
   );
 }
 

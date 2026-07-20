@@ -60,6 +60,10 @@ function financeAudit() {
   assert.match(files.catalog, /internal_transfer/);
   assert.match(files.catalog, /savings_transfer/);
   assert.match(files.catalog, /card_repayment/);
+  assert.doesNotMatch(files.app, /onManageCategories|Treat this as a fixed monthly bill/, 'Category management must not live in Activity or use the old checkbox wording.');
+  assert.match(files.app, /Everyday spending/);
+  assert.match(files.app, /Fixed monthly bill/);
+  assert.match(files.app, /icon-choice/);
 }
 
 const audits = {
