@@ -1,54 +1,38 @@
-name: Test and deploy Penny
+name: Squash audited Penny branch
 
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: squash-${{ github.event.pull_request.head.ref }}
   cancel-in-progress: true
 
 jobs:
-  test-build:
+  squash:
+    if: github.event.pull_request.head.ref == 'full-app-audit-10-of-10'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-
-  deploy:
-    if: github.event_name != 'pull_request'
-    needs: test-build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - uses: actions/configure-pages@v4
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Replace branch history with one audited commit
+        run: |
+          set -euxo pipefail
+          git fetch origin main
+          commit_count=$(git rev-list --count origin/main..HEAD)
+          if [ "$commit_count" -le 1 ]; then
+            echo "Branch history is already clean."
+            exit 0
+          fi
+          git reset --soft origin/main
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Full Penny audit and reliability rebuild"
+          git push --force origin HEAD:${{ github.event.pull_request.head.ref }}

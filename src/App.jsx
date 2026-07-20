@@ -1,454 +1,345 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import {
+  BASE_CATEGORIES,
+  SPECIAL_TRANSACTION_META,
+  TRANSACTION_TREATMENTS,
+  makeCategoryMap,
+} from './catalog.js';
+import { currentLocalPeriod, currentPeriodCheckDelay } from './current-period.js';
 import {
   MONTHS,
   SHORT_MONTHS,
   annualSummary,
   createId,
   dueStatus,
+  formatDate,
   formatMoney,
-  migrateState,
+  getMonthBudgets,
+  isValidMonthKey,
+  localDateKey,
   mkKey,
   monthSummary,
+  normaliseTransaction,
   positiveNumber,
-} from "./finance.js";
+  previousMonthKey,
+} from './finance.js';
+import { appReducer, categoryInUse } from './state.js';
+import {
+  clearPennyState,
+  createBackupText,
+  getBrowserStorage,
+  loadState,
+  parseBackupText,
+  saveState,
+} from './storage.js';
+import './styles.css';
 
-const C = {
-  bg: "#0e1117",
-  surface: "#161b27",
-  elevated: "#1c2233",
-  border: "#252d42",
-  text: "#e8eaf0",
-  muted: "#7d86a6",
-  accent: "#60a5fa",
-  green: "#4ecb8d",
-  amber: "#f0b429",
-  red: "#f06060",
-};
-
-const BASE_CATS = [
-  { id: "rent", label: "Rent / Mortgage", icon: "🏠", group: "Housing", bill: true },
-  { id: "council_tax", label: "Council Tax", icon: "🏛️", group: "Bills", bill: true },
-  { id: "electricity", label: "Electricity", icon: "⚡", group: "Bills", bill: true },
-  { id: "gas", label: "Gas", icon: "🔥", group: "Bills", bill: true },
-  { id: "water", label: "Water", icon: "💧", group: "Bills", bill: true },
-  { id: "internet", label: "Broadband / Internet", icon: "🌐", group: "Bills", bill: true },
-  { id: "phone_bill", label: "Phone", icon: "📞", group: "Bills", bill: true },
-  { id: "child_maintenance", label: "Child Maintenance", icon: "👨‍👦", group: "Bills", bill: true },
-  { id: "service_charge", label: "Service Charge", icon: "🏢", group: "Bills", bill: true },
-  { id: "ground_rent", label: "Ground Rent", icon: "🏗️", group: "Bills", bill: true },
-  { id: "tv_licence", label: "TV Licence", icon: "📺", group: "Bills", bill: true },
-  { id: "insurance", label: "Insurance", icon: "🛡️", group: "Bills", bill: true },
-  { id: "subscriptions", label: "Subscriptions", icon: "📱", group: "Bills", bill: true },
-  { id: "bank_fees", label: "Bank Fees", icon: "🏦", group: "Bills", bill: true },
-  { id: "groceries", label: "Groceries", icon: "🛒", group: "Everyday" },
-  { id: "coffee_shop", label: "Coffee Shop", icon: "☕", group: "Eating Out" },
-  { id: "eating_out", label: "Restaurants / Pubs", icon: "🍽️", group: "Eating Out" },
-  { id: "takeaway", label: "Takeaway", icon: "🥡", group: "Eating Out" },
-  { id: "fuel", label: "Fuel", icon: "⛽", group: "Transport" },
-  { id: "transport", label: "Transport", icon: "🚆", group: "Transport" },
-  { id: "clothing", label: "Clothing", icon: "👕", group: "Shopping" },
-  { id: "gifts", label: "Gifts", icon: "🎁", group: "Shopping" },
-  { id: "health", label: "Health", icon: "❤️", group: "Health" },
-  { id: "holidays", label: "Holidays / Travel", icon: "✈️", group: "Other" },
-  { id: "other", label: "Other", icon: "📦", group: "Other" },
-].map((cat) => ({ ...cat, fixed: true }));
-
-const initialState = migrateState({}, new Date());
-
-function reducer(state, action) {
-  switch (action.type) {
-    case "RESTORE":
-      return action.state;
-    case "ADD_TXN": {
-      const rows = state.txnsByMonth[action.monthKey] || [];
-      return {
-        ...state,
-        txnsByMonth: {
-          ...state.txnsByMonth,
-          [action.monthKey]: [action.txn, ...rows].sort((a, b) => b.date.localeCompare(a.date)),
-        },
-      };
-    }
-    case "DELETE_TXN":
-      return {
-        ...state,
-        txnsByMonth: {
-          ...state.txnsByMonth,
-          [action.monthKey]: (state.txnsByMonth[action.monthKey] || []).filter((txn) => txn.id !== action.id),
-        },
-      };
-    case "SET_INCOME":
-      return { ...state, incomeByMonth: { ...state.incomeByMonth, [action.monthKey]: action.sources } };
-    case "ADD_CAT":
-      return { ...state, customCats: [...state.customCats, action.cat] };
-    case "REMOVE_CAT": {
-      const { [action.id]: _budget, ...budgets } = state.budgets;
-      const { [action.id]: _due, ...dueDays } = state.dueDays;
-      return {
-        ...state,
-        customCats: state.customCats.filter((cat) => cat.id !== action.id),
-        hiddenCats: state.hiddenCats.filter((id) => id !== action.id),
-        budgets,
-        dueDays,
-      };
-    }
-    case "TOGGLE_HIDE":
-      return {
-        ...state,
-        hiddenCats: state.hiddenCats.includes(action.id)
-          ? state.hiddenCats.filter((id) => id !== action.id)
-          : [...state.hiddenCats, action.id],
-      };
-    case "SET_BUDGET":
-      return { ...state, budgets: { ...state.budgets, [action.id]: positiveNumber(action.value) } };
-    case "SET_DUE_DAY": {
-      const dueDays = { ...state.dueDays };
-      if (action.day === "" || action.day === null || action.day === undefined) {
-        delete dueDays[action.id];
-      } else {
-        dueDays[action.id] = Math.min(Math.max(Number(action.day) || 1, 1), 31);
-      }
-      return { ...state, dueDays };
-    }
-    case "SET_SAVINGS":
-      return { ...state, [action.field]: positiveNumber(action.value) };
-    default:
-      return state;
-  }
-}
-
-const css = `
-*{box-sizing:border-box;min-width:0}
-html,body,#root{margin:0;width:100%;max-width:100%;min-height:100%;overflow-x:hidden;background:${C.bg}}
-body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:${C.text};overscroll-behavior-x:none}
-button,input,select{font:inherit;max-width:100%}
-button{cursor:pointer;-webkit-tap-highlight-color:transparent}
-.app{width:100%;max-width:100vw;min-height:100vh;overflow-x:hidden;background:${C.bg};padding-bottom:calc(70px + env(safe-area-inset-bottom))}
-.header{position:sticky;top:0;z-index:20;width:100%;background:rgba(14,17,23,.96);backdrop-filter:blur(12px);border-bottom:1px solid ${C.border};padding:10px 12px}
-.header-row{width:100%;max-width:760px;margin:0 auto;display:grid;grid-template-columns:64px minmax(0,1fr) 42px 62px;align-items:center;gap:7px}
-.brand{font-family:Georgia,serif;font-style:italic;font-size:22px;line-height:1;white-space:nowrap;overflow:hidden}
-.month{width:100%;min-width:0}
-.month-input{display:block;width:100%;min-width:0;height:42px;-webkit-appearance:none;appearance:none;background:${C.elevated};color:${C.text};border:1px solid ${C.border};border-radius:21px;padding:7px 10px;text-align:center;font-weight:650;color-scheme:dark}
-.icon-btn,.primary,.ghost,.danger{min-height:42px;border-radius:11px;padding:8px 10px;border:1px solid ${C.border};color:${C.text};background:${C.elevated}}
-.icon-btn{width:42px;padding:0;display:grid;place-items:center}
-.add-btn{width:62px;padding:8px 5px;white-space:nowrap}
-.primary{background:${C.accent};border-color:${C.accent};font-weight:750}
-.ghost{background:transparent}
-.danger{color:${C.red};background:${C.red}18;border-color:${C.red}55}
-.content{width:100%;max-width:760px;margin:0 auto;padding:12px;overflow-x:hidden}
-.grid{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.card{width:100%;max-width:100%;overflow:hidden;background:${C.surface};border:1px solid ${C.border};border-radius:16px;padding:14px;margin-bottom:12px}
-.stat{min-height:116px;display:flex;flex-direction:column;justify-content:flex-start}
-.label{font-size:10px;line-height:1.35;color:${C.muted};text-transform:uppercase;letter-spacing:.08em;overflow-wrap:anywhere}
-.value{font-family:Georgia,serif;font-style:italic;font-size:clamp(22px,6.6vw,28px);line-height:1.08;margin-top:9px;overflow-wrap:anywhere}
-.sub{font-size:11px;line-height:1.35;color:${C.muted};margin-top:auto;padding-top:8px;overflow-wrap:anywhere}
-.section-title{font-family:Georgia,serif;font-style:italic;font-size:22px;line-height:1.15;margin-bottom:14px;overflow-wrap:anywhere}
-.row{width:100%;display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid ${C.border}88}
-.row:last-child{border-bottom:0}
-.grow{flex:1;min-width:0}
-.ellipsis{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.muted{color:${C.muted};font-size:12px;line-height:1.35}
-.neutral{color:${C.muted}}
-.money{font-family:Georgia,serif;font-style:italic;white-space:nowrap}
-.green{color:${C.green}}
-.amber{color:${C.amber}}
-.red{color:${C.red}}
-.field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;min-width:0}
-.field label,.mini-label{font-size:10px;color:${C.muted};text-transform:uppercase;letter-spacing:.07em}
-.field input,.field select,.number-input{width:100%;min-width:0;background:${C.elevated};border:1px solid ${C.border};border-radius:10px;color:${C.text};padding:11px 12px}
-.form-grid{width:100%;display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:9px}
-.tabs{width:100%;display:flex;background:${C.elevated};border:1px solid ${C.border};border-radius:13px;padding:4px;margin-bottom:12px}
-.tabs button{flex:1;border:0;border-radius:9px;padding:10px 8px;background:transparent;color:${C.muted};font-weight:600}
-.tabs button.active{background:${C.surface};color:${C.text};font-weight:750}
-.search-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:9px}
-.search-actions .field{margin:0}
-.nav{position:fixed;left:0;right:0;bottom:0;z-index:25;width:100%;max-width:760px;margin:0 auto;overflow:hidden;background:${C.surface};border-top:1px solid ${C.border};display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom)}
-.nav button{min-width:0;background:transparent;border:0;color:${C.muted};padding:12px 2px 10px;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:clip}
-.nav button.active{color:${C.accent};box-shadow:inset 0 2px 0 ${C.accent}}
-.modal{position:fixed;inset:0;z-index:50;width:100%;max-width:100vw;background:${C.bg};overflow-x:hidden;overflow-y:auto}
-.modal-inner{width:100%;max-width:620px;margin:0 auto;padding:16px}
-.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
-.empty{text-align:center;color:${C.muted};padding:42px 14px;line-height:1.45}
-.bar{height:5px;background:${C.border};border-radius:99px;overflow:hidden;margin-top:7px}
-.bar>div{height:100%;background:${C.accent}}
-.actions{width:100%;display:flex;gap:8px;min-width:0}
-.actions>*{flex:1;min-width:0}
-.notice{font-size:12px;line-height:1.45;color:${C.amber};background:${C.amber}12;border:1px solid ${C.amber}44;border-radius:10px;padding:10px;margin-bottom:12px}
-.bill-list{padding-top:4px}
-.bill-row{width:100%;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid ${C.border}88}
-.bill-row:last-child{border-bottom:0}
-.bill-icon{font-size:22px;text-align:center}
-.bill-name{font-size:15px;font-weight:650;line-height:1.25;overflow-wrap:anywhere}
-.bill-status{margin-top:3px;font-size:11px;font-weight:650;line-height:1.2}
-.bill-controls{display:grid;grid-template-columns:48px 68px;align-items:end;justify-content:end;gap:7px}
-.due-control{display:flex;flex-direction:column;gap:3px}
-.due-input{width:48px;height:40px;text-align:center;background:${C.elevated};color:${C.text};border:1px solid ${C.border};border-radius:9px;padding:6px}
-.bill-amount{min-width:68px;text-align:right;font-size:16px;align-self:center}
-.paid-btn{grid-column:1/-1;min-height:34px;padding:5px 8px}
-.budget-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 0}
-.budget-control{width:88px}
-.savings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.savings-grid .field:last-child{grid-column:1/-1;max-width:50%}
-.forecast-value{text-align:right;white-space:normal}
-.year-row{opacity:1}
-.year-row.no-data{opacity:.67}
-@media(max-width:430px){
-  .header{padding:9px 10px}
-  .header-row{grid-template-columns:58px minmax(0,1fr) 40px 56px;gap:6px}
-  .brand{font-size:20px}
-  .month-input{height:40px;padding:6px 7px;font-size:15px}
-  .icon-btn{width:40px;min-height:40px}
-  .add-btn{width:56px;min-height:40px;font-size:13px}
-  .content{padding:10px}
-  .card{padding:13px;border-radius:15px}
-  .stat{min-height:112px}
-  .section-title{font-size:21px}
-  .bill-row{grid-template-columns:30px minmax(0,1fr) auto;gap:8px}
-  .bill-controls{grid-template-columns:44px 62px;gap:6px}
-  .due-input{width:44px}
-  .bill-amount{min-width:62px;font-size:15px}
-}
-@media(max-width:370px){
-  .header-row{grid-template-columns:50px minmax(0,1fr) 38px 50px;gap:5px}
-  .brand{font-size:18px}
-  .icon-btn{width:38px}
-  .add-btn{width:50px;font-size:0}
-  .add-btn::after{content:"+";font-size:22px}
-  .grid{gap:8px}
-  .card{padding:11px}
-  .stat{min-height:108px}
-  .search-actions{grid-template-columns:1fr}
-  .search-actions button{width:100%}
-  .bill-row{grid-template-columns:28px minmax(0,1fr)}
-  .bill-controls{grid-column:2;justify-self:stretch;grid-template-columns:48px minmax(68px,1fr)}
-  .bill-amount{text-align:right}
-  .savings-grid{grid-template-columns:1fr}
-  .savings-grid .field:last-child{grid-column:auto;max-width:none}
-}
-@media(max-width:420px){
-  .form-grid{grid-template-columns:1fr}
-}
-@media(min-width:700px){
-  .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .nav{border-left:1px solid ${C.border};border-right:1px solid ${C.border}}
-  .savings-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .savings-grid .field:last-child{grid-column:auto;max-width:none}
-}
-`;
+const browserStorage = getBrowserStorage();
+const initialLoad = loadState(browserStorage, new Date());
+const initialPeriod = currentLocalPeriod();
+const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 
 function App() {
-  const now = new Date();
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const [ready, setReady] = useState(false);
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
-  const [view, setView] = useState("Overview");
-  const [billsTab, setBillsTab] = useState("bills");
+  const [state, dispatch] = useReducer(appReducer, initialLoad.state);
+  const [period, setPeriod] = useState(initialPeriod);
+  const [view, setView] = useState('Overview');
+  const [billsTab, setBillsTab] = useState('bills');
   const [modal, setModal] = useState(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialLoad.warning);
+  const [saveEnabled, setSaveEnabled] = useState(!initialLoad.warning);
   const fileRef = useRef(null);
 
+  const mutate = (action) => {
+    setSaveEnabled(true);
+    dispatch(action);
+  };
+
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("penny_state") || "null");
-      if (saved) dispatch({ type: "RESTORE", state: migrateState(saved, new Date()) });
-    } catch {
-      setMessage("Saved data could not be read. A fresh session was opened.");
-    }
-    setReady(true);
+    if (!saveEnabled) return;
+    const result = saveState(browserStorage, state);
+    if (!result.ok) setMessage(result.error);
+  }, [state, saveEnabled]);
+
+  useEffect(() => {
+    let timerId;
+
+    const syncCurrentPeriod = () => {
+      const current = currentLocalPeriod();
+      setPeriod((selected) => selected.key === current.key ? selected : current);
+    };
+
+    const scheduleCheck = () => {
+      clearTimeout(timerId);
+      timerId = globalThis.setTimeout(() => {
+        syncCurrentPeriod();
+        scheduleCheck();
+      }, currentPeriodCheckDelay());
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') syncCurrentPeriod();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    globalThis.addEventListener('pageshow', syncCurrentPeriod);
+    scheduleCheck();
+
+    return () => {
+      clearTimeout(timerId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      globalThis.removeEventListener('pageshow', syncCurrentPeriod);
+    };
   }, []);
 
-  useEffect(() => {
-    if (ready) localStorage.setItem("penny_state", JSON.stringify(state));
-  }, [state, ready]);
-
-  const monthKey = mkKey(year, month);
+  const monthKey = period.key;
   const summary = useMemo(() => monthSummary(state, monthKey), [state, monthKey]);
-  const annual = useMemo(() => annualSummary(state, year), [state, year]);
-  const allCats = useMemo(() => [...BASE_CATS, ...state.customCats], [state.customCats]);
-  const catMap = useMemo(() => Object.fromEntries(allCats.map((cat) => [cat.id, cat])), [allCats]);
-  const visibleCats = allCats.filter((cat) => !state.hiddenCats.includes(cat.id));
-  const billCats = allCats.filter((cat) => cat.bill);
-  const spentByCat = useMemo(() => {
+  const annual = useMemo(() => annualSummary(state, period.year), [state, period.year]);
+  const allCategories = useMemo(() => [...BASE_CATEGORIES, ...state.customCats], [state.customCats]);
+  const categoryMap = useMemo(() => makeCategoryMap(state.customCats), [state.customCats]);
+  const visibleCategories = allCategories.filter((category) => !state.hiddenCats.includes(category.id));
+  const billCategories = visibleCategories.filter((category) => category.bill);
+  const budgets = getMonthBudgets(state, monthKey);
+  const priorMonthKey = previousMonthKey(monthKey);
+  const priorBudgets = priorMonthKey ? getMonthBudgets(state, priorMonthKey) : {};
+
+  const spentByCategory = useMemo(() => {
     const totals = {};
     summary.transactions
-      .filter((txn) => txn.type === "expense")
-      .forEach((txn) => {
-        totals[txn.category] = (totals[txn.category] || 0) + txn.amount;
+      .filter((transaction) => transaction.type === 'expense')
+      .forEach((transaction) => {
+        totals[transaction.category] = (totals[transaction.category] || 0) + transaction.amount;
       });
     return totals;
   }, [summary.transactions]);
 
   const setMonthValue = (value) => {
-    const [selectedYear, selectedMonth] = value.split("-").map(Number);
-    setYear(selectedYear);
-    setMonth(selectedMonth - 1);
-  };
-
-  const openBudget = () => {
-    setView("Bills");
-    setBillsTab("budgets");
+    if (!isValidMonthKey(value)) return;
+    const [year, month] = value.split('-').map(Number);
+    setPeriod({ year, month: month - 1, key: value });
   };
 
   const addTransaction = (payload) => {
     const amount = positiveNumber(payload.amount);
-    if (!amount || !payload.category || !payload.date) return;
-    dispatch({
-      type: "ADD_TXN",
-      monthKey,
-      txn: {
-        id: createId("txn"),
-        type: payload.type,
-        amount,
-        category: payload.category,
-        date: payload.date,
-        desc: payload.desc.trim() || catMap[payload.category]?.label || "Transaction",
-      },
+    const needsCategory = payload.type === 'expense' || payload.type === 'refund';
+    if (!amount || !payload.date || (needsCategory && !payload.category)) {
+      setMessage('Enter an amount, date and category before saving.');
+      return;
+    }
+
+    const selectedCategory = needsCategory ? payload.category : payload.type;
+    const category = categoryMap[selectedCategory];
+    const transaction = normaliseTransaction({
+      id: createId('txn'),
+      type: payload.type,
+      amount,
+      category: selectedCategory,
+      date: payload.date,
+      desc: payload.desc,
+      expenseClass: payload.type === 'expense' && category?.bill ? 'fixed' : 'spending',
+      isBillPayment: Boolean(payload.isBillPayment),
     });
+
+    if (!transaction) {
+      setMessage('That transaction could not be validated.');
+      return;
+    }
+
+    const targetMonthKey = transaction.date.slice(0, 7);
+    mutate({ type: 'ADD_TXN', monthKey: targetMonthKey, txn: transaction });
     setModal(null);
+    if (targetMonthKey !== monthKey) {
+      setMessage(`Transaction saved to ${MONTHS[Number(targetMonthKey.slice(5, 7)) - 1]} ${targetMonthKey.slice(0, 4)}.`);
+    }
   };
 
-  const categoryInUse = (id) =>
-    Object.values(state.txnsByMonth).some((rows) => rows.some((txn) => txn.category === id));
+  const deleteTransaction = (transaction) => {
+    if (!globalThis.confirm(`Delete “${transaction.desc}” for ${formatMoney(transaction.amount)}?`)) return;
+    mutate({ type: 'DELETE_TXN', monthKey, id: transaction.id });
+  };
 
   const exportBackup = () => {
-    const blob = new Blob(
-      [JSON.stringify({ exportedAt: new Date().toISOString(), app: "Penny", state }, null, 2)],
-      { type: "application/json" },
-    );
+    const blob = new Blob([createBackupText(state)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
+    const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `penny-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.download = `penny-backup-${localDateKey()}.json`;
+    document.body.appendChild(anchor);
     anchor.click();
+    anchor.remove();
     URL.revokeObjectURL(url);
   };
 
   const importBackup = async (event) => {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
-    try {
-      const parsed = JSON.parse(await file.text());
-      dispatch({ type: "RESTORE", state: migrateState(parsed.state || parsed, new Date()) });
-      setMessage("Backup imported successfully.");
-      setModal(null);
-    } catch {
-      setMessage("That backup file could not be imported.");
+    if (file.size > MAX_BACKUP_BYTES) {
+      setMessage('The backup file is larger than 5 MB.');
+      return;
     }
-    event.target.value = "";
+
+    try {
+      const restored = parseBackupText(await file.text());
+      if (!globalThis.confirm('Replace the current Penny data with this backup?')) return;
+      setSaveEnabled(true);
+      dispatch({ type: 'RESTORE', state: restored });
+      setModal(null);
+      setMessage('Backup imported successfully.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'That backup could not be imported.');
+    }
+  };
+
+  const erasePennyData = () => {
+    if (!globalThis.confirm('Erase all data stored by Penny on this device? This cannot be undone without a backup.')) return;
+    const result = clearPennyState(browserStorage);
+    if (!result.ok) {
+      setMessage(result.error);
+      return;
+    }
+    setSaveEnabled(true);
+    dispatch({ type: 'RESET' });
+    setModal(null);
+    setMessage('All Penny data on this device has been erased.');
+  };
+
+  const openBudgets = () => {
+    setView('Bills');
+    setBillsTab('budgets');
   };
 
   return (
     <div className="app">
-      <style>{css}</style>
       <header className="header">
         <div className="header-row">
-          <div className="brand">Penny</div>
-          <div className="month">
+          <div className="brand" aria-label="Penny">Penny</div>
+          <div className="month-control">
             <input
               className="month-input"
-              aria-label="Selected month"
+              aria-label="Selected month and year"
               type="month"
               value={monthKey}
-              min="2020-01"
-              max="2035-12"
+              min="1900-01"
               onChange={(event) => setMonthValue(event.target.value)}
             />
           </div>
-          <button className="icon-btn" aria-label="Backup and restore" onClick={() => setModal("backup")}>☁︎</button>
-          <button className="primary add-btn" onClick={() => setModal("add")}>+ Add</button>
+          <button className="icon-button" aria-label="Backup and restore" onClick={() => setModal('backup')}>☁︎</button>
+          <button className="add-button" onClick={() => setModal('add')}>+ Add</button>
         </div>
       </header>
 
       <main className="content">
-        {message && <div className="notice" onClick={() => setMessage("")}>{message}</div>}
-        {view === "Overview" && (
+        {message && <Notice message={message} onDismiss={() => setMessage('')} />}
+
+        {view === 'Overview' && (
           <Overview
             summary={summary}
             annual={annual}
-            budgets={state.budgets}
-            spentByCat={spentByCat}
-            catMap={catMap}
-            month={month}
-            year={year}
-            onTransactions={() => setView("Transactions")}
-            onIncome={() => setModal("income")}
-            onBudget={openBudget}
+            budgets={budgets}
+            spentByCategory={spentByCategory}
+            categoryMap={categoryMap}
+            month={period.month}
+            year={period.year}
+            onIncome={() => setModal('income')}
+            onTransactions={() => setView('Transactions')}
+            onBudgets={openBudgets}
           />
         )}
-        {view === "Transactions" && (
+
+        {view === 'Transactions' && (
           <Transactions
             transactions={summary.transactions}
-            catMap={catMap}
-            onManage={() => setModal("categories")}
-            onDelete={(id) => dispatch({ type: "DELETE_TXN", monthKey, id })}
+            categoryMap={categoryMap}
+            onManageCategories={() => setModal('categories')}
+            onDelete={deleteTransaction}
           />
         )}
-        {view === "Bills" && (
+
+        {view === 'Bills' && (
           <Bills
             state={state}
-            dispatch={dispatch}
             monthKey={monthKey}
-            year={year}
-            month={month}
-            allCats={allCats}
-            billCats={billCats}
-            spentByCat={spentByCat}
+            year={period.year}
+            month={period.month}
+            categories={visibleCategories}
+            billCategories={billCategories}
+            budgets={budgets}
+            priorMonthKey={priorMonthKey}
+            priorBudgets={priorBudgets}
+            spentByCategory={spentByCategory}
             transactions={summary.transactions}
             tab={billsTab}
             setTab={setBillsTab}
+            mutate={mutate}
             addTransaction={addTransaction}
           />
         )}
-        {view === "Savings" && <Savings state={state} dispatch={dispatch} annual={annual} />}
-        {view === "Year" && (
+
+        {view === 'Savings' && <Savings state={state} annual={annual} mutate={mutate} />}
+
+        {view === 'Year' && (
           <Year
             annual={annual}
-            year={year}
-            catMap={catMap}
-            onSelectMonth={(selectedMonth) => {
-              setMonth(selectedMonth);
-              setView("Overview");
+            year={period.year}
+            categoryMap={categoryMap}
+            onSelectMonth={(month) => {
+              setPeriod({ year: period.year, month, key: mkKey(period.year, month) });
+              setView('Overview');
             }}
           />
         )}
       </main>
 
-      <nav className="nav">
-        {["Overview", "Transactions", "Bills", "Savings", "Year"].map((item) => (
-          <button key={item} className={view === item ? "active" : ""} onClick={() => setView(item)}>{item}</button>
+      <nav className="nav" aria-label="Primary navigation">
+        {['Overview', 'Transactions', 'Bills', 'Savings', 'Year'].map((item) => (
+          <button
+            key={item}
+            className={view === item ? 'active' : ''}
+            aria-current={view === item ? 'page' : undefined}
+            onClick={() => setView(item)}
+          >
+            {item}
+          </button>
         ))}
       </nav>
 
-      {modal === "add" && (
-        <TransactionModal monthKey={monthKey} categories={visibleCats} onClose={() => setModal(null)} onSave={addTransaction} />
+      {modal === 'add' && (
+        <TransactionModal
+          monthKey={monthKey}
+          categories={visibleCategories}
+          onClose={() => setModal(null)}
+          onSave={addTransaction}
+        />
       )}
-      {modal === "income" && (
+
+      {modal === 'income' && (
         <IncomeModal
           sources={summary.incomeSources}
           onClose={() => setModal(null)}
           onSave={(sources) => {
-            dispatch({ type: "SET_INCOME", monthKey, sources });
+            mutate({ type: 'SET_INCOME', monthKey, sources });
             setModal(null);
           }}
         />
       )}
-      {modal === "backup" && (
+
+      {modal === 'backup' && (
         <SimpleModal title="Backup and restore" onClose={() => setModal(null)}>
-          <div className="notice">Penny remains separate from your Excel tracker. These controls only back up this app.</div>
+          <p className="rule-note">Backups contain Penny data only. Penny does not read or change your Excel tracker.</p>
           <div className="actions">
-            <button className="primary" onClick={exportBackup}>Export backup</button>
-            <button className="ghost" onClick={() => fileRef.current?.click()}>Import backup</button>
+            <button className="primary-button" onClick={exportBackup}>Export backup</button>
+            <button className="secondary-button" onClick={() => fileRef.current?.click()}>Import backup</button>
           </div>
-          <input ref={fileRef} type="file" accept="application/json" hidden onChange={importBackup} />
+          <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importBackup} />
+          <button className="danger-button" style={{ width: '100%', marginTop: 14 }} onClick={erasePennyData}>Erase Penny data on this device</button>
         </SimpleModal>
       )}
-      {modal === "categories" && (
+
+      {modal === 'categories' && (
         <CategoryModal
-          categories={allCats}
+          categories={allCategories}
           state={state}
-          dispatch={dispatch}
-          categoryInUse={categoryInUse}
+          mutate={mutate}
           onClose={() => setModal(null)}
         />
       )}
@@ -456,404 +347,465 @@ function App() {
   );
 }
 
-function Overview({ summary, annual, budgets, spentByCat, catMap, month, year, onTransactions, onIncome, onBudget }) {
-  const top = Object.entries(spentByCat).sort((a, b) => b[1] - a[1]);
-  const totalBudget = Object.values(budgets).reduce((sum, value) => sum + (Number(value) || 0), 0);
-
+function Notice({ message, onDismiss }) {
   return (
-    <>
-      <div className="grid">
-        <Stat label="Income" value={formatMoney(summary.income)} color={C.green} sub="This month" onClick={onIncome} />
-        <Stat label="Gross spending" value={formatMoney(summary.expenses)} color={C.amber} sub="Before refunds" onClick={onTransactions} />
-        <Stat label="Refunds / credits" value={formatMoney(summary.refunds)} color={C.green} sub="Returned money" onClick={onTransactions} />
-        <Stat label="Available" value={formatMoney(summary.available)} color={summary.available >= 0 ? C.green : C.red} sub="Income + refunds − spending" />
-        <Stat label={`${year} available`} value={formatMoney(annual.available)} color={annual.available >= 0 ? C.green : C.red} sub={`${annual.withData.length} months recorded`} />
-        <Stat label="Budgets" value={totalBudget ? formatMoney(totalBudget) : "Set up"} color={C.accent} sub="Open budget controls" onClick={onBudget} />
-      </div>
-      <div className="card">
-        <div className="section-title">Spending — {MONTHS[month]} {year}</div>
-        {top.length ? (
-          top.map(([id, amount]) => (
-            <div className="row" key={id}>
-              <span>{catMap[id]?.icon || "📦"}</span>
-              <div className="grow ellipsis">{catMap[id]?.label || id}</div>
-              <div className="money">{formatMoney(amount)}</div>
-            </div>
-          ))
-        ) : (
-          <div className="empty">No spending recorded for this month.</div>
-        )}
-      </div>
-    </>
-  );
-}
-
-function Stat({ label, value, sub, color, onClick }) {
-  return (
-    <div className="card stat" onClick={onClick} style={{ cursor: onClick ? "pointer" : "default" }}>
-      <div className="label">{label}</div>
-      <div className="value" style={{ color }}>{value}</div>
-      <div className="sub">{sub}</div>
+    <div className="notice" role="status">
+      <span>{message}</span>
+      <button aria-label="Dismiss message" onClick={onDismiss}>×</button>
     </div>
   );
 }
 
-function Transactions({ transactions, catMap, onDelete, onManage }) {
-  const [search, setSearch] = useState("");
-  const filtered = transactions.filter((txn) =>
-    `${txn.desc} ${catMap[txn.category]?.label || ""}`.toLowerCase().includes(search.toLowerCase()),
-  );
+function Overview({ summary, annual, budgets, spentByCategory, categoryMap, month, year, onIncome, onTransactions, onBudgets }) {
+  const topCategories = Object.entries(spentByCategory).sort((a, b) => b[1] - a[1]);
+  const totalBudget = Object.values(budgets).reduce((sum, amount) => sum + amount, 0);
 
   return (
     <>
-      <div className="card">
-        <div className="search-actions">
-          <div className="field">
-            <label>Search</label>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Merchant or category" />
-          </div>
-          <button className="ghost" onClick={onManage}>Categories</button>
+      <div className="grid">
+        <Stat label="Income" value={formatMoney(summary.income)} tone="green" sub="This month" onClick={onIncome} />
+        <Stat label="Refunds / credits" value={formatMoney(summary.refunds)} tone="green" sub="Money returned" onClick={onTransactions} />
+        <Stat label="Fixed bills" value={formatMoney(summary.fixedBills)} tone="amber" sub="Recorded fixed costs" onClick={onTransactions} />
+        <Stat label="Gross spending" value={formatMoney(summary.grossSpending)} tone="amber" sub="Before refunds" onClick={onTransactions} />
+        <Stat label="Available" value={formatMoney(summary.available)} tone={summary.available >= 0 ? 'green' : 'red'} sub="Income + refunds − bills − spending" />
+        <Stat label="Budgets" value={totalBudget ? formatMoney(totalBudget) : 'Set up'} tone="accent" sub="Month-specific controls" onClick={onBudgets} />
+      </div>
+
+      {summary.excludedTransfers > 0 && (
+        <div className="notice" role="note">
+          <span>{formatMoney(summary.excludedTransfers)} of internal, savings or card transfers remains visible but is excluded from income and spending.</span>
         </div>
-      </div>
-      <div className="card">
-        <div className="section-title">Transactions</div>
-        {filtered.length ? (
-          filtered.map((txn) => (
-            <div className="row" key={txn.id}>
-              <span>{txn.type === "refund" ? "↩️" : catMap[txn.category]?.icon || "📦"}</span>
-              <div className="grow">
-                <div className="ellipsis">{txn.desc}</div>
-                <div className="muted">{txn.date} · {catMap[txn.category]?.label || txn.category}</div>
-              </div>
-              <div className={`money ${txn.type === "refund" ? "green" : ""}`}>
-                {txn.type === "refund" ? formatMoney(txn.amount, { plus: true }) : formatMoney(-txn.amount)}
-              </div>
-              <button className="danger" aria-label={`Delete ${txn.desc}`} onClick={() => onDelete(txn.id)}>×</button>
-            </div>
-          ))
-        ) : (
-          <div className="empty">No matching transactions.</div>
-        )}
-      </div>
+      )}
+
+      <section className="card" aria-labelledby="spending-title">
+        <h2 className="section-title" id="spending-title">Outgoings — {MONTHS[month]} {year}</h2>
+        {topCategories.length ? topCategories.map(([categoryId, amount]) => (
+          <div className="row" key={categoryId}>
+            <span aria-hidden="true">{categoryMap[categoryId]?.icon || '📦'}</span>
+            <div className="grow ellipsis">{categoryMap[categoryId]?.label || categoryId}</div>
+            <div className="money">{formatMoney(amount)}</div>
+          </div>
+        )) : <div className="empty">No outgoings recorded for this month.</div>}
+      </section>
+
+      <section className="card" aria-labelledby="year-snapshot-title">
+        <h2 className="section-title" id="year-snapshot-title">{year} snapshot</h2>
+        <div className="row"><div className="grow">Months with data</div><div>{annual.withData.length}</div></div>
+        <div className="row"><div className="grow">Available to date</div><div className={`money ${annual.available >= 0 ? 'green' : 'red'}`}>{formatMoney(annual.available)}</div></div>
+      </section>
     </>
   );
 }
 
-function Bills({ state, dispatch, monthKey, year, month, allCats, billCats, spentByCat, transactions, tab, setTab, addTransaction }) {
-  const logged = new Set(transactions.filter((txn) => txn.type === "expense").map((txn) => txn.category));
-  const pending = billCats.filter((cat) => (state.budgets[cat.id] || 0) > 0 && !logged.has(cat.id));
+function Stat({ label, value, tone, sub, onClick }) {
+  const content = (
+    <>
+      <div className="label">{label}</div>
+      <div className={`value ${tone === 'accent' ? '' : tone}`} style={tone === 'accent' ? { color: 'var(--accent)' } : undefined}>{value}</div>
+      <div className="sub">{sub}</div>
+    </>
+  );
 
-  const logBill = (cat) => {
-    const dueDay = state.dueDays[cat.id] || 1;
-    addTransaction({
-      type: "expense",
-      amount: state.budgets[cat.id],
-      category: cat.id,
-      date: `${monthKey}-${String(Math.min(dueDay, new Date(year, month + 1, 0).getDate())).padStart(2, "0")}`,
-      desc: cat.label,
-    });
-  };
+  return onClick ? (
+    <button className="card stat stat-button" onClick={onClick} aria-label={`${label}: ${value}. ${sub}`}>{content}</button>
+  ) : (
+    <div className="card stat">{content}</div>
+  );
+}
+
+function transactionTreatment(transaction) {
+  if (transaction.type === 'expense') return transaction.expenseClass === 'fixed' ? 'Fixed bill' : 'Spending';
+  return SPECIAL_TRANSACTION_META[transaction.type]?.label || 'Refund / credit';
+}
+
+function transactionAmount(transaction) {
+  if (transaction.type === 'refund') return { text: formatMoney(transaction.amount, { plus: true }), tone: 'green' };
+  if (transaction.type === 'expense') return { text: formatMoney(-transaction.amount), tone: '' };
+  return { text: `${formatMoney(transaction.amount)} excluded`, tone: 'neutral' };
+}
+
+function Transactions({ transactions, categoryMap, onManageCategories, onDelete }) {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  const filtered = transactions.filter((transaction) => {
+    const matchesText = `${transaction.desc} ${categoryMap[transaction.category]?.label || ''}`.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter === 'all' || transaction.type === filter;
+    return matchesText && matchesFilter;
+  });
 
   return (
     <>
-      <div className="tabs">
-        <button className={tab === "bills" ? "active" : ""} onClick={() => setTab("bills")}>Bills</button>
-        <button className={tab === "budgets" ? "active" : ""} onClick={() => setTab("budgets")}>Budgets</button>
+      <section className="card" aria-label="Transaction filters">
+        <div className="search-controls">
+          <div className="field">
+            <label htmlFor="transaction-search">Search</label>
+            <input id="transaction-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Merchant or category" />
+          </div>
+          <button className="secondary-button" onClick={onManageCategories}>Categories</button>
+        </div>
+        <div className="field" style={{ marginTop: 10, marginBottom: 0 }}>
+          <label htmlFor="transaction-filter">Treatment</label>
+          <select id="transaction-filter" value={filter} onChange={(event) => setFilter(event.target.value)}>
+            <option value="all">All transactions</option>
+            {TRANSACTION_TREATMENTS.map((treatment) => <option key={treatment.id} value={treatment.id}>{treatment.label}</option>)}
+          </select>
+        </div>
+      </section>
+
+      <section className="card" aria-labelledby="transactions-title">
+        <h2 className="section-title" id="transactions-title">Transactions</h2>
+        {filtered.length ? filtered.map((transaction) => {
+          const amount = transactionAmount(transaction);
+          const meta = SPECIAL_TRANSACTION_META[transaction.type];
+          return (
+            <div className="row" key={transaction.id}>
+              <span aria-hidden="true">{meta?.icon || (transaction.type === 'refund' ? '↩️' : categoryMap[transaction.category]?.icon || '📦')}</span>
+              <div className="grow">
+                <div className="ellipsis">{transaction.desc}</div>
+                <div className="muted">{formatDate(transaction.date)} · {categoryMap[transaction.category]?.label || meta?.label || transaction.category}</div>
+                <span className="transaction-treatment">{transactionTreatment(transaction)}</span>
+              </div>
+              <div className={`money ${amount.tone}`}>{amount.text}</div>
+              <button className="danger-button" aria-label={`Delete ${transaction.desc}`} onClick={() => onDelete(transaction)}>×</button>
+            </div>
+          );
+        }) : <div className="empty">No matching transactions.</div>}
+      </section>
+    </>
+  );
+}
+
+function Bills({ state, monthKey, year, month, categories, billCategories, budgets, priorMonthKey, priorBudgets, spentByCategory, transactions, tab, setTab, mutate, addTransaction }) {
+  const paidByCategory = useMemo(() => {
+    const totals = {};
+    transactions
+      .filter((transaction) => transaction.type === 'expense' && (transaction.expenseClass === 'fixed' || billCategories.some((category) => category.id === transaction.category)))
+      .forEach((transaction) => {
+        totals[transaction.category] = (totals[transaction.category] || 0) + transaction.amount;
+      });
+    return totals;
+  }, [transactions, billCategories]);
+
+  const markBillPaid = (category, remainingAmount) => {
+    const dueDay = state.dueDays[category.id];
+    if (!dueDay || remainingAmount <= 0) return;
+    const today = localDateKey();
+    const paymentDate = today.slice(0, 7) === monthKey
+      ? today
+      : `${monthKey}-${String(Math.min(dueDay, new Date(year, month + 1, 0).getDate())).padStart(2, '0')}`;
+    addTransaction({
+      type: 'expense',
+      amount: remainingAmount,
+      category: category.id,
+      date: paymentDate,
+      desc: category.label,
+      isBillPayment: true,
+    });
+  };
+
+  const pendingBills = billCategories.flatMap((category) => {
+    const budget = budgets[category.id] || 0;
+    const paid = paidByCategory[category.id] || 0;
+    const dueDay = state.dueDays[category.id];
+    const remaining = Math.max(budget - paid, 0);
+    return budget > 0 && dueDay && remaining > 0 ? [{ category, remaining }] : [];
+  });
+
+  return (
+    <>
+      <div className="tabs" role="tablist" aria-label="Bills and budgets">
+        <button role="tab" aria-selected={tab === 'bills'} className={tab === 'bills' ? 'active' : ''} onClick={() => setTab('bills')}>Bills</button>
+        <button role="tab" aria-selected={tab === 'budgets'} className={tab === 'budgets' ? 'active' : ''} onClick={() => setTab('budgets')}>Budgets</button>
       </div>
-      {tab === "bills" ? (
-        <div className="card bill-list">
-          <div className="section-title">Monthly bills</div>
-          {billCats.map((cat) => {
-            const budget = state.budgets[cat.id] || 0;
-            const configured = budget > 0;
-            const paid = logged.has(cat.id);
-            const dueDay = state.dueDays[cat.id] || "";
-            const status = configured
-              ? dueStatus(year, month, dueDay || 1, paid)
-              : { label: "Not configured", tone: "neutral" };
+
+      {tab === 'bills' ? (
+        <section className="card" aria-labelledby="bills-title">
+          <h2 className="section-title" id="bills-title">Monthly bills</h2>
+          {billCategories.map((category) => {
+            const budget = budgets[category.id] || 0;
+            const paidAmount = paidByCategory[category.id] || 0;
+            const dueDay = state.dueDays[category.id] || '';
+            const remaining = Math.max(budget - paidAmount, 0);
+            const paid = budget > 0 && remaining < 0.005;
+            const partial = paidAmount > 0 && !paid;
+            let status;
+            if (!budget && !dueDay) status = { label: 'Not configured', tone: 'neutral' };
+            else if (!budget) status = { label: 'Set amount in Budgets', tone: 'neutral' };
+            else status = dueStatus(year, month, dueDay, paid, new Date(), partial);
 
             return (
-              <div className="bill-row" key={cat.id}>
-                <div className="bill-icon">{cat.icon}</div>
+              <div className="bill-row" key={category.id}>
+                <div className="bill-icon" aria-hidden="true">{category.icon}</div>
                 <div>
-                  <div className="bill-name">{cat.label}</div>
+                  <div className="bill-name">{category.label}</div>
                   <div className={`bill-status ${status.tone}`}>{status.label}</div>
+                  {partial && <div className="muted">Paid {formatMoney(paidAmount)} of {formatMoney(budget)}</div>}
                 </div>
                 <div className="bill-controls">
                   <label className="due-control">
                     <span className="mini-label">Due</span>
                     <input
                       className="due-input"
-                      aria-label={`${cat.label} due day`}
+                      aria-label={`${category.label} due day`}
                       type="number"
                       inputMode="numeric"
                       min="1"
                       max="31"
                       value={dueDay}
                       placeholder="—"
-                      onChange={(event) => dispatch({ type: "SET_DUE_DAY", id: cat.id, day: event.target.value })}
+                      onChange={(event) => mutate({ type: 'SET_DUE_DAY', id: category.id, day: event.target.value })}
                     />
                   </label>
-                  <div className="bill-amount money">{configured ? formatMoney(budget) : "—"}</div>
-                  {configured && !paid && (
-                    <button className="primary paid-btn" onClick={() => logBill(cat)}>Mark paid</button>
+                  <div className="bill-amount money">{budget ? formatMoney(budget) : '—'}</div>
+                  {budget > 0 && !paid && (
+                    <button
+                      className="primary-button paid-button"
+                      disabled={!dueDay}
+                      title={!dueDay ? 'Set a due date first' : `Record ${formatMoney(remaining)} payment`}
+                      onClick={() => markBillPaid(category, remaining)}
+                    >
+                      {partial ? 'Pay remainder' : 'Mark paid'}
+                    </button>
                   )}
                 </div>
               </div>
             );
           })}
-          {pending.length > 1 && (
-            <button className="primary" style={{ width: "100%", marginTop: 12 }} onClick={() => pending.forEach(logBill)}>
-              Mark all {pending.length} pending bills paid
+
+          {pendingBills.length > 1 && (
+            <button
+              className="primary-button"
+              style={{ width: '100%', marginTop: 12 }}
+              onClick={() => pendingBills.forEach(({ category, remaining }) => markBillPaid(category, remaining))}
+            >
+              Mark all {pendingBills.length} configured bills paid
             </button>
           )}
-        </div>
+        </section>
       ) : (
-        <BudgetList categories={allCats} budgets={state.budgets} spentByCat={spentByCat} dispatch={dispatch} />
+        <BudgetList
+          categories={categories.filter((category) => category.budgetable !== false)}
+          budgets={budgets}
+          priorMonthKey={priorMonthKey}
+          priorBudgets={priorBudgets}
+          monthKey={monthKey}
+          spentByCategory={spentByCategory}
+          mutate={mutate}
+        />
       )}
     </>
   );
 }
 
-function BudgetList({ categories, budgets, spentByCat, dispatch }) {
+function BudgetList({ categories, budgets, priorMonthKey, priorBudgets, monthKey, spentByCategory, mutate }) {
+  const canCopy = !Object.keys(budgets).length && Object.keys(priorBudgets).length > 0;
   return (
-    <div className="card">
-      <div className="section-title">Monthly budgets</div>
-      {categories.map((cat) => {
-        const budget = budgets[cat.id] || 0;
-        const spent = spentByCat[cat.id] || 0;
-        const pct = budget ? Math.min((spent / budget) * 100, 100) : 0;
+    <section className="card" aria-labelledby="budgets-title">
+      <div className="budget-heading">
+        <h2 className="section-title" id="budgets-title">Monthly budgets</h2>
+        {canCopy && (
+          <button className="secondary-button" onClick={() => mutate({ type: 'COPY_BUDGETS', fromMonthKey: priorMonthKey, toMonthKey: monthKey })}>
+            Copy previous
+          </button>
+        )}
+      </div>
+      <p className="rule-note">Budgets are stored separately for each month so later changes do not rewrite historical months.</p>
+      {categories.map((category) => {
+        const budget = budgets[category.id] || 0;
+        const spent = spentByCategory[category.id] || 0;
+        const percentage = budget ? Math.min((spent / budget) * 100, 100) : 0;
         return (
-          <div key={cat.id} style={{ marginBottom: 13 }}>
+          <div key={category.id} style={{ marginBottom: 14 }}>
             <div className="budget-row">
-              <span>{cat.icon}</span>
-              <div className="grow ellipsis">{cat.label}</div>
+              <span aria-hidden="true">{category.icon}</span>
+              <div className="grow ellipsis">{category.label}</div>
               <input
-                className="number-input budget-control"
-                aria-label={`${cat.label} budget`}
+                className="number-input"
+                aria-label={`${category.label} budget`}
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.01"
-                value={budget || ""}
-                placeholder="£0"
-                onChange={(event) => dispatch({ type: "SET_BUDGET", id: cat.id, value: event.target.value })}
+                value={budget || ''}
+                placeholder="0.00"
+                onChange={(event) => mutate({ type: 'SET_BUDGET', monthKey, id: category.id, value: event.target.value })}
               />
             </div>
-            <div className="muted">Spent {formatMoney(spent)}{budget ? ` of ${formatMoney(budget)}` : " · no budget set"}</div>
-            {budget > 0 && (
-              <div className="bar"><div style={{ width: `${pct}%`, background: spent > budget ? C.red : C.green }} /></div>
-            )}
+            <div className="muted">Spent {formatMoney(spent)}{budget ? ` of ${formatMoney(budget)}` : ' · no budget set'}</div>
+            {budget > 0 && <div className="bar"><div style={{ width: `${percentage}%`, background: spent > budget ? 'var(--red)' : 'var(--green)' }} /></div>}
           </div>
         );
       })}
-    </div>
+    </section>
   );
 }
 
-function Savings({ state, dispatch, annual }) {
+function Savings({ state, annual, mutate }) {
   const goalSet = state.savingsGoal > 0;
   const remaining = goalSet ? Math.max(state.savingsGoal - state.savingsBal, 0) : 0;
-  const months = goalSet && remaining > 0 && state.savingsContrib > 0
-    ? Math.ceil(remaining / state.savingsContrib)
-    : null;
+  const months = goalSet && remaining > 0 && state.savingsContrib > 0 ? Math.ceil(remaining / state.savingsContrib) : null;
   const forecast = !goalSet
-    ? { text: "Set a savings goal", tone: "neutral" }
+    ? { text: 'Set a savings goal', tone: 'neutral' }
     : remaining === 0
-      ? { text: "Goal reached", tone: "green" }
+      ? { text: 'Goal reached', tone: 'green' }
       : months
-        ? { text: `${months} months`, tone: "green" }
-        : { text: "Set contribution", tone: "amber" };
+        ? { text: `${months} months`, tone: 'green' }
+        : { text: 'Set contribution', tone: 'amber' };
 
   return (
     <>
-      <div className="card">
-        <div className="section-title">Savings goal</div>
+      <section className="card" aria-labelledby="savings-title">
+        <h2 className="section-title" id="savings-title">Savings goal</h2>
         <div className="savings-grid">
-          <NumberField label="Goal" value={state.savingsGoal} onChange={(value) => dispatch({ type: "SET_SAVINGS", field: "savingsGoal", value })} />
-          <NumberField label="Saved" value={state.savingsBal} onChange={(value) => dispatch({ type: "SET_SAVINGS", field: "savingsBal", value })} />
-          <NumberField label="Monthly" value={state.savingsContrib} onChange={(value) => dispatch({ type: "SET_SAVINGS", field: "savingsContrib", value })} />
+          <NumberField label="Goal" value={state.savingsGoal} onChange={(value) => mutate({ type: 'SET_SAVINGS', field: 'savingsGoal', value })} />
+          <NumberField label="Saved" value={state.savingsBal} onChange={(value) => mutate({ type: 'SET_SAVINGS', field: 'savingsBal', value })} />
+          <NumberField label="Monthly" value={state.savingsContrib} onChange={(value) => mutate({ type: 'SET_SAVINGS', field: 'savingsContrib', value })} />
         </div>
-        <div className="row">
-          <div className="grow">Remaining</div>
-          <div className="money">{goalSet ? formatMoney(remaining) : "—"}</div>
-        </div>
-        <div className="row">
-          <div className="grow">Forecast</div>
-          <div className={`money forecast-value ${forecast.tone}`}>{forecast.text}</div>
-        </div>
-      </div>
-      <div className="card">
-        <div className="section-title">Recorded annual surplus</div>
-        <div className={`value ${annual.available >= 0 ? "green" : "red"}`}>{formatMoney(annual.available)}</div>
-        <div className="sub">Calculated from recorded app income, refunds and spending. It does not automatically change the saved balance.</div>
-      </div>
+        <div className="row"><div className="grow">Remaining</div><div className="money">{goalSet ? formatMoney(remaining) : '—'}</div></div>
+        <div className="row"><div className="grow">Forecast</div><div className={`money forecast-value ${forecast.tone}`}>{forecast.text}</div></div>
+      </section>
+
+      <section className="card" aria-labelledby="surplus-title">
+        <h2 className="section-title" id="surplus-title">Recorded annual surplus</h2>
+        <div className={`value ${annual.available >= 0 ? 'green' : 'red'}`}>{formatMoney(annual.available)}</div>
+        <div className="sub">Calculated from recorded income, refunds, fixed bills and gross spending. Transfers and card repayments marked as excluded do not change this figure.</div>
+      </section>
     </>
   );
 }
 
 function NumberField({ label, value, onChange }) {
+  const id = `field-${label.toLowerCase().replace(/\s+/g, '-')}`;
   return (
     <div className="field">
-      <label>{label}</label>
-      <input
-        type="number"
-        inputMode="decimal"
-        min="0"
-        step="0.01"
-        value={value || ""}
-        placeholder="0.00"
-        onChange={(event) => onChange(event.target.value)}
-      />
+      <label htmlFor={id}>{label}</label>
+      <input id={id} type="number" inputMode="decimal" min="0" step="0.01" value={value || ''} placeholder="0.00" onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
 
-function Year({ annual, year, catMap, onSelectMonth }) {
-  const catTotals = {};
-  annual.months.forEach((item) =>
-    item.transactions
-      .filter((txn) => txn.type === "expense")
-      .forEach((txn) => {
-        catTotals[txn.category] = (catTotals[txn.category] || 0) + txn.amount;
-      }),
-  );
+function Year({ annual, year, categoryMap, onSelectMonth }) {
+  const categoryTotals = {};
+  annual.months.forEach((item) => item.transactions.filter((transaction) => transaction.type === 'expense').forEach((transaction) => {
+    categoryTotals[transaction.category] = (categoryTotals[transaction.category] || 0) + transaction.amount;
+  }));
 
   return (
     <>
       <div className="grid">
-        <Stat label={`${year} income`} value={formatMoney(annual.income)} color={C.green} sub={`${annual.withData.length} months`} />
-        <Stat label={`${year} spending`} value={formatMoney(annual.expenses)} color={C.amber} sub="Gross spending" />
-        <Stat label={`${year} refunds`} value={formatMoney(annual.refunds)} color={C.green} sub="Credits returned" />
-        <Stat label={`${year} available`} value={formatMoney(annual.available)} color={annual.available >= 0 ? C.green : C.red} sub="Income + refunds − spending" />
+        <Stat label={`${year} income`} value={formatMoney(annual.income)} tone="green" sub={`${annual.withData.length} months with data`} />
+        <Stat label={`${year} refunds`} value={formatMoney(annual.refunds)} tone="green" sub="Credits returned" />
+        <Stat label={`${year} fixed bills`} value={formatMoney(annual.fixedBills)} tone="amber" sub="Recorded fixed costs" />
+        <Stat label={`${year} gross spending`} value={formatMoney(annual.grossSpending)} tone="amber" sub="Before refunds" />
+        <Stat label={`${year} available`} value={formatMoney(annual.available)} tone={annual.available >= 0 ? 'green' : 'red'} sub="Income + refunds − bills − spending" />
+        <Stat label="Excluded movements" value={formatMoney(annual.excludedTransfers)} tone="neutral" sub="Transfers and card repayments" />
       </div>
-      <div className="card">
-        <div className="section-title">Month by month</div>
+
+      <section className="card" aria-labelledby="months-title">
+        <h2 className="section-title" id="months-title">Month by month</h2>
         {annual.months.map((item) => (
-          <div
-            className={`row year-row ${item.hasData ? "" : "no-data"}`}
-            key={item.key}
-            onClick={() => onSelectMonth(item.month)}
-            style={{ cursor: "pointer" }}
-          >
-            <div style={{ width: 34, fontWeight: 650 }}>{SHORT_MONTHS[item.month]}</div>
-            <div className="grow muted">
-              {item.hasData ? `${formatMoney(item.income)} in · ${formatMoney(item.expenses)} out` : "No data"}
-            </div>
-            <div className={`money ${item.hasData ? (item.available >= 0 ? "green" : "red") : "neutral"}`}>
-              {item.hasData ? formatMoney(item.available, { plus: true }) : "—"}
-            </div>
-          </div>
+          <button className={`year-row ${item.hasData ? '' : 'no-data'}`} key={item.key} onClick={() => onSelectMonth(item.month)}>
+            <span style={{ width: 36, fontWeight: 750 }}>{SHORT_MONTHS[item.month]}</span>
+            <span className="grow muted">{item.hasData ? `${formatMoney(item.income)} in · ${formatMoney(item.expenses)} out` : 'No data'}</span>
+            <span className={`money ${item.hasData ? (item.available >= 0 ? 'green' : 'red') : 'neutral'}`}>{item.hasData ? formatMoney(item.available, { plus: true }) : '—'}</span>
+          </button>
         ))}
-      </div>
-      <div className="card">
-        <div className="section-title">Spending by category</div>
-        {Object.entries(catTotals).length ? (
-          Object.entries(catTotals)
-            .sort((a, b) => b[1] - a[1])
-            .map(([id, total]) => (
-              <div className="row" key={id}>
-                <span>{catMap[id]?.icon || "📦"}</span>
-                <div className="grow">{catMap[id]?.label || id}</div>
-                <div className="money">{formatMoney(total)}</div>
-              </div>
-            ))
-        ) : (
-          <div className="empty">No spending categories recorded for {year}.</div>
-        )}
-      </div>
+      </section>
+
+      <section className="card" aria-labelledby="year-categories-title">
+        <h2 className="section-title" id="year-categories-title">Outgoings by category</h2>
+        {Object.keys(categoryTotals).length ? Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).map(([categoryId, total]) => (
+          <div className="row" key={categoryId}>
+            <span aria-hidden="true">{categoryMap[categoryId]?.icon || '📦'}</span>
+            <div className="grow">{categoryMap[categoryId]?.label || categoryId}</div>
+            <div className="money">{formatMoney(total)}</div>
+          </div>
+        )) : <div className="empty">No outgoing categories recorded for {year}.</div>}
+      </section>
     </>
   );
 }
 
 function TransactionModal({ monthKey, categories, onClose, onSave }) {
-  const [type, setType] = useState("expense");
-  const [desc, setDesc] = useState("");
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("");
-  const [date, setDate] = useState(
-    monthKey === new Date().toISOString().slice(0, 7)
-      ? new Date().toISOString().slice(0, 10)
-      : `${monthKey}-01`,
-  );
+  const currentMonthKey = currentLocalPeriod().key;
+  const [type, setType] = useState('expense');
+  const [desc, setDesc] = useState('');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('');
+  const [date, setDate] = useState(monthKey === currentMonthKey ? localDateKey() : `${monthKey}-01`);
+  const treatment = TRANSACTION_TREATMENTS.find((item) => item.id === type);
+  const needsCategory = type === 'expense' || type === 'refund';
 
   return (
     <SimpleModal title="Add transaction" onClose={onClose}>
-      <div className="tabs">
-        <button className={type === "expense" ? "active" : ""} onClick={() => setType("expense")}>Expense</button>
-        <button className={type === "refund" ? "active" : ""} onClick={() => setType("refund")}>Refund / credit</button>
-      </div>
-      <div className="form-grid">
-        <div className="field">
-          <label>Description</label>
-          <input value={desc} onChange={(event) => setDesc(event.target.value)} placeholder="Merchant or note" />
-        </div>
-        <div className="field">
-          <label>Amount</label>
-          <input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" />
-        </div>
-      </div>
       <div className="field">
-        <label>Category</label>
-        <select value={category} onChange={(event) => setCategory(event.target.value)}>
-          <option value="">Select category</option>
-          {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.icon} {cat.label}</option>)}
+        <label htmlFor="transaction-treatment">Treatment</label>
+        <select id="transaction-treatment" value={type} onChange={(event) => setType(event.target.value)}>
+          {TRANSACTION_TREATMENTS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
       </div>
+      <p className="rule-note">{treatment?.impact}</p>
+      <div className="form-grid">
+        <div className="field">
+          <label htmlFor="transaction-description">Description</label>
+          <input id="transaction-description" value={desc} onChange={(event) => setDesc(event.target.value)} placeholder="Merchant, person or note" />
+        </div>
+        <div className="field">
+          <label htmlFor="transaction-amount">Amount</label>
+          <input id="transaction-amount" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" />
+        </div>
+      </div>
+      {needsCategory && (
+        <div className="field">
+          <label htmlFor="transaction-category">Category</label>
+          <select id="transaction-category" value={category} onChange={(event) => setCategory(event.target.value)}>
+            <option value="">Select category</option>
+            {categories.map((item) => <option key={item.id} value={item.id}>{item.icon} {item.label}</option>)}
+          </select>
+        </div>
+      )}
       <div className="field">
-        <label>Date</label>
-        <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        <label htmlFor="transaction-date">Date</label>
+        <input id="transaction-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
       </div>
       <div className="actions">
-        <button className="ghost" onClick={onClose}>Cancel</button>
-        <button className="primary" onClick={() => onSave({ type, desc, amount, category, date })}>Save</button>
+        <button className="secondary-button" onClick={onClose}>Cancel</button>
+        <button className="primary-button" onClick={() => onSave({ type, desc, amount, category, date })}>Save</button>
       </div>
     </SimpleModal>
   );
 }
 
 function IncomeModal({ sources, onClose, onSave }) {
-  const [rows, setRows] = useState(sources.map((source) => ({ ...source })));
-  const add = () => setRows([...rows, { id: createId("income"), label: "", amount: "" }]);
+  const [rows, setRows] = useState(sources.length ? sources.map((source) => ({ ...source })) : [{ id: createId('income'), label: '', amount: '' }]);
+  const addRow = () => setRows([...rows, { id: createId('income'), label: '', amount: '' }]);
 
   return (
     <SimpleModal title="Monthly income" onClose={onClose}>
-      <div className="notice">Income entered here belongs only to the selected month. Editing it will not rewrite earlier months.</div>
+      <p className="rule-note">Enter each source separately, including one-off rewards or sales. Refunds belong in Transactions, not income.</p>
       {rows.map((row, index) => (
         <div className="form-grid" key={row.id}>
           <div className="field">
-            <label>Source</label>
-            <input
-              value={row.label}
-              onChange={(event) => setRows(rows.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))}
-            />
+            <label htmlFor={`income-label-${row.id}`}>Source</label>
+            <input id={`income-label-${row.id}`} value={row.label} onChange={(event) => setRows(rows.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))} placeholder="Salary, Child Benefit…" />
           </div>
           <div className="field">
-            <label>Amount</label>
-            <input
-              inputMode="decimal"
-              value={row.amount}
-              onChange={(event) => setRows(rows.map((item, itemIndex) => itemIndex === index ? { ...item, amount: event.target.value } : item))}
-            />
+            <label htmlFor={`income-amount-${row.id}`}>Amount</label>
+            <input id={`income-amount-${row.id}`} inputMode="decimal" value={row.amount} onChange={(event) => setRows(rows.map((item, itemIndex) => itemIndex === index ? { ...item, amount: event.target.value } : item))} placeholder="0.00" />
           </div>
-          <button className="danger" style={{ marginBottom: 10 }} onClick={() => setRows(rows.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
+          <button className="danger-button" style={{ marginBottom: 10 }} onClick={() => setRows(rows.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
         </div>
       ))}
-      <button className="ghost" style={{ width: "100%", marginBottom: 12 }} onClick={add}>+ Add income source</button>
+      <button className="secondary-button" style={{ width: '100%', marginBottom: 12 }} onClick={addRow}>+ Add income source</button>
       <div className="actions">
-        <button className="ghost" onClick={onClose}>Cancel</button>
+        <button className="secondary-button" onClick={onClose}>Cancel</button>
         <button
-          className="primary"
-          onClick={() => onSave(
-            rows
-              .filter((row) => row.label.trim() && positiveNumber(row.amount))
-              .map((row) => ({
-                ...row,
-                label: row.label.trim(),
-                amount: positiveNumber(row.amount),
-                icon: row.icon || "💼",
-                color: row.color || C.green,
-              })),
-          )}
+          className="primary-button"
+          onClick={() => onSave(rows.flatMap((row) => {
+            const label = row.label.trim();
+            const amount = positiveNumber(row.amount);
+            return label && amount ? [{ id: row.id || createId('income'), label, amount }] : [];
+          }))}
         >
           Save month
         </button>
@@ -862,46 +814,68 @@ function IncomeModal({ sources, onClose, onSave }) {
   );
 }
 
-function CategoryModal({ categories, state, dispatch, categoryInUse, onClose }) {
-  const [name, setName] = useState("");
-  const add = () => {
-    if (!name.trim()) return;
-    dispatch({
-      type: "ADD_CAT",
-      cat: { id: createId("cat"), label: name.trim(), icon: "🏷️", group: "Other", fixed: false },
+function CategoryModal({ categories, state, mutate, onClose }) {
+  const [name, setName] = useState('');
+  const [icon, setIcon] = useState('🏷️');
+  const [bill, setBill] = useState(false);
+
+  const addCategory = () => {
+    const label = name.trim();
+    if (!label) return;
+    mutate({
+      type: 'ADD_CAT',
+      cat: {
+        id: createId('category'),
+        label: label.slice(0, 80),
+        icon: (icon.trim() || '🏷️').slice(0, 8),
+        group: bill ? 'Bills' : 'Other',
+        bill,
+        budgetable: true,
+        fixed: false,
+      },
     });
-    setName("");
+    setName('');
+    setIcon('🏷️');
+    setBill(false);
   };
 
   return (
     <SimpleModal title="Categories" onClose={onClose}>
-      <div className="actions" style={{ marginBottom: 12 }}>
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="New category"
-          style={{ flex: 1, background: C.elevated, color: C.text, border: `1px solid ${C.border}`, borderRadius: 10, padding: 11 }}
-        />
-        <button className="primary" style={{ flex: "0 0 auto" }} onClick={add}>Add</button>
+      <div className="form-grid">
+        <div className="field">
+          <label htmlFor="new-category-name">New category</label>
+          <input id="new-category-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Category name" />
+        </div>
+        <div className="field">
+          <label htmlFor="new-category-icon">Icon</label>
+          <input id="new-category-icon" value={icon} onChange={(event) => setIcon(event.target.value)} maxLength="8" />
+        </div>
       </div>
-      {categories.map((cat) => {
-        const custom = !cat.fixed;
-        const inUse = categoryInUse(cat.id);
+      <label className="row" style={{ cursor: 'pointer' }}>
+        <input type="checkbox" checked={bill} onChange={(event) => setBill(event.target.checked)} />
+        <span>Treat this as a fixed monthly bill</span>
+      </label>
+      <button className="primary-button" style={{ width: '100%', margin: '12px 0' }} onClick={addCategory}>Add category</button>
+
+      {categories.map((category) => {
+        const custom = !category.fixed;
+        const inUse = categoryInUse(state, category.id);
         return (
-          <div className="row" key={cat.id}>
-            <span>{cat.icon}</span>
-            <div className="grow">{cat.label}</div>
-            <button className="ghost" onClick={() => dispatch({ type: "TOGGLE_HIDE", id: cat.id })}>
-              {state.hiddenCats.includes(cat.id) ? "Show" : "Hide"}
-            </button>
+          <div className="row" key={category.id}>
+            <span aria-hidden="true">{category.icon}</span>
+            <div className="grow">
+              <div>{category.label}</div>
+              <div className="muted">{category.bill ? 'Fixed bill' : category.group}</div>
+            </div>
+            <button className="secondary-button" onClick={() => mutate({ type: 'TOGGLE_HIDE', id: category.id })}>{state.hiddenCats.includes(category.id) ? 'Show' : 'Hide'}</button>
             {custom && (
               <button
-                className="danger"
+                className="danger-button"
                 disabled={inUse}
-                title={inUse ? "Category is used by transactions" : "Delete category"}
-                onClick={() => !inUse && dispatch({ type: "REMOVE_CAT", id: cat.id })}
+                title={inUse ? 'This category is used by transactions' : 'Delete category'}
+                onClick={() => !inUse && mutate({ type: 'REMOVE_CAT', id: category.id })}
               >
-                {inUse ? "In use" : "Delete"}
+                {inUse ? 'In use' : 'Delete'}
               </button>
             )}
           </div>
@@ -912,12 +886,29 @@ function CategoryModal({ categories, state, dispatch, categoryInUse, onClose }) 
 }
 
 function SimpleModal({ title, onClose, children }) {
+  const titleId = `modal-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const closeRef = useRef(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
   return (
-    <div className="modal">
+    <div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div className="modal-inner">
         <div className="modal-head">
-          <div className="section-title" style={{ margin: 0 }}>{title}</div>
-          <button className="ghost" onClick={onClose}>Done</button>
+          <h2 className="section-title" id={titleId}>{title}</h2>
+          <button ref={closeRef} className="secondary-button" onClick={onClose}>Done</button>
         </div>
         {children}
       </div>
