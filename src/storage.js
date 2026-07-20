@@ -1,4 +1,4 @@
-import { createBlankState, migrateState } from './finance.js';
+import { CURRENT_STATE_VERSION, createBlankState, migrateState } from './finance.js';
 
 export const STORAGE_KEY = 'penny_state';
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
@@ -6,15 +6,18 @@ const KNOWN_STATE_FIELDS = [
   'version',
   'txnsByMonth',
   'incomeByMonth',
+  'customCats',
+  'hiddenCats',
+  'people',
+  'accounts',
+  'savingsAccounts',
+  'savingsGoal',
+  'savingsContrib',
+  'savingsBal',
   'budgetsByMonth',
   'budgets',
   'sources',
-  'customCats',
-  'hiddenCats',
   'dueDays',
-  'savingsGoal',
-  'savingsBal',
-  'savingsContrib',
 ];
 
 function isStateCandidate(value) {
@@ -69,7 +72,7 @@ export function saveState(storage, state) {
 export function createBackupText(state, now = new Date()) {
   return JSON.stringify({
     app: 'Penny',
-    formatVersion: 3,
+    formatVersion: CURRENT_STATE_VERSION,
     exportedAt: now.toISOString(),
     state,
   }, null, 2);

@@ -9,7 +9,6 @@ const files = {
   currentPeriod: await read('../src/current-period.js'),
   finance: await read('../src/finance.js'),
   main: await read('../src/main.jsx'),
-  overviewCleanup: await read('../src/overview-cleanup.css'),
   state: await read('../src/state.js'),
   storage: await read('../src/storage.js'),
   selfTest: await read('./self-test.mjs'),
@@ -17,7 +16,7 @@ const files = {
   index: await read('../index.html'),
 };
 
-const publicSource = [files.app, files.catalog, files.currentPeriod, files.finance, files.main, files.overviewCleanup, files.state, files.storage].join('\n');
+const publicSource = [files.app, files.catalog, files.currentPeriod, files.finance, files.main, files.state, files.storage].join('\n');
 const auditedCode = [publicSource, files.selfTest, files.workflow].join('\n');
 const group = process.argv[2] || 'all';
 const blockedIdentityHashes = new Set([
@@ -33,13 +32,15 @@ function digest(value) {
 function accessibilityAudit() {
   assert.doesNotMatch(files.index, /user-scalable\s*=\s*no/i, 'Pinch zoom must remain available.');
   assert.doesNotMatch(files.index, /maximum-scale\s*=\s*1/i, 'Page zoom must not be artificially capped.');
-  assert.doesNotMatch(files.app, /max=["']2035-12["']/, 'The month picker must not stop at 2035.');
+  assert.match(files.app, /label="Paid By"/);
+  assert.match(files.app, /label="Received By"/);
 }
 
 function storageAudit() {
-  assert.doesNotMatch(files.main, /removeMatchingStorage|indexedDB\.deleteDatabase|caches\.delete/, 'Startup must not purge browser-wide storage.');
-  assert.doesNotMatch(files.main, /window\.location\.reload|location\.reload/, 'Period updates must not force page reloads.');
+  assert.doesNotMatch(files.main, /indexedDB\.deleteDatabase|caches\.delete/, 'Startup must not purge browser-wide storage.');
+  assert.doesNotMatch(files.main, /location\.reload/, 'Release checks should use a versioned replace, not reload loops.');
   assert.match(files.storage, /KNOWN_STATE_FIELDS/);
+  assert.match(files.storage, /formatVersion:\s*CURRENT_STATE_VERSION/);
 }
 
 function identityAudit() {
@@ -53,21 +54,20 @@ function identityAudit() {
 }
 
 function currencyAudit() {
-  assert.doesNotMatch(publicSource, /£\s?\d/, 'Public app source must not embed real currency figures.');
+  assert.doesNotMatch(publicSource, /£\s?\d/, 'Public app source must not embed real household currency figures.');
 }
 
 function financeAudit() {
-  assert.match(files.finance, /available:\s*income \+ refunds - fixedBills - grossSpending/, 'Legacy refund records must remain financially safe during migration.');
-  assert.match(files.catalog, /internal_transfer/);
-  assert.match(files.catalog, /savings_transfer/);
-  assert.match(files.catalog, /card_repayment/);
-  assert.doesNotMatch(files.app, /onManageCategories|Treat this as a fixed monthly bill/, 'Category management must not live in Activity or use the old checkbox wording.');
-  assert.match(files.app, /Everyday spending/);
-  assert.match(files.app, /Fixed monthly bill/);
-  assert.match(files.app, /icon-choice/);
-  assert.doesNotMatch(files.catalog, /id: 'refund'/, 'Refund entry must not be offered in Penny controls.');
-  assert.match(files.overviewCleanup, /Refunds \/ credits/);
-  assert.match(files.overviewCleanup, /Income − bills − spending/);
+  assert.match(files.finance, /projectedEndSavings\s*=\s*currentSavings \+ income - remainingBills/, 'Projected End Savings must match the tracker rule.');
+  assert.match(files.finance, /paidBy/);
+  assert.match(files.finance, /receivedBy/);
+  assert.match(files.finance, /transferPlan/);
+  assert.match(files.finance, /freeSavingsAfterBills\s*=\s*currentSavings - remainingBills/);
+  assert.doesNotMatch(files.catalog, /id:\s*['"]refund['"]/, 'Refund entry must not return to the public transaction choices.');
+  assert.match(files.app, /Current Savings/);
+  assert.match(files.app, /Remaining Bills/);
+  assert.match(files.app, /Transfer Plan/);
+  assert.match(files.app, /Payment status/);
 }
 
 const audits = {

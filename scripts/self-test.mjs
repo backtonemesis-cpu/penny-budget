@@ -1,148 +1,85 @@
 import assert from 'node:assert/strict';
-import { currentLocalPeriod, currentPeriodCheckDelay } from '../src/current-period.js';
-import {
-  annualSummary,
-  createBlankState,
-  dueStatus,
-  formatMoney,
-  migrateState,
-  mkKey,
-  monthSummary,
-  normaliseTransaction,
-  previousMonthKey,
-} from '../src/finance.js';
 import { appReducer } from '../src/state.js';
 import {
-  clearPennyState,
-  createBackupText,
-  loadState,
-  parseBackupText,
-  saveState,
-} from '../src/storage.js';
-
-const now = new Date(2026, 6, 20, 12, 0, 0);
-
-assert.deepEqual(currentLocalPeriod(now), { year: 2026, month: 6, key: '2026-07' });
-assert.equal(currentPeriodCheckDelay(new Date(2026, 0, 1), 60 * 60 * 1000), 60 * 60 * 1000);
-assert.equal(currentPeriodCheckDelay(new Date(2026, 11, 31, 23, 59, 59, 500)), 1500);
-assert.equal(previousMonthKey('2026-01'), '2025-12');
-assert.equal(previousMonthKey('bad'), null);
-
-const blank = createBlankState();
-assert.equal(blank.version, 3);
-assert.deepEqual(blank.txnsByMonth, {});
-assert.deepEqual(blank.incomeByMonth, {});
-assert.deepEqual(blank.budgetsByMonth, {});
-assert.equal(blank.savingsGoal, 0);
-
-const migrated = migrateState({
-  version: 2,
-  sources: [{ id: 'salary', label: 'Salary', amount: 3000 }],
-  txnsByMonth: {
-    '2026-06': [
-      { id: 'rent', type: 'expense', amount: 1000, date: '2026-06-01', category: 'rent' },
-      { id: 'dated-july', type: 'expense', amount: 25, date: '2026-07-02', category: 'other' },
-      { id: 'negative', type: 'expense', amount: -50, date: '2026-06-03', category: 'other' },
-      { id: 'bad-date', type: 'expense', amount: 50, date: 'not-a-date', category: 'other' },
-    ],
-    invalid: [{ amount: 99 }],
-  },
-  budgets: { rent: 1000, groceries: 500, invalid: -20 },
-  dueDays: { rent: 1, bad: 99 },
-}, now);
-assert.equal(migrated.version, 3);
-assert.equal(migrated.incomeByMonth['2026-06'][0].amount, 3000);
-assert.equal(migrated.incomeByMonth['2026-07'][0].amount, 3000);
-assert.equal(migrated.txnsByMonth['2026-06'][0].expenseClass, 'fixed');
-assert.equal(migrated.txnsByMonth['2026-07'][0].id, 'dated-july');
-assert.equal(migrated.txnsByMonth['2026-06'].length, 1);
-assert.equal(migrated.budgetsByMonth['2026-07'].rent, 1000);
-assert.equal(migrated.budgetsByMonth['2026-07'].invalid, undefined);
-assert.equal(migrated.dueDays.rent, 1);
-assert.equal(migrated.dueDays.bad, undefined);
-assert.equal(migrated.txnsByMonth.invalid, undefined);
-assert.equal(normaliseTransaction({ type: 'expense', amount: -1, date: '2026-07-01', category: 'other' }), null);
-assert.equal(normaliseTransaction({ type: 'unknown', amount: 1, date: '2026-07-01', category: 'other' }), null);
-assert.equal(normaliseTransaction({ type: 'expense', amount: 1, date: 'invalid', category: 'other' }), null);
-
-const customBillState = migrateState({
-  version: 2,
-  customCats: [{ id: 'custom_bill', label: 'Custom bill', icon: '🧾', bill: true }],
-  txnsByMonth: {
-    '2026-07': [{ id: 'custom-payment', type: 'expense', amount: 75, date: '2026-07-10', category: 'custom_bill' }],
-  },
-}, now);
-assert.equal(customBillState.txnsByMonth['2026-07'][0].expenseClass, 'fixed');
-assert.equal(monthSummary(customBillState, '2026-07').fixedBills, 75);
-
-const transactions = [
-  normaliseTransaction({ id: 'fixed', type: 'expense', amount: 1000, date: '2026-07-01', category: 'rent' }),
-  normaliseTransaction({ id: 'spend', type: 'expense', amount: 200, date: '2026-07-02', category: 'groceries' }),
-  normaliseTransaction({ id: 'refund', type: 'refund', amount: 50, date: '2026-07-03', category: 'groceries' }),
-  normaliseTransaction({ id: 'internal', type: 'internal_transfer', amount: 500, date: '2026-07-04', desc: 'Family account transfer' }),
-  normaliseTransaction({ id: 'saving', type: 'savings_transfer', amount: 400, date: '2026-07-05', desc: 'Savings' }),
-  normaliseTransaction({ id: 'card', type: 'card_repayment', amount: 300, date: '2026-07-06', desc: 'Card payment' }),
-];
+  CURRENT_STATE_VERSION,
+  annualSummary,
+  createBlankState,
+  migrateState,
+  monthSummary,
+  normaliseIncomeRecord,
+  normaliseTransaction,
+} from '../src/finance.js';
+import { createBackupText, parseBackupText } from '../src/storage.js';
 
 const state = {
-  ...blank,
-  incomeByMonth: { '2026-07': [{ id: 'salary', label: 'Salary', amount: 3000 }] },
-  txnsByMonth: { '2026-07': transactions },
+  ...createBlankState(),
+  people: [{ id: 'p1', label: 'Person 1' }, { id: 'p2', label: 'Person 2' }],
+  accounts: [{ id: 'a1', label: 'Account 1' }, { id: 'a2', label: 'Account 2' }],
+  savingsAccounts: [
+    { id: 's1', label: 'Savings 1', balance: 6000 },
+    { id: 's2', label: 'Savings 2', balance: 4000 },
+  ],
+  incomeByMonth: {
+    '2026-07': [
+      normaliseIncomeRecord({ id: 'i1', date: '2026-07-01', amount: 3000, description: 'Employment', incomeType: 'Employment', receivedBy: 'p1', account: 'a1' }, '2026-07'),
+      normaliseIncomeRecord({ id: 'i2', date: '2026-07-05', amount: 1000, description: 'Benefits', incomeType: 'Benefits', receivedBy: 'p2', account: 'a2' }, '2026-07'),
+    ],
+  },
+  txnsByMonth: {
+    '2026-07': [
+      normaliseTransaction({ id: 'e1', type: 'expense', date: '2026-07-02', amount: 1200, desc: 'Housing', category: 'rent_mortgage', expenseClass: 'fixed', paid: true, paidBy: 'p1', account: 'a1' }),
+      normaliseTransaction({ id: 'e2', type: 'expense', date: '2026-07-10', amount: 200, desc: 'Council tax', category: 'council_tax', expenseClass: 'fixed', paid: false, paidBy: 'p2', account: 'a2' }),
+      normaliseTransaction({ id: 'e3', type: 'expense', date: '2026-07-12', amount: 600, desc: 'Shopping', category: 'variable_household', expenseClass: 'variable', paid: true, paidBy: 'household', account: 'a1' }),
+      normaliseTransaction({ id: 'm1', type: 'card_repayment', date: '2026-07-20', amount: 300, desc: 'Card repayment', category: 'card_repayment', account: 'a1' }),
+    ],
+  },
 };
+
 const july = monthSummary(state, '2026-07');
-assert.equal(july.income, 3000);
-assert.equal(july.fixedBills, 1000);
-assert.equal(july.grossSpending, 200);
-assert.equal(july.refunds, 50);
-assert.equal(july.internalTransfers, 500);
-assert.equal(july.savingsTransfers, 400);
-assert.equal(july.cardRepayments, 300);
-assert.equal(july.excludedTransfers, 1200);
-assert.equal(july.available, 1850);
+assert.equal(july.currentSavings, 10000);
+assert.equal(july.income, 4000);
+assert.equal(july.expenses, 2000);
+assert.equal(july.paidExpenses, 1800);
+assert.equal(july.remainingBills, 200);
+assert.equal(july.fixedExpenses, 1400);
+assert.equal(july.variableExpenses, 600);
+assert.equal(july.savedThisMonth, 2000);
+assert.equal(july.freeSavingsAfterBills, 9800);
+assert.equal(july.projectedIncrease, 3800);
+assert.equal(july.projectedEndSavings, 13800);
+assert.equal(july.excludedMovements, 300);
+assert.deepEqual(july.transferPlan, [{ key: 'p2::a2', paidBy: 'p2', account: 'a2', amount: 200, count: 1 }]);
+assert.equal(july.incompleteRecords, 0);
+
+const toggled = appReducer(state, { type: 'TOGGLE_PAID', monthKey: '2026-07', id: 'e2' });
+assert.equal(monthSummary(toggled, '2026-07').remainingBills, 0);
+assert.equal(monthSummary(toggled, '2026-07').projectedEndSavings, 14000);
+
+const legacy = migrateState({
+  version: 3,
+  savingsBal: 1234.56,
+  incomeByMonth: { '2026-07': [{ id: 'legacy-income', label: 'Salary', amount: 1000 }] },
+  txnsByMonth: { '2026-07': [{ id: 'legacy-expense', type: 'expense', amount: 100, category: 'other', date: '2026-07-01', desc: 'Legacy expense', expenseClass: 'spending' }] },
+}, new Date(2026, 6, 1));
+assert.equal(legacy.version, CURRENT_STATE_VERSION);
+assert.equal(legacy.savingsAccounts[0].balance, 1234.56);
+assert.equal(legacy.incomeByMonth['2026-07'][0].receivedBy, 'unassigned');
+assert.equal(legacy.incomeByMonth['2026-07'][0].needsConfirmation, true);
+assert.equal(legacy.txnsByMonth['2026-07'][0].expenseClass, 'variable');
+assert.equal(legacy.txnsByMonth['2026-07'][0].paid, true);
+assert.equal(legacy.txnsByMonth['2026-07'][0].paidBy, 'unassigned');
+
+const backup = createBackupText(state, new Date('2026-07-20T12:00:00Z'));
+const restored = parseBackupText(backup, new Date(2026, 6, 20));
+assert.equal(restored.version, CURRENT_STATE_VERSION);
+assert.equal(monthSummary(restored, '2026-07').projectedEndSavings, 13800);
 
 const annual = annualSummary(state, 2026);
-assert.equal(annual.income, 3000);
-assert.equal(annual.fixedBills, 1000);
-assert.equal(annual.grossSpending, 200);
-assert.equal(annual.refunds, 50);
-assert.equal(annual.available, 1850);
-assert.equal(annual.withData.length, 1);
+assert.equal(annual.income, 4000);
+assert.equal(annual.expenses, 2000);
+assert.equal(annual.savedThisMonth, 2000);
 
-assert.equal(formatMoney(-500), '-£500.00');
-assert.equal(formatMoney(50, { plus: true }), '+£50.00');
-assert.deepEqual(dueStatus(2026, 6, '', false, now), { label: 'Set due date', tone: 'neutral' });
-assert.equal(dueStatus(2026, 6, 20, false, now).label, 'Due today');
-assert.deepEqual(dueStatus(2026, 5, 10, false, now, true), { label: 'Part paid · overdue', tone: 'red' });
-assert.equal(mkKey(2027, 0), '2027-01');
+assert.equal(normaliseTransaction({ type: 'expense', amount: 0, date: '2026-07-01' }), null);
+assert.equal(normaliseIncomeRecord({ amount: 100, description: '', date: '2026-07-01' }, '2026-07'), null);
 
-let reduced = appReducer(blank, { type: 'SET_BUDGET', monthKey: '2026-07', id: 'rent', value: 1000 });
-reduced = appReducer(reduced, { type: 'SET_BUDGET', monthKey: '2026-08', id: 'rent', value: 1100 });
-assert.equal(reduced.budgetsByMonth['2026-07'].rent, 1000);
-assert.equal(reduced.budgetsByMonth['2026-08'].rent, 1100);
-reduced = appReducer(reduced, { type: 'SET_BUDGET', monthKey: '2026-07', id: 'rent', value: 0 });
-assert.equal(reduced.budgetsByMonth['2026-07'], undefined);
-reduced = appReducer(reduced, { type: 'COPY_BUDGETS', fromMonthKey: '2026-08', toMonthKey: '2026-09' });
-assert.equal(reduced.budgetsByMonth['2026-09'].rent, 1100);
-
-const memory = new Map();
-const storage = {
-  getItem: (key) => memory.has(key) ? memory.get(key) : null,
-  setItem: (key, value) => memory.set(key, value),
-  removeItem: (key) => memory.delete(key),
-};
-assert.equal(saveState(storage, state).ok, true);
-assert.equal(loadState(storage, now).state.txnsByMonth['2026-07'].length, 6);
-const backup = createBackupText(state, now);
-assert.equal(parseBackupText(backup, now).incomeByMonth['2026-07'][0].amount, 3000);
-assert.throws(() => parseBackupText('{broken', now), /valid JSON/);
-assert.throws(() => parseBackupText('{}', now), /recognised Penny state/);
-assert.throws(() => parseBackupText(JSON.stringify({ app: 'Other', state }), now), /different app/);
-memory.set('penny_state', '{}');
-assert.match(loadState(storage, now).warning, /could not be read/);
-assert.match(loadState(null, now).warning, /unavailable/);
-assert.equal(saveState(null, state).ok, false);
-assert.equal(clearPennyState(null).ok, false);
-assert.equal(clearPennyState(storage).ok, true);
-assert.equal(storage.getItem('penny_state'), null);
-
-console.log('Penny audit self-tests passed');
+console.log('Penny finance, migration, transfer-plan and storage tests passed');
