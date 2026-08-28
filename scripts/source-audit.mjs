@@ -72,6 +72,7 @@ function financeAudit() {
   assert.match(files.finance, /transferPlan/);
   assert.match(files.finance, /freeSavingsAfterBills\s*=\s*currentSavings - remainingBills/);
   assert.doesNotMatch(files.catalog, /id:\s*['"]refund['"]/, 'Refund entry must not return to the public transaction choices.');
+  assert.match(files.catalog, /id:\s*'household',\s*label:\s*'Joint'/, 'The shared payer label must match the current Family Tracker terminology.');
   assert.match(files.app, /Historical Reconciliation/);
   assert.match(files.app, /Expected Closing Savings/);
   assert.match(files.app, /Reconciliation Variance/);
