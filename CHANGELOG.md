@@ -1,5 +1,15 @@
 # Penny Change Log
 
+## 28 August 2026 — Completed historical month reconciliation
+
+- Added a distinct completed-month mode for historical evidence such as June 2026.
+- Completed months now reconcile: Starting Savings + Income - Expenses = Expected Closing Savings.
+- The recorded month-end savings snapshot is compared against the expected closing balance and a reconciliation variance is shown.
+- Completed months no longer add their income again to an already-recorded closing savings balance.
+- Overview shows Historical Reconciliation instead of live Transfer Plan / Transfer Check for completed months.
+- Live months continue using Current Savings + Income - Remaining Bills Still Unpaid.
+- Historical month metadata is preserved by safe month-merge imports.
+
 ## 28 August 2026 — Historical month savings and merge imports
 
 - Changed savings balances from one global snapshot to month-specific snapshots.
