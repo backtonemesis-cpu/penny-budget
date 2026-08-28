@@ -1,5 +1,12 @@
 # Penny Change Log
 
+## 28 August 2026 — June historical import finalisation
+
+- Confirmed the current live Family Tracker uses `Joint` for shared household responsibility; Penny now displays the same term while retaining the existing internal ID for backward compatibility.
+- Confirmed completed historical month imports preserve other months, month-specific savings snapshots and reconciliation metadata.
+- Prepared Penny for the reconciled June 2026 month-merge package using the version-6 completed-month schema.
+- No household names, accounts or currency figures are stored in this public repository.
+
 ## 28 August 2026 — Completed historical month reconciliation
 
 - Added a distinct completed-month mode for historical evidence such as June 2026.
