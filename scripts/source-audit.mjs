@@ -39,6 +39,8 @@ function accessibilityAudit() {
   assert.doesNotMatch(files.index, /maximum-scale\s*=\s*1/i, 'Page zoom must not be artificially capped.');
   assert.match(files.index, /Content-Security-Policy/, 'A restrictive browser Content Security Policy must remain present.');
   assert.match(files.index, /object-src 'none'/, 'CSP must block plugin/object content.');
+  assert.doesNotMatch(files.index, /'unsafe-inline'|'unsafe-eval'/, 'CSP must not allow unsafe inline/eval execution.');
+  assert.doesNotMatch(files.index, /wss?:\/\//, 'CSP must not open unneeded websocket origins.');
   assert.match(files.index, /referrer.*no-referrer/, 'Financial app must not leak navigation referrers.');
   assert.match(files.app, /label="Paid By"/);
   assert.match(files.app, /label="Received By"/);
@@ -85,11 +87,14 @@ function currencyAudit() {
 function financeAudit() {
   assert.match(files.finance, /roundMoney/);
   assert.match(files.finance, /sumMoney/);
-  assert.match(files.finance, /expectedClosingSavings\s*=\s*isComplete \? roundMoney\(startingSavings \+ income - expenses\)/, 'Completed months must reconcile starting savings plus income less expenses.');
+  assert.match(files.finance, /typeof rawInput === 'number'/, 'Completed-month starting savings must distinguish missing values from explicit numeric zero.');
+  assert.match(files.finance, /typeof rawInput === 'string' && rawInput\.trim\(\) !== ''/, 'Blank starting-savings strings must remain missing evidence.');
+  assert.match(files.finance, /startingSavingsConfirmed\s*=\s*Boolean\(isComplete && monthMeta\.startingSavingsConfirmed\)/, 'Completed reconciliation must depend on confirmed starting savings.');
+  assert.match(files.finance, /expectedClosingSavings\s*=\s*startingSavingsConfirmed \? roundMoney\(startingSavings \+ income - expenses\) : null/, 'Expected closing savings must remain TBC when starting savings evidence is missing.');
   assert.match(files.finance, /projectedEndSavings\s*=\s*isComplete \? currentSavings : roundMoney\(currentSavings \+ savedThisMonth\)/, 'Completed months must stop at recorded closing savings; live months may project snapshot plus net saving.');
   assert.match(files.finance, /projectedIncrease\s*=\s*isComplete \? 0 : savedThisMonth/, 'Completed months must not have a forward projected increase.');
   assert.doesNotMatch(files.finance, /currentSavings \+ income - remainingBills/, 'The superseded gross-income projection formula must not return.');
-  assert.match(files.finance, /auditReady\s*=\s*Boolean\(isComplete && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot\)/, 'Only completed, reconciled, fully confirmed months may be audit-ready.');
+  assert.match(files.finance, /auditReady\s*=\s*Boolean\(isComplete && startingSavingsConfirmed && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot\)/, 'Only completed, explicitly grounded, reconciled and fully confirmed months may be audit-ready.');
   assert.match(files.finance, /evidenceStatus/);
   assert.match(files.finance, /monthsInProgress/);
   assert.match(files.finance, /!withData\.length \? 'empty'/, 'An empty year must be represented as empty rather than review-ready evidence.');
@@ -100,10 +105,13 @@ function financeAudit() {
   assert.match(files.finance, /isLikelyDuplicateIncome/);
   assert.match(files.finance, /paidByLabel/);
   assert.match(files.finance, /receivedByLabel/);
+  assert.match(files.state, /balance:\s*positiveNumber\(item\?\.balance\)/, 'Savings snapshots must be normalised to pennies before storage and audit logging.');
   assert.match(files.state, /auditLog/);
   assert.match(files.state, /before:\s*event\.before \?\? null/, 'Change History must store the event before-state.');
   assert.match(files.state, /action:\s*'delete'.*before \}\);/s, 'Delete actions must pass the deleted record into Change History.');
   assert.match(files.app, /Date TBC/);
+  assert.match(files.app, /Starting savings needs confirmation/);
+  assert.match(files.app, /<EvidenceTbcRow label="Starting Savings"/);
   assert.match(files.app, /Completed month — locked/);
   assert.match(files.app, /Change History/);
   assert.match(files.app, /Save this second record anyway\?/);
