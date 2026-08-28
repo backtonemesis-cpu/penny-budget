@@ -1,5 +1,13 @@
 # Penny Change Log
 
+## 28 August 2026 — Corrected live savings projection
+
+- Corrected live-month Projected End Savings to: Current Savings + Saved This Month.
+- Saved This Month remains Income - all recorded Expenses, so expenses are counted exactly once.
+- Projected Increase now equals Saved This Month and is independent of payment-status toggles.
+- Remaining Bills and Transfer Plan remain funding-status information; they no longer replace net monthly saving in the projection.
+- Added regression and source-audit gates preventing the superseded Current Savings + Income - Remaining Bills formula from returning.
+
 ## 28 August 2026 — June historical import finalisation
 
 - Confirmed the current live Family Tracker uses `Joint` for shared household responsibility; Penny now displays the same term while retaining the existing internal ID for backward compatibility.
@@ -14,7 +22,7 @@
 - The recorded month-end savings snapshot is compared against the expected closing balance and a reconciliation variance is shown.
 - Completed months no longer add their income again to an already-recorded closing savings balance.
 - Overview shows Historical Reconciliation instead of live Transfer Plan / Transfer Check for completed months.
-- Live months continue using Current Savings + Income - Remaining Bills Still Unpaid.
+- This live-month formula was superseded on 28 August 2026 by Current Savings + Saved This Month.
 - Historical month metadata is preserved by safe month-merge imports.
 
 ## 28 August 2026 — Historical month savings and merge imports
@@ -33,7 +41,7 @@
 - Added Paid / Unpaid, Paid By and Account fields to expenses.
 - Added Received By and Account fields to income.
 - Added Current Savings by account, Remaining Bills, Transfer Plan and Transfer Check.
-- Changed Projected End Savings to: Current Savings + Income This Month - Remaining Bills Still Unpaid.
+- The original live projection formula was superseded on 28 August 2026 by Current Savings + Saved This Month.
 - Preserved existing Penny records through version-4 migration; missing responsibility fields are marked for confirmation.
 - Kept internal transfers, savings transfers and card repayments visible but excluded from expenses.
 - Removed the refund entry workflow while retaining compatibility with legacy imported records.
