@@ -244,6 +244,10 @@ function App() {
   };
 
   const exportBackup = () => {
+    if (recoveryRequired) {
+      setMessage('Normal backup export is disabled while storage recovery is required because the in-memory fallback is not the unreadable saved data. Import a valid backup or erase the damaged local copy first.');
+      return;
+    }
     const blob = new Blob([createBackupText(state)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -541,10 +545,14 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
         </div>
       )}
 
+      {!summary.isComplete && summary.hasData && (
+        <div className="status-banner" role="note">In progress — this month is planning data, not final mortgage evidence until it is completed and reconciled.</div>
+      )}
+
       {summary.incompleteRecords > 0 && (
         <div className="audit-warning" role="note">
           <strong>{summary.incompleteRecords} record{summary.incompleteRecords === 1 ? '' : 's'} need confirmation.</strong>
-          <span>Unconfirmed dates, payer/receiver or accounts remain visible and are excluded from an “audit ready” status.</span>
+          <span>Unconfirmed dates, payer/receiver or accounts remain visible and prevent final evidence status.</span>
         </div>
       )}
 
@@ -952,19 +960,35 @@ function Year({ annual, year, categoryMap, onSelectMonth }) {
   annual.months.forEach((item) => item.expenseTransactions.forEach((transaction) => {
     categoryTotals[transaction.category] = (categoryTotals[transaction.category] || 0) + transaction.amount;
   }));
+  const statusLabel = evidenceStatusLabel(annual.evidenceStatus);
+  const statusTone = annual.evidenceStatus === 'ready' ? 'green' : annual.evidenceStatus === 'in_progress' ? 'accent' : 'amber';
+  const statusSub = annual.evidenceStatus === 'ready'
+    ? 'All data months completed and reconciled'
+    : annual.evidenceStatus === 'in_progress'
+      ? `${annual.monthsInProgress} month${annual.monthsInProgress === 1 ? '' : 's'} in progress`
+      : annual.withData.length
+        ? `${annual.monthsNeedingReview} completed month${annual.monthsNeedingReview === 1 ? '' : 's'} need review`
+        : 'No evidence recorded';
+
   return (
     <>
-      {!annual.auditReady && (
+      {annual.evidenceStatus === 'in_progress' && (
         <div className="audit-warning" role="note">
-          <strong>{year} is not audit-ready yet.</strong>
-          <span>{annual.incompleteRecords} record{annual.incompleteRecords === 1 ? '' : 's'} need confirmation across {annual.monthsNeedingReview} month{annual.monthsNeedingReview === 1 ? '' : 's'}{annual.unreconciledMonths ? `; ${annual.unreconciledMonths} completed month reconciliation${annual.unreconciledMonths === 1 ? '' : 's'} also need review` : ''}.</span>
+          <strong>{year} contains in-progress evidence.</strong>
+          <span>{annual.monthsInProgress} month{annual.monthsInProgress === 1 ? '' : 's'} with data are not completed yet. Only completed, reconciled months can be mortgage-ready.{annual.incompleteRecords ? ` ${annual.incompleteRecords} record${annual.incompleteRecords === 1 ? '' : 's'} also need confirmation.` : ''}{annual.monthsNeedingReview ? ` ${annual.monthsNeedingReview} completed month${annual.monthsNeedingReview === 1 ? '' : 's'} also need review.` : ''}</span>
+        </div>
+      )}
+      {annual.evidenceStatus === 'review' && annual.withData.length > 0 && (
+        <div className="audit-warning" role="note">
+          <strong>{year} completed evidence needs review.</strong>
+          <span>{annual.monthsNeedingReview} completed month{annual.monthsNeedingReview === 1 ? '' : 's'} are not mortgage-ready.{annual.incompleteRecords ? ` ${annual.incompleteRecords} record${annual.incompleteRecords === 1 ? '' : 's'} need confirmation.` : ''}{annual.unreconciledMonths ? ` ${annual.unreconciledMonths} completed reconciliation${annual.unreconciledMonths === 1 ? '' : 's'} do not balance.` : ''}</span>
         </div>
       )}
       <div className="metric-grid year-metrics">
         <Stat variant="compact" label={`${year} Income`} value={formatMoney(annual.income)} tone="green" sub={`${annual.withData.length} months with data`} />
         <Stat variant="compact" label={`${year} Expenses`} value={formatMoney(annual.expenses)} tone="amber" sub="All recorded costs" />
         <Stat variant="compact" label={`${year} Net Saving`} value={formatMoney(annual.savedThisMonth)} tone={annual.savedThisMonth >= 0 ? 'green' : 'red'} sub="Income − expenses" />
-        <Stat variant="compact" label="Audit Status" value={annual.auditReady ? 'Ready' : 'Review'} tone={annual.auditReady ? 'green' : 'amber'} sub={annual.auditReady ? 'No unresolved record flags' : `${annual.incompleteRecords} record flags`} />
+        <Stat variant="compact" label="Evidence Status" value={statusLabel} tone={statusTone} sub={statusSub} />
       </div>
       <section className="card" aria-labelledby="months-title">
         <h2 className="section-title" id="months-title">Month by Month</h2>
@@ -972,7 +996,7 @@ function Year({ annual, year, categoryMap, onSelectMonth }) {
           <button className={`year-row ${item.hasData ? '' : 'no-data'}`} key={item.key} onClick={() => onSelectMonth(item.month)}>
             <span className="month-name">{SHORT_MONTHS[item.month]}</span>
             <span className="grow muted">{item.hasData ? `${formatMoney(item.income)} in · ${formatMoney(item.expenses)} out` : 'No records'}</span>
-            {item.hasData && <span className={`status-pill ${item.auditReady ? 'success' : 'warning'}`}>{item.auditReady ? 'Ready' : 'Review'}</span>}
+            {item.hasData && <span className={`status-pill ${evidenceStatusTone(item.evidenceStatus)}`}>{evidenceStatusLabel(item.evidenceStatus)}</span>}
             <span className={`money ${item.savedThisMonth >= 0 ? 'green' : 'red'}`}>{item.hasData ? formatMoney(item.savedThisMonth, { plus: true }) : '—'}</span>
           </button>
         ))}
@@ -1237,30 +1261,34 @@ function SettingsModal({ state, allCategories, recoveryRequired, rollbackAvailab
       {recoveryRequired && (
         <div className="audit-warning" role="alert">
           <strong>Storage recovery required.</strong>
-          <span>Normal editing is locked so unreadable saved data cannot be overwritten. Import a valid backup or erase the damaged local copy.</span>
+          <span>Normal editing and normal backup export are locked so unreadable saved data cannot be overwritten or confused with the blank recovery fallback. Import a valid backup or erase the damaged local copy.</span>
         </div>
       )}
-      <section className="settings-section">
-        <h3>Household People</h3>
-        <p className="section-note">Used for Paid By and Received By. Renaming a person changes future choices; historical records keep the label that was saved with the record.</p>
-        <ReferenceEditor field="people" items={state.people} state={state} mutate={mutate} placeholder="Person name" />
-      </section>
-      <section className="settings-section">
-        <h3>Accounts</h3>
-        <p className="section-note">Renaming an account changes future choices; historical records keep their saved account label.</p>
-        <ReferenceEditor field="accounts" items={state.accounts} state={state} mutate={mutate} placeholder="Account name" />
-      </section>
-      <section className="settings-section">
-        <CategoryManager categories={allCategories} state={state} mutate={mutate} />
-      </section>
-      <section className="settings-section">
-        <ChangeHistory auditLog={state.auditLog || []} />
-      </section>
+      {!recoveryRequired && (
+        <>
+          <section className="settings-section">
+            <h3>Household People</h3>
+            <p className="section-note">Used for Paid By and Received By. Renaming a person changes future choices; historical records keep the label that was saved with the record.</p>
+            <ReferenceEditor field="people" items={state.people} state={state} mutate={mutate} placeholder="Person name" />
+          </section>
+          <section className="settings-section">
+            <h3>Accounts</h3>
+            <p className="section-note">Renaming an account changes future choices; historical records keep their saved account label.</p>
+            <ReferenceEditor field="accounts" items={state.accounts} state={state} mutate={mutate} placeholder="Account name" />
+          </section>
+          <section className="settings-section">
+            <CategoryManager categories={allCategories} state={state} mutate={mutate} />
+          </section>
+          <section className="settings-section">
+            <ChangeHistory auditLog={state.auditLog || []} />
+          </section>
+        </>
+      )}
       <section className="settings-section">
         <h3>Backup and Recovery</h3>
-        <p className="section-note">Penny is stored on this device. Every import creates an automatic pre-import recovery copy when browser storage is healthy.</p>
+        <p className="section-note">{recoveryRequired ? 'Recovery mode: import a known-good Penny backup or erase the damaged local copy. The blank in-memory fallback is deliberately not exportable.' : 'Penny is stored on this device. Every import creates an automatic pre-import recovery copy when browser storage is healthy.'}</p>
         <div className="actions stacked-actions">
-          <button className="primary-button" onClick={onExport}>Export backup</button>
+          <button className="primary-button" disabled={recoveryRequired} title={recoveryRequired ? 'Unavailable during storage recovery' : 'Export Penny backup'} onClick={onExport}>Export backup</button>
           <button className="secondary-button" onClick={() => fileRef.current?.click()}>Import backup</button>
         </div>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={onImport} />
@@ -1355,9 +1383,17 @@ function ReferenceEditor({ field, items, state, mutate, placeholder }) {
 function ReferenceRowEditor({ item, inUse, onCommit, onRemove }) {
   const [draft, setDraft] = useState(item.label);
   useEffect(() => setDraft(item.label), [item.label]);
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setDraft(item.label);
+      return;
+    }
+    onCommit(trimmed);
+  };
   return (
     <div className="settings-row">
-      <input aria-label="Reference name" value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={() => onCommit(draft)} />
+      <input aria-label="Reference name" value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commit} />
       <button className="danger-button" disabled={inUse} title={inUse ? 'Used by existing records' : 'Remove'} onClick={onRemove}>{inUse ? 'In use' : 'Remove'}</button>
     </div>
   );
@@ -1440,6 +1476,7 @@ function SimpleModal({ title, onClose, children, wide = false }) {
   const closeRef = useRef(null);
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    const previouslyFocused = document.activeElement;
     document.body.style.overflow = 'hidden';
     closeRef.current?.focus();
     const handleKeyDown = (event) => {
@@ -1465,6 +1502,7 @@ function SimpleModal({ title, onClose, children, wide = false }) {
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function' && document.contains(previouslyFocused)) previouslyFocused.focus();
     };
   }, [onClose]);
   return (
@@ -1510,6 +1548,19 @@ function buildConfirmationIssues(existingIssues, { dateConfirmed, paidBy, receiv
 function preservedOrSelectedLabel(existingId, existingLabel, nextId, options) {
   if (existingId && existingId === nextId && existingLabel) return existingLabel;
   return options.find((item) => item.id === nextId)?.label || nextId || '';
+}
+
+function evidenceStatusLabel(status) {
+  if (status === 'ready') return 'Ready';
+  if (status === 'in_progress') return 'In progress';
+  if (status === 'review') return 'Review';
+  return 'No data';
+}
+
+function evidenceStatusTone(status) {
+  if (status === 'ready') return 'success';
+  if (status === 'review') return 'warning';
+  return 'neutral';
 }
 
 function auditActionLabel(action) {
