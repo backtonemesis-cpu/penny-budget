@@ -66,7 +66,7 @@ assert.equal(june.savedThisMonth, 2000);
 assert.equal(june.expectedClosingSavings, 10000);
 assert.equal(june.closingVariance, 0);
 assert.equal(june.projectedIncrease, 2000);
-assert.equal(june.projectedEndSavings, 10000, 'Completed months must not add their income to closing savings again.');
+assert.equal(june.projectedEndSavings, 12000, 'Projected end savings must always equal current savings plus saved this month.');
 
 const july = monthSummary(state, '2026-07');
 assert.equal(july.isComplete, false);
@@ -116,7 +116,7 @@ assert.equal(legacy.txnsByMonth['2026-07'][0].paidBy, 'unassigned');
 const backup = createBackupText(state, new Date('2026-07-20T12:00:00Z'));
 const restored = parseBackupText(backup, new Date(2026, 6, 20));
 assert.equal(restored.version, CURRENT_STATE_VERSION);
-assert.equal(monthSummary(restored, '2026-06').projectedEndSavings, 10000);
+assert.equal(monthSummary(restored, '2026-06').projectedEndSavings, 12000);
 assert.equal(monthSummary(restored, '2026-07').projectedEndSavings, 12000);
 
 const juneImportState = {
@@ -145,7 +145,7 @@ assert.equal(mergedJune.income, 2500);
 assert.equal(mergedJune.expenses, 500);
 assert.equal(mergedJune.expectedClosingSavings, 8500);
 assert.equal(mergedJune.closingVariance, 0);
-assert.equal(mergedJune.projectedEndSavings, 8500);
+assert.equal(mergedJune.projectedEndSavings, 10500);
 assert.equal(monthSummary(merged, '2026-07').currentSavings, 10000, 'June merge must preserve July savings.');
 assert.equal(monthSummary(merged, '2026-07').income, 4000, 'June merge must preserve July records.');
 assert.equal(monthSummary(merged, '2026-07').isComplete, false, 'June historical metadata must not change July status.');
