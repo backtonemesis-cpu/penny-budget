@@ -1,11 +1,15 @@
-import { BASE_CATEGORIES } from './catalog.js';
+import { BASE_CATEGORIES, SPECIAL_ACCOUNTS, SPECIAL_PEOPLE } from './catalog.js';
 
 export const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 export const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const TRANSACTION_TYPES = new Set(['expense','internal_transfer','savings_transfer','card_repayment','refund']);
-export const CURRENT_STATE_VERSION = 6;
+export const CONFIRMATION_ISSUES = new Set(['date','paidBy','account','receivedBy','other']);
+export const CURRENT_STATE_VERSION = 7;
+export const MAX_AUDIT_ENTRIES = 1000;
 
 const BASE_CATEGORY_MAP = Object.fromEntries(BASE_CATEGORIES.map((category) => [category.id, category]));
+const SPECIAL_PERSON_MAP = Object.fromEntries(SPECIAL_PEOPLE.map((item) => [item.id, item.label]));
+const SPECIAL_ACCOUNT_MAP = Object.fromEntries(SPECIAL_ACCOUNTS.map((item) => [item.id, item.label]));
 
 export function mkKey(year, month) {
   return `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -40,22 +44,32 @@ export function createId(prefix = 'id') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+export function roundMoney(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.round((number + Number.EPSILON) * 100) / 100;
+}
+
 export function positiveNumber(value) {
   const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  return Number.isFinite(parsed) && parsed > 0 ? roundMoney(parsed) : 0;
 }
 
 export function signedNumber(value) {
   const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? roundMoney(parsed) : 0;
 }
 
 export function nonNegativeNumber(value) {
   return Math.max(0, signedNumber(value));
 }
 
+export function sumMoney(values) {
+  return roundMoney(values.reduce((sum, value) => sum + signedNumber(value), 0));
+}
+
 export function formatMoney(value, { plus = false, decimals = 2 } = {}) {
-  const number = Number(value) || 0;
+  const number = roundMoney(value);
   const sign = number < 0 ? '-' : plus && number > 0 ? '+' : '';
   return `${sign}£${Math.abs(number).toLocaleString('en-GB', {
     minimumFractionDigits: decimals,
@@ -150,6 +164,11 @@ function normaliseCustomCategories(value) {
   }));
 }
 
+function normaliseConfirmationIssues(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((issue) => CONFIRMATION_ISSUES.has(issue)))];
+}
+
 function categoryDefaultClass(categoryId, customCategories = []) {
   const custom = customCategories.find((category) => category.id === categoryId);
   return custom?.defaultClass || BASE_CATEGORY_MAP[categoryId]?.defaultClass || 'variable';
@@ -172,7 +191,17 @@ export function normaliseTransaction(transaction, customCategories = []) {
       ? legacyClass
       : categoryDefaultClass(category, customCategories)
     : undefined;
-  const assignmentMissing = type === 'expense' && (!transaction.paidBy || !transaction.account);
+  const paidBy = cleanText(transaction.paidBy, type === 'expense' ? 'unassigned' : '', 120);
+  const account = cleanText(transaction.account, type === 'expense' ? 'unassigned' : '', 120);
+  const explicitIssues = Array.isArray(transaction.confirmationIssues);
+  const issueSet = new Set(normaliseConfirmationIssues(transaction.confirmationIssues));
+  if (!explicitIssues && transaction.needsConfirmation) issueSet.add('date');
+  if (transaction.dateConfirmed === false) issueSet.add('date');
+  if (type === 'expense' && paidBy === 'unassigned') issueSet.add('paidBy');
+  else issueSet.delete('paidBy');
+  if (type === 'expense' && account === 'unassigned') issueSet.add('account');
+  else if (type === 'expense') issueSet.delete('account');
+  const confirmationIssues = [...issueSet];
 
   return {
     id: cleanText(transaction.id, createId('txn'), 160),
@@ -182,10 +211,15 @@ export function normaliseTransaction(transaction, customCategories = []) {
     date: transaction.date,
     desc: cleanText(transaction.desc, category, 160),
     ...(expenseClass ? { expenseClass } : {}),
-    paid: type === 'expense' ? (typeof transaction.paid === 'boolean' ? transaction.paid : true) : true,
-    paidBy: cleanText(transaction.paidBy, type === 'expense' ? 'unassigned' : '', 120),
-    account: cleanText(transaction.account, type === 'expense' ? 'unassigned' : '', 120),
-    needsConfirmation: Boolean(transaction.needsConfirmation || assignmentMissing),
+    paid: type === 'expense' ? (typeof transaction.paid === 'boolean' ? transaction.paid : false) : true,
+    paidBy,
+    account,
+    paidByLabel: cleanText(transaction.paidByLabel, '', 80),
+    accountLabel: cleanText(transaction.accountLabel, '', 80),
+    confirmationIssues,
+    dateConfirmed: !confirmationIssues.includes('date'),
+    needsConfirmation: confirmationIssues.length > 0,
+    source: cleanText(transaction.source, 'legacy', 32),
     ...(transaction.isBillPayment ? { isBillPayment: true } : {}),
     ...(transaction.legacyRefund ? { legacyRefund: true } : {}),
   };
@@ -202,6 +236,14 @@ export function normaliseIncomeRecord(record, monthKey) {
   const receivedBy = cleanText(record.receivedBy, 'unassigned', 120);
   const account = cleanText(record.account, 'unassigned', 120);
   const incomeType = cleanText(record.incomeType ?? record.type ?? record.label, 'Other income', 80);
+  const explicitIssues = Array.isArray(record.confirmationIssues);
+  const issueSet = new Set(normaliseConfirmationIssues(record.confirmationIssues));
+  if (!dateProvided || record.dateConfirmed === false || (!explicitIssues && record.needsConfirmation)) issueSet.add('date');
+  if (receivedBy === 'unassigned') issueSet.add('receivedBy');
+  else issueSet.delete('receivedBy');
+  if (account === 'unassigned') issueSet.add('account');
+  else issueSet.delete('account');
+  const confirmationIssues = [...issueSet];
   return {
     id: cleanText(record.id, createId('income'), 160),
     date,
@@ -210,7 +252,12 @@ export function normaliseIncomeRecord(record, monthKey) {
     incomeType,
     receivedBy,
     account,
-    needsConfirmation: Boolean(record.needsConfirmation || !dateProvided || receivedBy === 'unassigned' || account === 'unassigned'),
+    receivedByLabel: cleanText(record.receivedByLabel, '', 80),
+    accountLabel: cleanText(record.accountLabel, '', 80),
+    confirmationIssues,
+    dateConfirmed: !confirmationIssues.includes('date'),
+    needsConfirmation: confirmationIssues.length > 0,
+    source: cleanText(record.source, 'legacy', 32),
   };
 }
 
@@ -259,6 +306,44 @@ function latestDataMonth(txnsByMonth, incomeByMonth, fallbackMonth) {
   return keys.at(-1) || fallbackMonth;
 }
 
+function normaliseAuditLog(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, MAX_AUDIT_ENTRIES).flatMap((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+    const id = cleanText(entry.id, '', 160);
+    const at = cleanText(entry.at, '', 40);
+    const action = cleanText(entry.action, '', 60);
+    if (!id || !at || !action) return [];
+    return [{
+      id,
+      at,
+      action,
+      entityType: cleanText(entry.entityType, 'state', 40),
+      entityId: cleanText(entry.entityId, '', 160),
+      monthKey: isValidMonthKey(entry.monthKey) ? entry.monthKey : '',
+      label: cleanText(entry.label, action, 160),
+      before: entry.before && typeof entry.before === 'object' ? entry.before : null,
+      after: entry.after && typeof entry.after === 'object' ? entry.after : null,
+    }];
+  });
+}
+
+function snapshotReferenceLabels(txnsByMonth, incomeByMonth, people, accounts) {
+  const personMap = { ...SPECIAL_PERSON_MAP, ...Object.fromEntries(people.map((item) => [item.id, item.label])) };
+  const accountMap = { ...SPECIAL_ACCOUNT_MAP, ...Object.fromEntries(accounts.map((item) => [item.id, item.label])) };
+  const nextTxns = Object.fromEntries(Object.entries(txnsByMonth).map(([monthKey, rows]) => [monthKey, rows.map((row) => ({
+    ...row,
+    paidByLabel: row.paidByLabel || personMap[row.paidBy] || row.paidBy || '',
+    accountLabel: row.accountLabel || accountMap[row.account] || row.account || '',
+  }))]));
+  const nextIncome = Object.fromEntries(Object.entries(incomeByMonth).map(([monthKey, rows]) => [monthKey, rows.map((row) => ({
+    ...row,
+    receivedByLabel: row.receivedByLabel || personMap[row.receivedBy] || row.receivedBy || '',
+    accountLabel: row.accountLabel || accountMap[row.account] || row.account || '',
+  }))]));
+  return { txnsByMonth: nextTxns, incomeByMonth: nextIncome };
+}
+
 export function createBlankState() {
   return {
     version: CURRENT_STATE_VERSION,
@@ -274,6 +359,7 @@ export function createBlankState() {
     savingsContrib: 0,
     budgetsByMonth: {},
     dueDays: {},
+    auditLog: [],
   };
 }
 
@@ -281,7 +367,7 @@ export function migrateState(saved, now = new Date()) {
   if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return createBlankState();
   const currentKey = mkKey(now.getFullYear(), now.getMonth());
   const customCats = normaliseCustomCategories(saved.customCats);
-  const txnsByMonth = normaliseTransactionsByMonth(saved.txnsByMonth, customCats);
+  let txnsByMonth = normaliseTransactionsByMonth(saved.txnsByMonth, customCats);
 
   let incomeByMonth = normaliseIncomeByMonth(saved.incomeByMonth);
   if (!Object.keys(incomeByMonth).length && Array.isArray(saved.sources)) {
@@ -302,6 +388,10 @@ export function migrateState(saved, now = new Date()) {
     }
   }
 
+  const people = normaliseReferenceList(saved.people, 'person');
+  const accounts = normaliseReferenceList(saved.accounts, 'account');
+  ({ txnsByMonth, incomeByMonth } = snapshotReferenceLabels(txnsByMonth, incomeByMonth, people, accounts));
+
   return {
     version: CURRENT_STATE_VERSION,
     txnsByMonth,
@@ -310,68 +400,71 @@ export function migrateState(saved, now = new Date()) {
     hiddenCats: Array.isArray(saved.hiddenCats)
       ? [...new Set(saved.hiddenCats.filter((id) => typeof id === 'string').map((id) => id.slice(0, 120)))]
       : [],
-    people: normaliseReferenceList(saved.people, 'person'),
-    accounts: normaliseReferenceList(saved.accounts, 'account'),
+    people,
+    accounts,
     savingsByMonth,
     monthMetaByMonth: normaliseMonthMetaByMonth(saved.monthMetaByMonth),
     savingsGoal: positiveNumber(saved.savingsGoal),
     savingsContrib: positiveNumber(saved.savingsContrib),
     budgetsByMonth: normaliseLegacyMap(saved.budgetsByMonth),
     dueDays: saved.dueDays && typeof saved.dueDays === 'object' && !Array.isArray(saved.dueDays) ? { ...saved.dueDays } : {},
+    auditLog: normaliseAuditLog(saved.auditLog),
   };
 }
 
 export function currentSavingsTotal(state, monthKey) {
   if (!isValidMonthKey(monthKey)) return 0;
-  return (state?.savingsByMonth?.[monthKey] || []).reduce((sum, account) => sum + nonNegativeNumber(account.balance), 0);
+  return sumMoney((state?.savingsByMonth?.[monthKey] || []).map((account) => nonNegativeNumber(account.balance)));
 }
 
 function isIncompleteExpense(transaction) {
-  return transaction.type === 'expense' && (
-    transaction.paidBy === 'unassigned'
-    || transaction.account === 'unassigned'
-    || transaction.needsConfirmation
-  );
+  return transaction.type === 'expense' && Boolean(transaction.needsConfirmation || transaction.confirmationIssues?.length);
 }
 
 function isIncompleteIncome(record) {
-  return record.receivedBy === 'unassigned' || record.account === 'unassigned' || record.needsConfirmation;
+  return Boolean(record.needsConfirmation || record.confirmationIssues?.length);
 }
 
 export function monthSummary(state, monthKey) {
   const incomeRecords = state?.incomeByMonth?.[monthKey] || [];
   const transactions = state?.txnsByMonth?.[monthKey] || [];
   const expenseTransactions = transactions.filter((transaction) => transaction.type === 'expense');
-  const income = incomeRecords.reduce((sum, record) => sum + positiveNumber(record.amount), 0);
-  const expenses = expenseTransactions.reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
-  const paidExpenses = expenseTransactions.filter((transaction) => transaction.paid).reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
-  const remainingBills = expenseTransactions.filter((transaction) => !transaction.paid).reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
-  const fixedExpenses = expenseTransactions.filter((transaction) => transaction.expenseClass === 'fixed').reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
-  const variableExpenses = expenses - fixedExpenses;
-  const excludedMovements = transactions
+  const income = sumMoney(incomeRecords.map((record) => record.amount));
+  const expenses = sumMoney(expenseTransactions.map((transaction) => transaction.amount));
+  const paidExpenses = sumMoney(expenseTransactions.filter((transaction) => transaction.paid).map((transaction) => transaction.amount));
+  const remainingBills = sumMoney(expenseTransactions.filter((transaction) => !transaction.paid).map((transaction) => transaction.amount));
+  const fixedExpenses = sumMoney(expenseTransactions.filter((transaction) => transaction.expenseClass === 'fixed').map((transaction) => transaction.amount));
+  const variableExpenses = roundMoney(expenses - fixedExpenses);
+  const excludedMovements = sumMoney(transactions
     .filter((transaction) => ['internal_transfer','savings_transfer','card_repayment'].includes(transaction.type))
-    .reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
-  const legacyRefunds = transactions
-    .filter((transaction) => transaction.type === 'refund')
-    .reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
+    .map((transaction) => transaction.amount));
+  const legacyRefunds = sumMoney(transactions.filter((transaction) => transaction.type === 'refund').map((transaction) => transaction.amount));
   const currentSavings = currentSavingsTotal(state, monthKey);
-  const savedThisMonth = income - expenses;
+  const savedThisMonth = roundMoney(income - expenses);
   const monthMeta = state?.monthMetaByMonth?.[monthKey] || {};
   const isComplete = monthMeta.status === 'complete';
   const startingSavings = isComplete ? nonNegativeNumber(monthMeta.startingSavings) : 0;
-  const expectedClosingSavings = isComplete ? startingSavings + income - expenses : null;
-  const closingVariance = isComplete ? currentSavings - expectedClosingSavings : null;
-  const freeSavingsAfterBills = currentSavings - remainingBills;
-  const projectedIncrease = savedThisMonth;
-  const projectedEndSavings = currentSavings + savedThisMonth;
+  const expectedClosingSavings = isComplete ? roundMoney(startingSavings + income - expenses) : null;
+  const closingVariance = isComplete ? roundMoney(currentSavings - expectedClosingSavings) : null;
+  const freeSavingsAfterBills = roundMoney(currentSavings - remainingBills);
+  const projectedIncrease = isComplete ? 0 : savedThisMonth;
+  const projectedEndSavings = isComplete ? currentSavings : roundMoney(currentSavings + savedThisMonth);
 
   const plan = new Map();
   expenseTransactions.filter((transaction) => !transaction.paid).forEach((transaction) => {
     const paidBy = transaction.paidBy || 'unassigned';
     const account = transaction.account || 'unassigned';
     const key = `${paidBy}::${account}`;
-    const current = plan.get(key) || { key, paidBy, account, amount: 0, count: 0 };
-    current.amount += positiveNumber(transaction.amount);
+    const current = plan.get(key) || {
+      key,
+      paidBy,
+      account,
+      paidByLabel: transaction.paidByLabel,
+      accountLabel: transaction.accountLabel,
+      amount: 0,
+      count: 0,
+    };
+    current.amount = roundMoney(current.amount + positiveNumber(transaction.amount));
     current.count += 1;
     plan.set(key, current);
   });
@@ -380,6 +473,7 @@ export function monthSummary(state, monthKey) {
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
   const hasSavingsSnapshot = Boolean(state?.savingsByMonth?.[monthKey]?.length);
+  const reconciliationProblem = Boolean(isComplete && (Math.abs(closingVariance || 0) >= 0.005 || remainingBills > 0));
 
   return {
     incomeRecords,
@@ -408,6 +502,8 @@ export function monthSummary(state, monthKey) {
     startingSavings,
     expectedClosingSavings,
     closingVariance,
+    reconciliationProblem,
+    auditReady: incompleteExpenses + incompleteIncome === 0 && !reconciliationProblem,
     hasData: incomeRecords.length > 0 || transactions.length > 0 || hasSavingsSnapshot || isComplete,
   };
 }
@@ -418,8 +514,44 @@ export function annualSummary(state, year) {
     month,
     ...monthSummary(state, mkKey(year, month)),
   }));
-  const withData = months.filter((item) => item.incomeRecords.length || item.transactions.length);
+  const withData = months.filter((item) => item.hasData);
   const fields = ['income','expenses','paidExpenses','remainingBills','fixedExpenses','variableExpenses','excludedMovements','savedThisMonth'];
-  const totals = Object.fromEntries(fields.map((field) => [field, withData.reduce((sum, item) => sum + item[field], 0)]));
-  return { months, withData, ...totals };
+  const totals = Object.fromEntries(fields.map((field) => [field, sumMoney(withData.map((item) => item[field]))]));
+  const incompleteRecords = withData.reduce((sum, item) => sum + item.incompleteRecords, 0);
+  const monthsNeedingReview = withData.filter((item) => !item.auditReady).length;
+  const unreconciledMonths = withData.filter((item) => item.reconciliationProblem).length;
+  return {
+    months,
+    withData,
+    ...totals,
+    incompleteRecords,
+    monthsNeedingReview,
+    unreconciledMonths,
+    auditReady: incompleteRecords === 0 && unreconciledMonths === 0,
+  };
+}
+
+function compareText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+export function isLikelyDuplicateTransaction(existing, candidate) {
+  if (!existing || !candidate || existing.id === candidate.id) return false;
+  return existing.type === candidate.type
+    && roundMoney(existing.amount) === roundMoney(candidate.amount)
+    && existing.date === candidate.date
+    && compareText(existing.desc) === compareText(candidate.desc)
+    && compareText(existing.category) === compareText(candidate.category)
+    && compareText(existing.paidBy) === compareText(candidate.paidBy)
+    && compareText(existing.account) === compareText(candidate.account);
+}
+
+export function isLikelyDuplicateIncome(existing, candidate) {
+  if (!existing || !candidate || existing.id === candidate.id) return false;
+  return roundMoney(existing.amount) === roundMoney(candidate.amount)
+    && existing.date === candidate.date
+    && compareText(existing.description) === compareText(candidate.description)
+    && compareText(existing.incomeType) === compareText(candidate.incomeType)
+    && compareText(existing.receivedBy) === compareText(candidate.receivedBy)
+    && compareText(existing.account) === compareText(candidate.account);
 }
