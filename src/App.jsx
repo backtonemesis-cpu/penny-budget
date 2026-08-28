@@ -388,52 +388,79 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, on
     const key = `${record.incomeType}::${record.receivedBy}`;
     incomeTotals[key] = (incomeTotals[key] || 0) + record.amount;
   });
+  const closed = summary.monthStatus === 'closed';
   return (
     <>
       {summary.incompleteRecords > 0 && (
         <div className="audit-warning" role="note">
           <strong>{summary.incompleteRecords} record{summary.incompleteRecords === 1 ? '' : 's'} need confirmation.</strong>
-          <span>Check payer, receiver, account or source date before relying on the figures as final evidence.</span>
+          <span>Check payer, receiver, account or source date before relying on the record detail as final evidence.</span>
+        </div>
+      )}
+
+      {closed && (
+        <div className="notice" role="status">
+          <span>{summary.historicalReconciled ? 'Closed historical month: opening savings + income − expenses reconciles to the recorded ending savings.' : 'Closed historical month: historical reconciliation is shown instead of a live transfer projection.'}</span>
         </div>
       )}
 
       <div className="grid">
-        <Stat label="Current Savings" value={formatMoney(summary.currentSavings)} tone="accent" sub={summary.hasSavingsSnapshot ? `${MONTHS[month]} savings snapshot` : 'No savings snapshot for this month'} />
-        <Stat label="Income This Month" value={formatMoney(summary.income)} tone="green" sub="Received or expected" onClick={onAddIncome} />
-        <Stat label="Expenses This Month" value={formatMoney(summary.expenses)} tone="amber" sub="Paid and unpaid costs" onClick={onAddExpense} />
+        <Stat label={closed ? 'Ending Savings' : 'Current Savings'} value={formatMoney(summary.currentSavings)} tone="accent" sub={summary.hasSavingsSnapshot ? (closed ? `${MONTHS[month]} closing savings snapshot` : `${MONTHS[month]} savings snapshot`) : 'No savings snapshot for this month'} />
+        <Stat label="Income This Month" value={formatMoney(summary.income)} tone="green" sub={closed ? 'Historical actual income' : 'Received or expected'} onClick={onAddIncome} />
+        <Stat label="Expenses This Month" value={formatMoney(summary.expenses)} tone="amber" sub={closed ? 'Historical actual expenses' : 'Paid and unpaid costs'} onClick={onAddExpense} />
         <Stat label="Saved This Month" value={formatMoney(summary.savedThisMonth)} tone={summary.savedThisMonth >= 0 ? 'green' : 'red'} sub="Income − all expenses" />
-        <Stat label="Remaining Bills" value={formatMoney(summary.remainingBills)} tone={summary.remainingBills ? 'amber' : 'green'} sub="Still unpaid / to fund" />
-        <Stat label="Projected End" value={formatMoney(summary.projectedEndSavings)} tone={summary.projectedEndSavings >= 0 ? 'green' : 'red'} sub="Savings + income − unpaid bills" />
+        <Stat label="Remaining Bills" value={formatMoney(summary.remainingBills)} tone={summary.remainingBills ? 'amber' : 'green'} sub={closed ? 'Historical unpaid balance' : 'Still unpaid / to fund'} />
+        <Stat label={closed ? 'Actual End' : 'Projected End'} value={formatMoney(summary.projectedEndSavings)} tone={summary.projectedEndSavings >= 0 ? 'green' : 'red'} sub={closed ? 'Recorded closing savings' : 'Savings + income − unpaid bills'} />
       </div>
 
-      <section className="card" aria-labelledby="transfer-plan-title">
-        <div className="section-heading">
-          <div>
-            <h2 className="section-title" id="transfer-plan-title">Transfer Plan</h2>
-            <p className="section-note">Only unpaid expenses are included. Paid bills are not deducted again.</p>
-          </div>
-          <div className="money strong">{formatMoney(summary.remainingBills)}</div>
-        </div>
-        {summary.transferPlan.length ? summary.transferPlan.map((row) => (
-          <div className="row" key={row.key}>
-            <div className="grow">
-              <div className="row-title">{peopleMap[row.paidBy]?.label || row.paidBy}</div>
-              <div className="muted">{accountMap[row.account]?.label || row.account} · {row.count} item{row.count === 1 ? '' : 's'}</div>
+      {closed ? (
+        <section className="card" aria-labelledby="historical-reconciliation-title">
+          <div className="section-heading">
+            <div>
+              <h2 className="section-title" id="historical-reconciliation-title">Month Reconciliation</h2>
+              <p className="section-note">Closed historical months use actual opening savings, actual income, actual expenses and the recorded closing savings. Live transfer planning is not applied retrospectively.</p>
             </div>
-            <div className="money">{formatMoney(row.amount)}</div>
+            <div className={`money strong ${summary.historicalReconciled ? 'green' : 'amber'}`}>{summary.historicalReconciled ? 'Reconciled' : 'Check'}</div>
           </div>
-        )) : <div className="empty">No transfer is currently required. All recorded expenses are marked paid.</div>}
-      </section>
+          <SummaryRow label="Opening Savings" value={summary.openingSavings} />
+          <SummaryRow label="Plus: Income" value={summary.income} />
+          <SummaryRow label="Less: Expenses" value={-summary.expenses} />
+          <SummaryRow label="Calculated Ending Savings" value={summary.historicalCalculatedEndSavings} emphasis />
+          <SummaryRow label="Recorded Ending Savings" value={summary.currentSavings} emphasis />
+          <SummaryRow label="Difference" value={summary.reconciliationDifference} />
+        </section>
+      ) : (
+        <>
+          <section className="card" aria-labelledby="transfer-plan-title">
+            <div className="section-heading">
+              <div>
+                <h2 className="section-title" id="transfer-plan-title">Transfer Plan</h2>
+                <p className="section-note">Only unpaid expenses are included. Paid bills are not deducted again.</p>
+              </div>
+              <div className="money strong">{formatMoney(summary.remainingBills)}</div>
+            </div>
+            {summary.transferPlan.length ? summary.transferPlan.map((row) => (
+              <div className="row" key={row.key}>
+                <div className="grow">
+                  <div className="row-title">{peopleMap[row.paidBy]?.label || row.paidBy}</div>
+                  <div className="muted">{accountMap[row.account]?.label || row.account} · {row.count} item{row.count === 1 ? '' : 's'}</div>
+                </div>
+                <div className="money">{formatMoney(row.amount)}</div>
+              </div>
+            )) : <div className="empty">No transfer is currently required. All recorded expenses are marked paid.</div>}
+          </section>
 
-      <section className="card" aria-labelledby="transfer-check-title">
-        <h2 className="section-title" id="transfer-check-title">Transfer Check</h2>
-        <SummaryRow label="Current Savings Now" value={summary.currentSavings} />
-        <SummaryRow label="Less: Unpaid Bills Still to Cover" value={-summary.remainingBills} />
-        <SummaryRow label="Free Savings After Bills" value={summary.freeSavingsAfterBills} emphasis />
-        <SummaryRow label="Plus: Income This Month" value={summary.income} />
-        <SummaryRow label="Projected Increase This Month" value={summary.projectedIncrease} />
-        <SummaryRow label="Projected End Savings" value={summary.projectedEndSavings} emphasis />
-      </section>
+          <section className="card" aria-labelledby="transfer-check-title">
+            <h2 className="section-title" id="transfer-check-title">Transfer Check</h2>
+            <SummaryRow label="Current Savings Now" value={summary.currentSavings} />
+            <SummaryRow label="Less: Unpaid Bills Still to Cover" value={-summary.remainingBills} />
+            <SummaryRow label="Free Savings After Bills" value={summary.freeSavingsAfterBills} emphasis />
+            <SummaryRow label="Plus: Income This Month" value={summary.income} />
+            <SummaryRow label="Projected Increase This Month" value={summary.projectedIncrease} />
+            <SummaryRow label="Projected End Savings" value={summary.projectedEndSavings} emphasis />
+          </section>
+        </>
+      )}
 
       <div className="two-column-sections">
         <section className="card" aria-labelledby="expense-breakdown-title">
@@ -660,13 +687,14 @@ function Savings({ state, summary, monthKey, month, year, mutate }) {
   };
   const goalRemaining = state.savingsGoal > 0 ? Math.max(state.savingsGoal - summary.currentSavings, 0) : null;
   const months = goalRemaining && state.savingsContrib > 0 ? Math.ceil(goalRemaining / state.savingsContrib) : null;
+  const closed = summary.monthStatus === 'closed';
   return (
     <>
       <section className="card" aria-labelledby="savings-accounts-title">
         <div className="section-heading">
           <div>
             <h2 className="section-title" id="savings-accounts-title">Savings Accounts — {MONTHS[month]} {year}</h2>
-            <p className="section-note">This is a month-specific savings snapshot. Editing it does not change another month.</p>
+            <p className="section-note">{closed ? 'This is the recorded closing savings snapshot for the historical month.' : 'This is a month-specific savings snapshot. Editing it does not change another month.'}</p>
           </div>
           <button className="primary-button" onClick={addAccount}>+ Account</button>
         </div>
@@ -683,7 +711,8 @@ function Savings({ state, summary, monthKey, month, year, mutate }) {
             <button className="danger-button remove-row-button" onClick={() => removeAccount(account.id)}>Remove</button>
           </div>
         )) : <div className="empty">No savings snapshot has been recorded for {MONTHS[month]} {year}.</div>}
-        <div className="total-line"><span>Current Savings</span><span className="money green">{formatMoney(summary.currentSavings)}</span></div>
+        {closed && summary.hasOpeningSavings && <SummaryRow label="Opening Savings" value={summary.openingSavings} />}
+        <div className="total-line"><span>{closed ? 'Ending Savings' : 'Current Savings'}</span><span className="money green">{formatMoney(summary.currentSavings)}</span></div>
       </section>
 
       <section className="card" aria-labelledby="savings-goal-title">
@@ -727,10 +756,10 @@ function Year({ annual, year, categoryMap, onSelectMonth }) {
       <section className="card" aria-labelledby="months-title">
         <h2 className="section-title" id="months-title">Month by Month</h2>
         {annual.months.map((item) => (
-          <button className={`year-row ${item.incomeRecords.length || item.transactions.length ? '' : 'no-data'}`} key={item.key} onClick={() => onSelectMonth(item.month)}>
+          <button className={`year-row ${item.hasData ? '' : 'no-data'}`} key={item.key} onClick={() => onSelectMonth(item.month)}>
             <span className="month-name">{SHORT_MONTHS[item.month]}</span>
-            <span className="grow muted">{item.incomeRecords.length || item.transactions.length ? `${formatMoney(item.income)} in · ${formatMoney(item.expenses)} out` : 'No records'}</span>
-            <span className={`money ${item.savedThisMonth >= 0 ? 'green' : 'red'}`}>{item.incomeRecords.length || item.transactions.length ? formatMoney(item.savedThisMonth, { plus: true }) : '—'}</span>
+            <span className="grow muted">{item.hasData ? `${formatMoney(item.income)} in · ${formatMoney(item.expenses)} out${item.monthStatus === 'closed' ? ' · closed' : ''}` : 'No records'}</span>
+            <span className={`money ${item.savedThisMonth >= 0 ? 'green' : 'red'}`}>{item.hasData ? formatMoney(item.savedThisMonth, { plus: true }) : '—'}</span>
           </button>
         ))}
       </section>
@@ -919,7 +948,7 @@ function SettingsModal({ state, allCategories, mutate, fileRef, onImport, onExpo
     <SimpleModal title="Settings" onClose={onClose} wide>
       <section className="settings-section">
         <h3>Household People</h3>
-        <p className="section-note">Used for Paid By and Received By. Household and Unassigned are always available.</p>
+        <p className="section-note">Used for Paid By and Received By. Joint and Unassigned are always available.</p>
         <ReferenceEditor field="people" items={state.people} state={state} mutate={mutate} placeholder="Person name" />
       </section>
       <section className="settings-section">
