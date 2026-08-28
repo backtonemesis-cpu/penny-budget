@@ -114,6 +114,27 @@ function normaliseSavingsByMonth(value) {
   );
 }
 
+function normaliseMonthStatusByMonth(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([monthKey, status]) => isValidMonthKey(monthKey) && status === 'closed')
+      .map(([monthKey]) => [monthKey, 'closed']),
+  );
+}
+
+function normaliseOpeningSavingsByMonth(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([monthKey]) => isValidMonthKey(monthKey))
+      .flatMap(([monthKey, amount]) => {
+        const number = positiveNumber(amount);
+        return number > 0 ? [[monthKey, number]] : [];
+      }),
+  );
+}
+
 function normaliseCustomCategories(value) {
   if (!Array.isArray(value)) return [];
   return uniqueById(value.flatMap((category) => {
@@ -251,6 +272,8 @@ export function createBlankState() {
     people: [],
     accounts: [],
     savingsByMonth: {},
+    monthStatusByMonth: {},
+    openingSavingsByMonth: {},
     savingsGoal: 0,
     savingsContrib: 0,
     budgetsByMonth: {},
@@ -294,6 +317,8 @@ export function migrateState(saved, now = new Date()) {
     people: normaliseReferenceList(saved.people, 'person'),
     accounts: normaliseReferenceList(saved.accounts, 'account'),
     savingsByMonth,
+    monthStatusByMonth: normaliseMonthStatusByMonth(saved.monthStatusByMonth),
+    openingSavingsByMonth: normaliseOpeningSavingsByMonth(saved.openingSavingsByMonth),
     savingsGoal: positiveNumber(saved.savingsGoal),
     savingsContrib: positiveNumber(saved.savingsContrib),
     budgetsByMonth: normaliseLegacyMap(saved.budgetsByMonth),
@@ -335,10 +360,27 @@ export function monthSummary(state, monthKey) {
     .filter((transaction) => transaction.type === 'refund')
     .reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
   const currentSavings = currentSavingsTotal(state, monthKey);
+  const hasSavingsSnapshot = Boolean(state?.savingsByMonth?.[monthKey]?.length);
+  const monthStatus = state?.monthStatusByMonth?.[monthKey] === 'closed' ? 'closed' : 'live';
+  const openingSavings = positiveNumber(state?.openingSavingsByMonth?.[monthKey]);
+  const hasOpeningSavings = openingSavings > 0;
   const savedThisMonth = income - expenses;
-  const freeSavingsAfterBills = currentSavings - remainingBills;
-  const projectedIncrease = income - remainingBills;
-  const projectedEndSavings = currentSavings + income - remainingBills;
+
+  const liveFreeSavingsAfterBills = currentSavings - remainingBills;
+  const liveProjectedIncrease = income - remainingBills;
+  const liveProjectedEndSavings = currentSavings + income - remainingBills;
+  const historicalCalculatedEndSavings = hasOpeningSavings ? openingSavings + income - expenses : 0;
+  const reconciliationDifference = monthStatus === 'closed' && hasOpeningSavings && hasSavingsSnapshot
+    ? currentSavings - historicalCalculatedEndSavings
+    : 0;
+  const historicalReconciled = monthStatus === 'closed'
+    && hasOpeningSavings
+    && hasSavingsSnapshot
+    && Math.abs(reconciliationDifference) < 0.005;
+
+  const freeSavingsAfterBills = monthStatus === 'closed' ? currentSavings : liveFreeSavingsAfterBills;
+  const projectedIncrease = monthStatus === 'closed' ? savedThisMonth : liveProjectedIncrease;
+  const projectedEndSavings = monthStatus === 'closed' ? currentSavings : liveProjectedEndSavings;
 
   const plan = new Map();
   expenseTransactions.filter((transaction) => !transaction.paid).forEach((transaction) => {
@@ -354,7 +396,6 @@ export function monthSummary(state, monthKey) {
   const transferPlan = [...plan.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
-  const hasSavingsSnapshot = Boolean(state?.savingsByMonth?.[monthKey]?.length);
 
   return {
     incomeRecords,
@@ -370,6 +411,12 @@ export function monthSummary(state, monthKey) {
     legacyRefunds,
     currentSavings,
     hasSavingsSnapshot,
+    monthStatus,
+    openingSavings,
+    hasOpeningSavings,
+    historicalCalculatedEndSavings,
+    reconciliationDifference,
+    historicalReconciled,
     savedThisMonth,
     freeSavingsAfterBills,
     projectedIncrease,
@@ -378,7 +425,7 @@ export function monthSummary(state, monthKey) {
     incompleteExpenses,
     incompleteIncome,
     incompleteRecords: incompleteExpenses + incompleteIncome,
-    hasData: incomeRecords.length > 0 || transactions.length > 0 || hasSavingsSnapshot,
+    hasData: incomeRecords.length > 0 || transactions.length > 0 || hasSavingsSnapshot || hasOpeningSavings,
   };
 }
 
@@ -388,7 +435,7 @@ export function annualSummary(state, year) {
     month,
     ...monthSummary(state, mkKey(year, month)),
   }));
-  const withData = months.filter((item) => item.incomeRecords.length || item.transactions.length);
+  const withData = months.filter((item) => item.incomeRecords.length || item.transactions.length || item.hasSavingsSnapshot || item.hasOpeningSavings);
   const fields = ['income','expenses','paidExpenses','remainingBills','fixedExpenses','variableExpenses','excludedMovements','savedThisMonth'];
   const totals = Object.fromEntries(fields.map((field) => [field, withData.reduce((sum, item) => sum + item[field], 0)]));
   return { months, withData, ...totals };
