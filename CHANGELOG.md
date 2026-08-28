@@ -1,5 +1,26 @@
 # Penny Change Log
 
+## 28 August 2026 — Audit hardening and mobile UX rebuild
+
+- Corrected completed-month display logic so recorded closing savings is never projected forward a second time.
+- Added penny-safe rounding helpers to prevent floating-point drift in financial totals.
+- Added structured confirmation issues so unknown dates, payer/receiver and account evidence remain unresolved until explicitly confirmed.
+- Historical records with unknown exact dates now display `Date TBC` instead of presenting the technical month-placement date as fact.
+- New expenses now default to Unpaid rather than assuming payment.
+- Added exact duplicate blocking for matching expenses and income records.
+- Completed months are locked against accidental editing by default and require an explicit correction unlock for the current session.
+- Added local Change History with before/after snapshots for financial edits and deletion before-state retention.
+- Historical record person/account labels are snapshotted so later reference renaming does not rewrite how old evidence is displayed.
+- Added annual audit readiness indicators and month-level review statuses.
+- Prevented the selected historical month from automatically jumping back to the current month when Penny becomes visible.
+- Added protected recovery mode when local browser state cannot be parsed, preventing damaged state from being silently overwritten.
+- Added automatic pre-import rollback storage and a one-click restore option.
+- Future-format backups are rejected until Penny is updated instead of being silently down-migrated.
+- Reduced Overview vertical weight, collapsed cash-flow detail, and hides the large Transfer Plan when nothing remains unpaid.
+- Currency figures no longer wrap in the middle of a number on mobile.
+- Increased navigation label size, touch targets and modal keyboard focus handling.
+- Expanded regression/source audits for accounting logic, data provenance, duplicates, recovery, accessibility and privacy.
+
 ## 28 August 2026 — Corrected live savings projection
 
 - Corrected live-month Projected End Savings to: Current Savings + Saved This Month.
