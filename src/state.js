@@ -134,11 +134,14 @@ export function appReducer(state, action) {
     case 'SET_SAVINGS_ACCOUNTS': {
       if (!isValidMonthKey(action.monthKey)) return state;
       const before = state.savingsByMonth[action.monthKey] || [];
+      const normalisedItems = Array.isArray(action.items)
+        ? action.items.map((item) => ({ ...item, balance: positiveNumber(item?.balance) }))
+        : [];
       const savingsByMonth = { ...state.savingsByMonth };
-      if (Array.isArray(action.items) && action.items.length) savingsByMonth[action.monthKey] = action.items;
+      if (normalisedItems.length) savingsByMonth[action.monthKey] = normalisedItems;
       else delete savingsByMonth[action.monthKey];
       const next = { ...state, savingsByMonth };
-      return appendAudit(next, action, { action: 'update', entityType: 'savings_snapshot', monthKey: action.monthKey, label: 'Savings snapshot', before, after: action.items || [] });
+      return appendAudit(next, action, { action: 'update', entityType: 'savings_snapshot', monthKey: action.monthKey, label: 'Savings snapshot', before, after: normalisedItems });
     }
     case 'SET_SAVINGS': {
       if (!['savingsGoal', 'savingsContrib'].includes(action.field)) return state;
