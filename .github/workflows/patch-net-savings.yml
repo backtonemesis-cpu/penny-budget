@@ -43,23 +43,9 @@ jobs:
               "sub={summary.isComplete ? 'Recorded closing savings less any unpaid items' : 'Savings + saved this month'}",
               'overview projection subtitle',
           )
-
-          replace_once(
-              'src/App.jsx',
-              '''            <SummaryRow label="Current Savings Now" value={summary.currentSavings} />
-            <SummaryRow label="Less: Unpaid Bills Still to Cover" value={-summary.remainingBills} />
-            <SummaryRow label="Free Savings After Bills" value={summary.freeSavingsAfterBills} emphasis />
-            <SummaryRow label="Plus: Income This Month" value={summary.income} />
-            <SummaryRow label="Projected Increase This Month" value={summary.projectedIncrease} />
-            <SummaryRow label="Projected End Savings" value={summary.projectedEndSavings} emphasis />''',
-              '''            <SummaryRow label="Current Savings Now" value={summary.currentSavings} />
-            <SummaryRow label="Free Savings After Bills (info)" value={summary.freeSavingsAfterBills} />
-            <SummaryRow label="Plus: Saved This Month" value={summary.savedThisMonth} />
-            <SummaryRow label="Remaining Bills Still Unpaid (info)" value={summary.remainingBills} />
-            <SummaryRow label="Projected Increase This Month" value={summary.projectedIncrease} />
-            <SummaryRow label="Projected End Savings" value={summary.projectedEndSavings} emphasis />''',
-              'transfer check',
-          )
+          replace_once('src/App.jsx', '<SummaryRow label="Less: Unpaid Bills Still to Cover" value={-summary.remainingBills} />', '<SummaryRow label="Free Savings After Bills (info)" value={summary.freeSavingsAfterBills} />', 'transfer check free savings row')
+          replace_once('src/App.jsx', '<SummaryRow label="Free Savings After Bills" value={summary.freeSavingsAfterBills} emphasis />', '<SummaryRow label="Plus: Saved This Month" value={summary.savedThisMonth} />', 'transfer check saved row')
+          replace_once('src/App.jsx', '<SummaryRow label="Plus: Income This Month" value={summary.income} />', '<SummaryRow label="Remaining Bills Still Unpaid (info)" value={summary.remainingBills} />', 'transfer check unpaid info row')
 
           replace_once('scripts/self-test.mjs', 'assert.equal(july.projectedIncrease, 3800);', 'assert.equal(july.projectedIncrease, 2000);', 'live projected increase test')
           replace_once('scripts/self-test.mjs', 'assert.equal(july.projectedEndSavings, 13800);', 'assert.equal(july.projectedEndSavings, 12000);', 'live projected end test')
