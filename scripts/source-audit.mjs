@@ -43,7 +43,9 @@ function storageAudit() {
   assert.match(files.storage, /formatVersion:\s*CURRENT_STATE_VERSION/);
   assert.match(files.storage, /mergeImportedMonths/);
   assert.match(files.storage, /importMode === 'merge_months'/);
+  assert.match(files.storage, /monthMetaByMonth/);
   assert.match(files.finance, /savingsByMonth/);
+  assert.match(files.finance, /monthMetaByMonth/);
   assert.match(files.app, /month-specific savings snapshot/i);
 }
 
@@ -62,15 +64,17 @@ function currencyAudit() {
 }
 
 function financeAudit() {
-  assert.match(files.finance, /projectedEndSavings\s*=\s*currentSavings \+ income - remainingBills/, 'Projected End Savings must match the tracker rule.');
+  assert.match(files.finance, /expectedClosingSavings\s*=\s*isComplete \? startingSavings \+ income - expenses/, 'Completed months must reconcile starting savings plus income less actual expenses.');
+  assert.match(files.finance, /projectedEndSavings\s*=\s*isComplete[\s\S]*currentSavings - remainingBills[\s\S]*currentSavings \+ income - remainingBills/, 'Completed and live months must use separate closing-position rules.');
   assert.match(files.finance, /currentSavingsTotal\(state, monthKey\)/, 'Savings must be resolved from the selected month.');
   assert.match(files.finance, /paidBy/);
   assert.match(files.finance, /receivedBy/);
   assert.match(files.finance, /transferPlan/);
   assert.match(files.finance, /freeSavingsAfterBills\s*=\s*currentSavings - remainingBills/);
   assert.doesNotMatch(files.catalog, /id:\s*['"]refund['"]/, 'Refund entry must not return to the public transaction choices.');
-  assert.match(files.app, /Current Savings/);
-  assert.match(files.app, /Remaining Bills/);
+  assert.match(files.app, /Historical Reconciliation/);
+  assert.match(files.app, /Expected Closing Savings/);
+  assert.match(files.app, /Reconciliation Variance/);
   assert.match(files.app, /Transfer Plan/);
   assert.match(files.app, /Payment status/);
 }
