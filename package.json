@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "vite",
     "test": "node scripts/self-test.mjs && node scripts/source-audit.mjs",
-    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "audit:prod": "npm audit --omit=dev --audit-level=moderate",
     "audit:all": "node scripts/dependency-audit.mjs",
     "build": "vite build",
-    "check": "npm run audit:all && npm test && npm run build",
+    "check": "npm run audit:prod && npm run audit:all && npm test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,6 +21,7 @@
     "vite": "^8.1.5"
   },
   "overrides": {
-    "nanoid": "3.3.18"
+    "nanoid": "3.3.18",
+    "postcss": "8.5.26"
   }
 }
