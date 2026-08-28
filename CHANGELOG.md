@@ -7,19 +7,23 @@
 - Added structured confirmation issues so unknown dates, payer/receiver and account evidence remain unresolved until explicitly confirmed.
 - Historical records with unknown exact dates now display `Date TBC` instead of presenting the technical month-placement date as fact.
 - New expenses now default to Unpaid rather than assuming payment.
-- Added exact duplicate blocking for matching expenses and income records.
+- Added duplicate detection: a matching expense or income record now requires explicit confirmation before a second identical record can be saved.
 - Completed months are locked against accidental editing by default and require an explicit correction unlock for the current session.
 - Added local Change History with before/after snapshots for financial edits and deletion before-state retention.
 - Historical record person/account labels are snapshotted so later reference renaming does not rewrite how old evidence is displayed.
-- Added annual audit readiness indicators and month-level review statuses.
+- Tightened evidence status: only completed, fully confirmed and reconciled months can be `Ready`; live data is `In progress`, failed completed evidence is `Review`, and empty periods are `No data`.
 - Prevented the selected historical month from automatically jumping back to the current month when Penny becomes visible.
-- Added protected recovery mode when local browser state cannot be parsed, preventing damaged state from being silently overwritten.
-- Added automatic pre-import rollback storage and a one-click restore option.
-- Future-format backups are rejected until Penny is updated instead of being silently down-migrated.
+- Added protected recovery mode when local browser state cannot be parsed or was created by a newer Penny data format, preventing saved data from being silently overwritten.
+- Normal backup export is disabled during protected recovery so the blank in-memory fallback cannot be mistaken for the unreadable saved state.
+- Added automatic pre-import rollback storage and a one-click restore option. The rollback is created only after the user approves an import.
+- Future-format backup wrappers and raw future-version Penny states are rejected until Penny is updated.
 - Reduced Overview vertical weight, collapsed cash-flow detail, and hides the large Transfer Plan when nothing remains unpaid.
 - Currency figures no longer wrap in the middle of a number on mobile.
-- Increased navigation label size, touch targets and modal keyboard focus handling.
-- Expanded regression/source audits for accounting logic, data provenance, duplicates, recovery, accessibility and privacy.
+- Increased navigation label size and touch targets; modals now trap keyboard focus and restore it to the opener when closed.
+- Added a restrictive same-origin Content Security Policy and no-referrer policy.
+- Patched the remaining moderate PostCSS build-tool advisory and raised the dependency gate to reject moderate-or-higher vulnerabilities.
+- Updated GitHub checkout/setup actions for the Node 24 workflow runtime.
+- Expanded regression/source audits for accounting logic, evidence status, data provenance, duplicates, recovery, accessibility, dependency security and privacy.
 
 ## 28 August 2026 — Corrected live savings projection
 
