@@ -3,6 +3,8 @@ import {
   CURRENT_STATE_VERSION,
   annualSummary,
   createBlankState,
+  migrateState,
+  monthSummary,
 } from '../src/finance.js';
 import { appReducer } from '../src/state.js';
 import {
@@ -33,6 +35,37 @@ const subPennySavings = appReducer(createBlankState(), {
 assert.equal(subPennySavings.savingsByMonth['2026-08'][0].balance, 100, 'Stored savings evidence must be normalised to pennies.');
 assert.equal(subPennySavings.auditLog[0].after[0].balance, 100, 'Change History must record the penny-normalised savings value.');
 
+const missingStart = migrateState({
+  version: CURRENT_STATE_VERSION,
+  monthMetaByMonth: { '2026-06': { status: 'complete', startingSavings: null } },
+  savingsByMonth: { '2026-06': [{ id: 's', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 5, 30));
+const missingStartSummary = monthSummary(missingStart, '2026-06');
+assert.equal(missingStartSummary.startingSavingsConfirmed, false, 'Null starting savings must remain missing evidence, not become an explicit zero.');
+assert.equal(missingStartSummary.expectedClosingSavings, null);
+assert.equal(missingStartSummary.closingVariance, null);
+assert.equal(missingStartSummary.auditReady, false);
+assert.equal(missingStartSummary.evidenceStatus, 'review');
+
+const blankStart = migrateState({
+  version: CURRENT_STATE_VERSION,
+  monthMetaByMonth: { '2026-06': { status: 'complete', startingSavings: '   ' } },
+  savingsByMonth: { '2026-06': [{ id: 's', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 5, 30));
+assert.equal(monthSummary(blankStart, '2026-06').startingSavingsConfirmed, false, 'Blank starting savings must remain missing evidence.');
+
+const explicitZeroStart = migrateState({
+  version: CURRENT_STATE_VERSION,
+  monthMetaByMonth: { '2026-06': { status: 'complete', startingSavings: 0 } },
+  savingsByMonth: { '2026-06': [{ id: 's', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 5, 30));
+const explicitZeroSummary = monthSummary(explicitZeroStart, '2026-06');
+assert.equal(explicitZeroSummary.startingSavingsConfirmed, true, 'An explicitly supplied £0 starting balance is valid evidence.');
+assert.equal(explicitZeroSummary.expectedClosingSavings, 0);
+assert.equal(explicitZeroSummary.closingVariance, 0);
+assert.equal(explicitZeroSummary.auditReady, true);
+assert.equal(explicitZeroSummary.evidenceStatus, 'ready');
+
 const futureState = { ...createBlankState(), version: CURRENT_STATE_VERSION + 1 };
 const futureStorage = memoryStorage({ penny_state: JSON.stringify(futureState) });
 const futureLoad = loadState(futureStorage, new Date(2026, 7, 28));
@@ -45,4 +78,4 @@ assert.throws(
   'A raw backup with a future state version must be rejected even if formatVersion is absent.',
 );
 
-console.log('Penny final evidence-status, penny-storage and future-format recovery tests passed');
+console.log('Penny final evidence-status, starting-savings, penny-storage and future-format recovery tests passed');
