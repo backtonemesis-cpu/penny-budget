@@ -43,6 +43,8 @@ function storageAudit() {
   assert.match(files.storage, /formatVersion:\s*CURRENT_STATE_VERSION/);
   assert.match(files.storage, /mergeImportedMonths/);
   assert.match(files.storage, /importMode === 'merge_months'/);
+  assert.match(files.storage, /monthStatusByMonth/);
+  assert.match(files.storage, /openingSavingsByMonth/);
   assert.match(files.finance, /savingsByMonth/);
   assert.match(files.app, /month-specific savings snapshot/i);
 }
@@ -62,14 +64,18 @@ function currencyAudit() {
 }
 
 function financeAudit() {
-  assert.match(files.finance, /projectedEndSavings\s*=\s*currentSavings \+ income - remainingBills/, 'Projected End Savings must match the tracker rule.');
+  assert.match(files.finance, /liveProjectedEndSavings\s*=\s*currentSavings \+ income - remainingBills/, 'Live Projected End Savings must match the current tracker rule.');
+  assert.match(files.finance, /historicalCalculatedEndSavings\s*=\s*hasOpeningSavings \? openingSavings \+ income - expenses : 0/, 'Closed months must reconcile opening savings plus income less expenses.');
+  assert.match(files.finance, /projectedEndSavings\s*=\s*monthStatus === 'closed' \? currentSavings : liveProjectedEndSavings/, 'Closed historical months must not add income twice.');
   assert.match(files.finance, /currentSavingsTotal\(state, monthKey\)/, 'Savings must be resolved from the selected month.');
   assert.match(files.finance, /paidBy/);
   assert.match(files.finance, /receivedBy/);
   assert.match(files.finance, /transferPlan/);
-  assert.match(files.finance, /freeSavingsAfterBills\s*=\s*currentSavings - remainingBills/);
+  assert.match(files.finance, /liveFreeSavingsAfterBills\s*=\s*currentSavings - remainingBills/);
   assert.doesNotMatch(files.catalog, /id:\s*['"]refund['"]/, 'Refund entry must not return to the public transaction choices.');
-  assert.match(files.app, /Current Savings/);
+  assert.match(files.catalog, /id:\s*'household',\s*label:\s*'Joint'/, 'The special joint payer must match the current Family Tracker terminology.');
+  assert.match(files.app, /Ending Savings/);
+  assert.match(files.app, /Month Reconciliation/);
   assert.match(files.app, /Remaining Bills/);
   assert.match(files.app, /Transfer Plan/);
   assert.match(files.app, /Payment status/);
