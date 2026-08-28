@@ -1,0 +1,43 @@
+name: One-off lockfile repair
+
+on:
+  push:
+    branches:
+      - audit-hardening-10of10
+    paths:
+      - .github/workflows/one-off-lockfile-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore last CI-green lockfile and correct Darwin integrity
+        run: |
+          git show e92da356ffb6378d46ec0a7b326359a206a8cfc1:package-lock.json > package-lock.json
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('package-lock.json')
+          text = path.read_text()
+          bad = 'sha512-Tm+gbfC0aHu1tBAJvKQh32S0K6YgCHkiAF4/W6xX0K0RmNuc94VeK419dJoE65R5aRxmo+noZQSWrAMF6yb6g=='
+          good = 'sha512-Tm+gbfC0aHu1tBA/JvKQh32S0K6YgCHkiAF4/W6xX0K0RmNuc94VeK419dJoE65R5aRxmo+noZQSWrAMF6yb6g=='
+          if text.count(bad) != 1:
+              raise SystemExit('Expected exactly one known Darwin integrity typo')
+          path.write_text(text.replace(bad, good))
+          PY
+      - name: Commit repaired lockfile
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo 'Lockfile already repaired.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'Repair cross-platform package lock integrity'
+          git push
