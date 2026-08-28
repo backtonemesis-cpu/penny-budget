@@ -11,6 +11,8 @@ const KNOWN_STATE_FIELDS = [
   'people',
   'accounts',
   'savingsByMonth',
+  'monthStatusByMonth',
+  'openingSavingsByMonth',
   'savingsAccounts',
   'savingsGoal',
   'savingsContrib',
@@ -128,16 +130,28 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
   const txnsByMonth = { ...current.txnsByMonth };
   const incomeByMonth = { ...current.incomeByMonth };
   const savingsByMonth = { ...current.savingsByMonth };
+  const monthStatusByMonth = { ...current.monthStatusByMonth };
+  const openingSavingsByMonth = { ...current.openingSavingsByMonth };
   const budgetsByMonth = { ...current.budgetsByMonth };
 
   validMonths.forEach((monthKey) => {
     if (incoming.txnsByMonth[monthKey]?.length) txnsByMonth[monthKey] = incoming.txnsByMonth[monthKey];
     else delete txnsByMonth[monthKey];
+
     if (incoming.incomeByMonth[monthKey]?.length) incomeByMonth[monthKey] = incoming.incomeByMonth[monthKey];
     else delete incomeByMonth[monthKey];
+
     if (incoming.savingsByMonth[monthKey]?.length) savingsByMonth[monthKey] = incoming.savingsByMonth[monthKey];
     else delete savingsByMonth[monthKey];
+
+    if (incoming.monthStatusByMonth[monthKey] === 'closed') monthStatusByMonth[monthKey] = 'closed';
+    else delete monthStatusByMonth[monthKey];
+
+    if (Number(incoming.openingSavingsByMonth[monthKey]) > 0) openingSavingsByMonth[monthKey] = incoming.openingSavingsByMonth[monthKey];
+    else delete openingSavingsByMonth[monthKey];
+
     if (incoming.budgetsByMonth[monthKey]) budgetsByMonth[monthKey] = incoming.budgetsByMonth[monthKey];
+    else delete budgetsByMonth[monthKey];
   });
 
   return migrateState({
@@ -146,6 +160,8 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
     txnsByMonth,
     incomeByMonth,
     savingsByMonth,
+    monthStatusByMonth,
+    openingSavingsByMonth,
     budgetsByMonth,
     customCats: mergeById(current.customCats, incoming.customCats),
     people: mergeById(current.people, incoming.people),
