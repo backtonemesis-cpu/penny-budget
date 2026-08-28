@@ -1,6 +1,13 @@
-import { CURRENT_STATE_VERSION, createBlankState, isValidMonthKey, migrateState } from './finance.js';
+import {
+  CURRENT_STATE_VERSION,
+  MAX_AUDIT_ENTRIES,
+  createBlankState,
+  isValidMonthKey,
+  migrateState,
+} from './finance.js';
 
 export const STORAGE_KEY = 'penny_state';
+export const ROLLBACK_STORAGE_KEY = 'penny_state_before_last_import';
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
 const KNOWN_STATE_FIELDS = [
   'version',
@@ -20,6 +27,7 @@ const KNOWN_STATE_FIELDS = [
   'budgets',
   'sources',
   'dueDays',
+  'auditLog',
 ];
 
 function isStateCandidate(value) {
@@ -39,6 +47,16 @@ function mergeById(existing = [], incoming = []) {
   return [...merged.values()];
 }
 
+function mergeAuditLogs(existing = [], incoming = []) {
+  const merged = new Map();
+  [...existing, ...incoming].forEach((entry) => {
+    if (entry?.id && !merged.has(entry.id)) merged.set(entry.id, entry);
+  });
+  return [...merged.values()]
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .slice(0, MAX_AUDIT_ENTRIES);
+}
+
 export function getBrowserStorage() {
   try {
     return globalThis.localStorage ?? null;
@@ -52,19 +70,21 @@ export function loadState(storage, now = new Date()) {
     return {
       state: createBlankState(),
       warning: 'Browser storage is unavailable. Penny can be used temporarily, but changes will not survive after the app closes.',
+      recoveryRequired: false,
     };
   }
 
   try {
     const raw = storage.getItem(STORAGE_KEY);
-    if (!raw) return { state: createBlankState(), warning: '' };
+    if (!raw) return { state: createBlankState(), warning: '', recoveryRequired: false };
     const parsed = JSON.parse(raw);
     if (!isStateCandidate(parsed)) throw new Error('Unknown state shape');
-    return { state: migrateState(parsed, now), warning: '' };
+    return { state: migrateState(parsed, now), warning: '', recoveryRequired: false };
   } catch {
     return {
       state: createBlankState(),
-      warning: 'Saved Penny data could not be read. A blank in-memory session has been opened; your stored file was not overwritten.',
+      warning: 'Saved Penny data could not be read. Editing is locked so the unreadable stored data is not overwritten. Import a valid backup or erase the damaged local copy in Settings.',
+      recoveryRequired: true,
     };
   }
 }
@@ -76,6 +96,48 @@ export function saveState(storage, state) {
     return { ok: true, error: '' };
   } catch {
     return { ok: false, error: 'Penny could not save to this browser. Export a backup before closing the app.' };
+  }
+}
+
+export function saveRollbackState(storage, state) {
+  if (!storage) return { ok: false, error: 'Browser storage is unavailable.' };
+  try {
+    storage.setItem(ROLLBACK_STORAGE_KEY, JSON.stringify(state));
+    return { ok: true, error: '' };
+  } catch {
+    return { ok: false, error: 'Penny could not create the automatic pre-import recovery copy.' };
+  }
+}
+
+export function hasRollbackState(storage) {
+  if (!storage) return false;
+  try {
+    return Boolean(storage.getItem(ROLLBACK_STORAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+export function loadRollbackState(storage, now = new Date()) {
+  if (!storage) throw new Error('Browser storage is unavailable.');
+  const raw = storage.getItem(ROLLBACK_STORAGE_KEY);
+  if (!raw) throw new Error('There is no automatic pre-import recovery copy.');
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('The automatic recovery copy could not be read.');
+  }
+  if (!isStateCandidate(parsed)) throw new Error('The automatic recovery copy is not a recognised Penny state.');
+  return migrateState(parsed, now);
+}
+
+export function clearRollbackState(storage) {
+  if (!storage) return;
+  try {
+    storage.removeItem(ROLLBACK_STORAGE_KEY);
+  } catch {
+    // The main Penny state remains untouched if cleanup fails.
   }
 }
 
@@ -101,6 +163,9 @@ function parseRawBackup(text) {
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('The backup does not contain a valid Penny state.');
   if (parsed.app && parsed.app !== 'Penny') throw new Error('This backup belongs to a different app.');
+  if (Number.isFinite(Number(parsed.formatVersion)) && Number(parsed.formatVersion) > CURRENT_STATE_VERSION) {
+    throw new Error('This backup was created by a newer Penny data format. Update Penny before importing it.');
+  }
   const candidate = parsed.state ?? parsed;
   if (!isStateCandidate(candidate)) throw new Error('The backup does not contain a recognised Penny state.');
   return { parsed, candidate };
@@ -120,6 +185,10 @@ export function parseBackupText(text, now = new Date()) {
   return parseBackupPackage(text, now).state;
 }
 
+function tagImportedRows(rows = []) {
+  return rows.map((row) => ({ ...row, source: row.source === 'manual' ? 'manual' : 'import' }));
+}
+
 export function mergeImportedMonths(currentState, incomingState, monthKeys, now = new Date()) {
   const current = migrateState(currentState, now);
   const incoming = migrateState(incomingState, now);
@@ -133,15 +202,16 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
   const budgetsByMonth = { ...current.budgetsByMonth };
 
   validMonths.forEach((monthKey) => {
-    if (incoming.txnsByMonth[monthKey]?.length) txnsByMonth[monthKey] = incoming.txnsByMonth[monthKey];
+    if (incoming.txnsByMonth[monthKey]?.length) txnsByMonth[monthKey] = tagImportedRows(incoming.txnsByMonth[monthKey]);
     else delete txnsByMonth[monthKey];
-    if (incoming.incomeByMonth[monthKey]?.length) incomeByMonth[monthKey] = incoming.incomeByMonth[monthKey];
+    if (incoming.incomeByMonth[monthKey]?.length) incomeByMonth[monthKey] = tagImportedRows(incoming.incomeByMonth[monthKey]);
     else delete incomeByMonth[monthKey];
     if (incoming.savingsByMonth[monthKey]?.length) savingsByMonth[monthKey] = incoming.savingsByMonth[monthKey];
     else delete savingsByMonth[monthKey];
     if (incoming.monthMetaByMonth[monthKey]) monthMetaByMonth[monthKey] = incoming.monthMetaByMonth[monthKey];
     else delete monthMetaByMonth[monthKey];
     if (incoming.budgetsByMonth[monthKey]) budgetsByMonth[monthKey] = incoming.budgetsByMonth[monthKey];
+    else delete budgetsByMonth[monthKey];
   });
 
   return migrateState({
@@ -155,6 +225,7 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
     customCats: mergeById(current.customCats, incoming.customCats),
     people: mergeById(current.people, incoming.people),
     accounts: mergeById(current.accounts, incoming.accounts),
+    auditLog: mergeAuditLogs(current.auditLog, incoming.auditLog),
   }, now);
 }
 
@@ -162,6 +233,7 @@ export function clearPennyState(storage) {
   if (!storage) return { ok: false, error: 'Browser storage is unavailable, so there is no saved Penny data to erase.' };
   try {
     storage.removeItem(STORAGE_KEY);
+    clearRollbackState(storage);
     return { ok: true, error: '' };
   } catch {
     return { ok: false, error: 'Penny could not erase its saved browser data.' };
