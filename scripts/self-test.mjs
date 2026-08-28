@@ -9,16 +9,27 @@ import {
   normaliseIncomeRecord,
   normaliseTransaction,
 } from '../src/finance.js';
-import { createBackupText, parseBackupText } from '../src/storage.js';
+import {
+  createBackupText,
+  mergeImportedMonths,
+  parseBackupPackage,
+  parseBackupText,
+} from '../src/storage.js';
 
 const state = {
   ...createBlankState(),
   people: [{ id: 'p1', label: 'Person 1' }, { id: 'p2', label: 'Person 2' }],
   accounts: [{ id: 'a1', label: 'Account 1' }, { id: 'a2', label: 'Account 2' }],
-  savingsAccounts: [
-    { id: 's1', label: 'Savings 1', balance: 6000 },
-    { id: 's2', label: 'Savings 2', balance: 4000 },
-  ],
+  savingsByMonth: {
+    '2026-06': [
+      { id: 's1', label: 'Savings 1', balance: 5000 },
+      { id: 's2', label: 'Savings 2', balance: 3000 },
+    ],
+    '2026-07': [
+      { id: 's1', label: 'Savings 1', balance: 6000 },
+      { id: 's2', label: 'Savings 2', balance: 4000 },
+    ],
+  },
   incomeByMonth: {
     '2026-07': [
       normaliseIncomeRecord({ id: 'i1', date: '2026-07-01', amount: 3000, description: 'Employment', incomeType: 'Employment', receivedBy: 'p1', account: 'a1' }, '2026-07'),
@@ -34,6 +45,12 @@ const state = {
     ],
   },
 };
+
+const june = monthSummary(state, '2026-06');
+assert.equal(june.currentSavings, 8000);
+assert.equal(june.hasSavingsSnapshot, true);
+assert.equal(june.income, 0);
+assert.equal(june.projectedEndSavings, 8000);
 
 const july = monthSummary(state, '2026-07');
 assert.equal(july.currentSavings, 10000);
@@ -55,14 +72,23 @@ const toggled = appReducer(state, { type: 'TOGGLE_PAID', monthKey: '2026-07', id
 assert.equal(monthSummary(toggled, '2026-07').remainingBills, 0);
 assert.equal(monthSummary(toggled, '2026-07').projectedEndSavings, 14000);
 
+const changedJuneSavings = appReducer(state, {
+  type: 'SET_SAVINGS_ACCOUNTS',
+  monthKey: '2026-06',
+  items: [{ id: 's1', label: 'Savings 1', balance: 9000 }],
+});
+assert.equal(monthSummary(changedJuneSavings, '2026-06').currentSavings, 9000);
+assert.equal(monthSummary(changedJuneSavings, '2026-07').currentSavings, 10000, 'Editing June savings must not change July.');
+
 const legacy = migrateState({
-  version: 3,
-  savingsBal: 1234.56,
+  version: 4,
+  savingsAccounts: [{ id: 'legacy', label: 'Savings', balance: 1234.56 }],
   incomeByMonth: { '2026-07': [{ id: 'legacy-income', label: 'Salary', amount: 1000 }] },
   txnsByMonth: { '2026-07': [{ id: 'legacy-expense', type: 'expense', amount: 100, category: 'other', date: '2026-07-01', desc: 'Legacy expense', expenseClass: 'spending' }] },
-}, new Date(2026, 6, 1));
+}, new Date(2026, 7, 1));
 assert.equal(legacy.version, CURRENT_STATE_VERSION);
-assert.equal(legacy.savingsAccounts[0].balance, 1234.56);
+assert.equal(legacy.savingsByMonth['2026-07'][0].balance, 1234.56, 'Version-4 savings should migrate to the latest month containing data.');
+assert.equal(legacy.savingsByMonth['2026-08'], undefined);
 assert.equal(legacy.incomeByMonth['2026-07'][0].receivedBy, 'unassigned');
 assert.equal(legacy.incomeByMonth['2026-07'][0].needsConfirmation, true);
 assert.equal(legacy.txnsByMonth['2026-07'][0].expenseClass, 'variable');
@@ -74,6 +100,30 @@ const restored = parseBackupText(backup, new Date(2026, 6, 20));
 assert.equal(restored.version, CURRENT_STATE_VERSION);
 assert.equal(monthSummary(restored, '2026-07').projectedEndSavings, 13800);
 
+const juneImportState = {
+  ...createBlankState(),
+  people: [{ id: 'p3', label: 'Person 3' }],
+  accounts: [{ id: 'a3', label: 'Account 3' }],
+  savingsByMonth: { '2026-06': [{ id: 'sx', label: 'Historical Savings', balance: 8500 }] },
+  incomeByMonth: {
+    '2026-06': [normaliseIncomeRecord({ id: 'june-income', date: '2026-06-01', amount: 2500, description: 'June income', incomeType: 'Employment', receivedBy: 'p3', account: 'a3' }, '2026-06')],
+  },
+  txnsByMonth: {
+    '2026-06': [normaliseTransaction({ id: 'june-expense', type: 'expense', date: '2026-06-01', amount: 500, desc: 'June cost', category: 'other', expenseClass: 'variable', paid: true, paidBy: 'p3', account: 'a3' })],
+  },
+};
+const mergeText = JSON.stringify({ app: 'Penny', formatVersion: CURRENT_STATE_VERSION, importMode: 'merge_months', mergeMonths: ['2026-06'], state: juneImportState });
+const mergePackage = parseBackupPackage(mergeText, new Date(2026, 7, 1));
+assert.equal(mergePackage.importMode, 'merge_months');
+assert.deepEqual(mergePackage.mergeMonths, ['2026-06']);
+const merged = mergeImportedMonths(state, mergePackage.state, mergePackage.mergeMonths, new Date(2026, 7, 1));
+assert.equal(monthSummary(merged, '2026-06').currentSavings, 8500);
+assert.equal(monthSummary(merged, '2026-06').income, 2500);
+assert.equal(monthSummary(merged, '2026-07').currentSavings, 10000, 'June merge must preserve July savings.');
+assert.equal(monthSummary(merged, '2026-07').income, 4000, 'June merge must preserve July records.');
+assert.equal(merged.people.some((person) => person.id === 'p3'), true);
+assert.equal(merged.accounts.some((account) => account.id === 'a3'), true);
+
 const annual = annualSummary(state, 2026);
 assert.equal(annual.income, 4000);
 assert.equal(annual.expenses, 2000);
@@ -82,4 +132,4 @@ assert.equal(annual.savedThisMonth, 2000);
 assert.equal(normaliseTransaction({ type: 'expense', amount: 0, date: '2026-07-01' }), null);
 assert.equal(normaliseIncomeRecord({ amount: 100, description: '', date: '2026-07-01' }, '2026-07'), null);
 
-console.log('Penny finance, migration, transfer-plan and storage tests passed');
+console.log('Penny month-specific savings, migration, merge-import and finance tests passed');
