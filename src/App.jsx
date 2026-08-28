@@ -29,7 +29,8 @@ import {
   createBackupText,
   getBrowserStorage,
   loadState,
-  parseBackupText,
+  mergeImportedMonths,
+  parseBackupPackage,
   saveState,
 } from './storage.js';
 import './styles.css';
@@ -186,10 +187,23 @@ function App() {
       return;
     }
     try {
-      const restored = parseBackupText(await file.text());
+      const backupPackage = parseBackupPackage(await file.text());
+      if (backupPackage.importMode === 'merge_months') {
+        const monthLabels = backupPackage.mergeMonths.map((key) => `${MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`);
+        const label = monthLabels.join(', ');
+        if (!globalThis.confirm(`Merge ${label} into Penny? Existing records for the imported month will be replaced, but all other months will be preserved.`)) return;
+        const restored = mergeImportedMonths(state, backupPackage.state, backupPackage.mergeMonths);
+        setSaveEnabled(true);
+        dispatch({ type: 'RESTORE', state: restored });
+        if (backupPackage.mergeMonths.length === 1) setMonthValue(backupPackage.mergeMonths[0]);
+        setModal(null);
+        setMessage(`${label} merged successfully. Other months were preserved.`);
+        return;
+      }
+
       if (!globalThis.confirm('Replace the current Penny data with this backup?')) return;
       setSaveEnabled(true);
-      dispatch({ type: 'RESTORE', state: restored });
+      dispatch({ type: 'RESTORE', state: backupPackage.state });
       setModal(null);
       setMessage('Backup imported successfully.');
     } catch (error) {
@@ -272,7 +286,16 @@ function App() {
           />
         )}
 
-        {view === 'Savings' && <Savings state={state} summary={summary} mutate={mutate} />}
+        {view === 'Savings' && (
+          <Savings
+            state={state}
+            summary={summary}
+            monthKey={monthKey}
+            month={period.month}
+            year={period.year}
+            mutate={mutate}
+          />
+        )}
 
         {view === 'Year' && (
           <Year
@@ -375,7 +398,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, on
       )}
 
       <div className="grid">
-        <Stat label="Current Savings" value={formatMoney(summary.currentSavings)} tone="accent" sub="Live savings balance" />
+        <Stat label="Current Savings" value={formatMoney(summary.currentSavings)} tone="accent" sub={summary.hasSavingsSnapshot ? `${MONTHS[month]} savings snapshot` : 'No savings snapshot for this month'} />
         <Stat label="Income This Month" value={formatMoney(summary.income)} tone="green" sub="Received or expected" onClick={onAddIncome} />
         <Stat label="Expenses This Month" value={formatMoney(summary.expenses)} tone="amber" sub="Paid and unpaid costs" onClick={onAddExpense} />
         <Stat label="Saved This Month" value={formatMoney(summary.savedThisMonth)} tone={summary.savedThisMonth >= 0 ? 'green' : 'red'} sub="Income − all expenses" />
@@ -621,17 +644,19 @@ function Bills({ summary, categoryMap, peopleMap, accountMap, onTogglePaid, onEd
   );
 }
 
-function Savings({ state, summary, mutate }) {
+function Savings({ state, summary, monthKey, month, year, mutate }) {
+  const savingsAccounts = state.savingsByMonth?.[monthKey] || [];
+  const setAccounts = (items) => mutate({ type: 'SET_SAVINGS_ACCOUNTS', monthKey, items });
   const updateAccount = (id, patch) => {
-    mutate({ type: 'SET_SAVINGS_ACCOUNTS', items: state.savingsAccounts.map((account) => account.id === id ? { ...account, ...patch } : account) });
+    setAccounts(savingsAccounts.map((account) => account.id === id ? { ...account, ...patch } : account));
   };
   const addAccount = () => {
-    mutate({ type: 'SET_SAVINGS_ACCOUNTS', items: [...state.savingsAccounts, { id: createId('saving'), label: 'New savings account', balance: 0 }] });
+    setAccounts([...savingsAccounts, { id: createId('saving'), label: 'New savings account', balance: 0 }]);
   };
   const removeAccount = (id) => {
-    const account = state.savingsAccounts.find((item) => item.id === id);
+    const account = savingsAccounts.find((item) => item.id === id);
     if (account?.balance && !globalThis.confirm(`Remove ${account.label} with a recorded balance of ${formatMoney(account.balance)}?`)) return;
-    mutate({ type: 'SET_SAVINGS_ACCOUNTS', items: state.savingsAccounts.filter((item) => item.id !== id) });
+    setAccounts(savingsAccounts.filter((item) => item.id !== id));
   };
   const goalRemaining = state.savingsGoal > 0 ? Math.max(state.savingsGoal - summary.currentSavings, 0) : null;
   const months = goalRemaining && state.savingsContrib > 0 ? Math.ceil(goalRemaining / state.savingsContrib) : null;
@@ -640,12 +665,12 @@ function Savings({ state, summary, mutate }) {
       <section className="card" aria-labelledby="savings-accounts-title">
         <div className="section-heading">
           <div>
-            <h2 className="section-title" id="savings-accounts-title">Savings Accounts</h2>
-            <p className="section-note">Current Savings is the total of these live account balances.</p>
+            <h2 className="section-title" id="savings-accounts-title">Savings Accounts — {MONTHS[month]} {year}</h2>
+            <p className="section-note">This is a month-specific savings snapshot. Editing it does not change another month.</p>
           </div>
           <button className="primary-button" onClick={addAccount}>+ Account</button>
         </div>
-        {state.savingsAccounts.length ? state.savingsAccounts.map((account) => (
+        {savingsAccounts.length ? savingsAccounts.map((account) => (
           <div className="savings-account-row" key={account.id}>
             <div className="field grow compact-field">
               <label htmlFor={`saving-label-${account.id}`}>Account</label>
@@ -657,7 +682,7 @@ function Savings({ state, summary, mutate }) {
             </div>
             <button className="danger-button remove-row-button" onClick={() => removeAccount(account.id)}>Remove</button>
           </div>
-        )) : <div className="empty">No savings accounts have been added.</div>}
+        )) : <div className="empty">No savings snapshot has been recorded for {MONTHS[month]} {year}.</div>}
         <div className="total-line"><span>Current Savings</span><span className="money green">{formatMoney(summary.currentSavings)}</span></div>
       </section>
 
@@ -907,7 +932,7 @@ function SettingsModal({ state, allCategories, mutate, fileRef, onImport, onExpo
       </section>
       <section className="settings-section">
         <h3>Backup and Restore</h3>
-        <p className="section-note">Penny remains browser-local. Export a backup before moving data to another device.</p>
+        <p className="section-note">Normal backups can replace all browser data. Month-merge packages add or replace only their specified month and preserve every other month.</p>
         <div className="actions stacked-actions">
           <button className="primary-button" onClick={onExport}>Export backup</button>
           <button className="secondary-button" onClick={() => fileRef.current?.click()}>Import backup</button>
