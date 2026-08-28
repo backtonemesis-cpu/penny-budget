@@ -86,6 +86,7 @@ assert.equal(june.closingVariance, 0);
 assert.equal(june.projectedIncrease, 0, 'Completed months must not have a forward projection increase.');
 assert.equal(june.projectedEndSavings, 10000, 'Completed months must never add the monthly saving to an already-recorded closing balance.');
 assert.equal(june.auditReady, true);
+assert.equal(june.evidenceStatus, 'ready');
 
 const july = monthSummary(state, '2026-07');
 assert.equal(july.isComplete, false);
@@ -103,6 +104,8 @@ assert.equal(july.projectedEndSavings, 12000);
 assert.equal(july.excludedMovements, 300);
 assert.deepEqual(july.transferPlan.map(({ key, paidBy, account, amount, count }) => ({ key, paidBy, account, amount, count })), [{ key: 'p2::a2', paidBy: 'p2', account: 'a2', amount: 200, count: 1 }]);
 assert.equal(july.incompleteRecords, 0);
+assert.equal(july.auditReady, false, 'A live or in-progress month must never be labelled final audit evidence.');
+assert.equal(july.evidenceStatus, 'in_progress');
 
 const toggled = appReducer(state, { type: 'TOGGLE_PAID', monthKey: '2026-07', id: 'e2', auditAt: '2026-07-20T12:00:00.000Z', auditId: 'audit-toggle' });
 assert.equal(monthSummary(toggled, '2026-07').remainingBills, 0);
@@ -183,8 +186,10 @@ const annualState = {
 };
 const annual = annualSummary(annualState, 2026);
 assert.equal(annual.auditReady, false);
+assert.equal(annual.evidenceStatus, 'in_progress');
 assert.equal(annual.incompleteRecords, 1);
-assert.equal(annual.monthsNeedingReview >= 1, true);
+assert.equal(annual.monthsInProgress >= 2, true, 'Live months with records must be counted as in progress, not final evidence.');
+assert.equal(annual.monthsNeedingReview, 0, 'A clean completed month is ready; live months are tracked separately as in progress.');
 assert.equal(annual.withData.some((item) => item.key === '2026-06'), true, 'Savings or completed-month data must count as annual data.');
 
 const legacy = migrateState({
@@ -254,4 +259,4 @@ assert.equal(merged.accounts.some((account) => account.id === 'a3'), true);
 assert.equal(normaliseTransaction({ type: 'expense', amount: 0, date: '2026-07-01' }), null);
 assert.equal(normaliseIncomeRecord({ amount: 100, description: '', date: '2026-07-01' }, '2026-07'), null);
 
-console.log('Penny accounting, provenance, audit-trail, duplicate, recovery and historical-lock regression tests passed');
+console.log('Penny accounting, provenance, audit-trail, duplicate, recovery and completed-evidence regression tests passed');
