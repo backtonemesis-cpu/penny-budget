@@ -138,9 +138,12 @@ function normaliseMonthMetaByMonth(value) {
     Object.entries(value).flatMap(([monthKey, meta]) => {
       if (!isValidMonthKey(monthKey) || !meta || typeof meta !== 'object' || Array.isArray(meta)) return [];
       if (meta.status !== 'complete') return [];
+      const rawStartingSavings = Number(meta.startingSavings);
+      const startingSavingsProvided = Number.isFinite(rawStartingSavings) && rawStartingSavings >= 0;
       return [[monthKey, {
         status: 'complete',
-        startingSavings: nonNegativeNumber(meta.startingSavings),
+        startingSavings: startingSavingsProvided ? nonNegativeNumber(rawStartingSavings) : 0,
+        startingSavingsConfirmed: Boolean(startingSavingsProvided && meta.startingSavingsConfirmed !== false),
       }]];
     }),
   );
@@ -443,9 +446,10 @@ export function monthSummary(state, monthKey) {
   const savedThisMonth = roundMoney(income - expenses);
   const monthMeta = state?.monthMetaByMonth?.[monthKey] || {};
   const isComplete = monthMeta.status === 'complete';
-  const startingSavings = isComplete ? nonNegativeNumber(monthMeta.startingSavings) : 0;
-  const expectedClosingSavings = isComplete ? roundMoney(startingSavings + income - expenses) : null;
-  const closingVariance = isComplete ? roundMoney(currentSavings - expectedClosingSavings) : null;
+  const startingSavingsConfirmed = Boolean(isComplete && monthMeta.startingSavingsConfirmed);
+  const startingSavings = startingSavingsConfirmed ? nonNegativeNumber(monthMeta.startingSavings) : 0;
+  const expectedClosingSavings = startingSavingsConfirmed ? roundMoney(startingSavings + income - expenses) : null;
+  const closingVariance = startingSavingsConfirmed ? roundMoney(currentSavings - expectedClosingSavings) : null;
   const freeSavingsAfterBills = roundMoney(currentSavings - remainingBills);
   const projectedIncrease = isComplete ? 0 : savedThisMonth;
   const projectedEndSavings = isComplete ? currentSavings : roundMoney(currentSavings + savedThisMonth);
@@ -474,8 +478,8 @@ export function monthSummary(state, monthKey) {
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
   const incompleteRecords = incompleteExpenses + incompleteIncome;
   const hasSavingsSnapshot = Boolean(state?.savingsByMonth?.[monthKey]?.length);
-  const reconciliationProblem = Boolean(isComplete && (Math.abs(closingVariance || 0) >= 0.005 || remainingBills > 0));
-  const auditReady = Boolean(isComplete && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot);
+  const reconciliationProblem = Boolean(isComplete && startingSavingsConfirmed && (Math.abs(closingVariance || 0) >= 0.005 || remainingBills > 0));
+  const auditReady = Boolean(isComplete && startingSavingsConfirmed && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot);
   const evidenceStatus = !isComplete ? (incomeRecords.length || transactions.length || hasSavingsSnapshot ? 'in_progress' : 'empty') : (auditReady ? 'ready' : 'review');
 
   return {
@@ -503,6 +507,7 @@ export function monthSummary(state, monthKey) {
     monthMeta,
     isComplete,
     startingSavings,
+    startingSavingsConfirmed,
     expectedClosingSavings,
     closingVariance,
     reconciliationProblem,
