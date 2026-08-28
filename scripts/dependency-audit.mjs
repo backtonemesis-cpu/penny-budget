@@ -14,8 +14,9 @@ try {
   process.exit(1);
 }
 
+const blockedSeverities = new Set(['moderate', 'high', 'critical']);
 const vulnerabilities = Object.entries(report.vulnerabilities || {})
-  .filter(([, vulnerability]) => ['high', 'critical'].includes(vulnerability.severity))
+  .filter(([, vulnerability]) => blockedSeverities.has(vulnerability.severity))
   .map(([name, vulnerability]) => ({
     name,
     severity: vulnerability.severity,
@@ -25,11 +26,11 @@ const vulnerabilities = Object.entries(report.vulnerabilities || {})
   }));
 
 if (vulnerabilities.length) {
-  console.error('High or critical npm vulnerabilities found:');
+  console.error('Moderate, high or critical npm vulnerabilities found:');
   vulnerabilities.forEach((vulnerability) => {
     console.error(JSON.stringify(vulnerability));
   });
   process.exit(1);
 }
 
-console.log('No high or critical npm vulnerabilities found.');
+console.log('No moderate, high or critical npm vulnerabilities found.');
