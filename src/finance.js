@@ -363,9 +363,7 @@ export function monthSummary(state, monthKey) {
   const closingVariance = isComplete ? currentSavings - expectedClosingSavings : null;
   const freeSavingsAfterBills = currentSavings - remainingBills;
   const projectedIncrease = savedThisMonth;
-  const projectedEndSavings = isComplete
-    ? currentSavings - remainingBills
-    : currentSavings + savedThisMonth;
+  const projectedEndSavings = currentSavings + savedThisMonth;
 
   const plan = new Map();
   expenseTransactions.filter((transaction) => !transaction.paid).forEach((transaction) => {

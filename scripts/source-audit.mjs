@@ -65,7 +65,7 @@ function currencyAudit() {
 
 function financeAudit() {
   assert.match(files.finance, /expectedClosingSavings\s*=\s*isComplete \? startingSavings \+ income - expenses/, 'Completed months must reconcile starting savings plus income less actual expenses.');
-  assert.match(files.finance, /projectedEndSavings\s*=\s*isComplete[\s\S]*currentSavings - remainingBills[\s\S]*currentSavings \+ savedThisMonth/, 'Live projected end must add only net monthly saving to current savings.');
+  assert.match(files.finance, /projectedEndSavings\s*=\s*currentSavings \+ savedThisMonth/, 'Projected end savings must equal current savings plus net monthly saving for every month status.');
   assert.match(files.finance, /projectedIncrease\s*=\s*savedThisMonth/, 'Projected increase must equal Saved This Month.');
   assert.doesNotMatch(files.finance, /currentSavings \+ income - remainingBills/, 'The superseded gross-income projection formula must not return.');
   assert.match(files.app, /Plus: Saved This Month/);
