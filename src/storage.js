@@ -1,4 +1,4 @@
-import { CURRENT_STATE_VERSION, createBlankState, migrateState } from './finance.js';
+import { CURRENT_STATE_VERSION, createBlankState, isValidMonthKey, migrateState } from './finance.js';
 
 export const STORAGE_KEY = 'penny_state';
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
@@ -10,6 +10,7 @@ const KNOWN_STATE_FIELDS = [
   'hiddenCats',
   'people',
   'accounts',
+  'savingsByMonth',
   'savingsAccounts',
   'savingsGoal',
   'savingsContrib',
@@ -27,6 +28,14 @@ function isStateCandidate(value) {
     && !Array.isArray(value)
     && KNOWN_STATE_FIELDS.some((field) => Object.hasOwn(value, field)),
   );
+}
+
+function mergeById(existing = [], incoming = []) {
+  const merged = new Map(existing.map((item) => [item.id, item]));
+  incoming.forEach((item) => {
+    if (item?.id && !merged.has(item.id)) merged.set(item.id, item);
+  });
+  return [...merged.values()];
 }
 
 export function getBrowserStorage() {
@@ -78,7 +87,7 @@ export function createBackupText(state, now = new Date()) {
   }, null, 2);
 }
 
-export function parseBackupText(text, now = new Date()) {
+function parseRawBackup(text) {
   if (typeof text !== 'string' || !text.trim()) throw new Error('The backup file is empty.');
   if (new TextEncoder().encode(text).length > MAX_BACKUP_BYTES) throw new Error('The backup file is larger than 5 MB.');
 
@@ -93,7 +102,55 @@ export function parseBackupText(text, now = new Date()) {
   if (parsed.app && parsed.app !== 'Penny') throw new Error('This backup belongs to a different app.');
   const candidate = parsed.state ?? parsed;
   if (!isStateCandidate(candidate)) throw new Error('The backup does not contain a recognised Penny state.');
-  return migrateState(candidate, now);
+  return { parsed, candidate };
+}
+
+export function parseBackupPackage(text, now = new Date()) {
+  const { parsed, candidate } = parseRawBackup(text);
+  const state = migrateState(candidate, now);
+  const requestedMonths = Array.isArray(parsed.mergeMonths)
+    ? [...new Set(parsed.mergeMonths.filter(isValidMonthKey))]
+    : [];
+  const importMode = parsed.importMode === 'merge_months' && requestedMonths.length ? 'merge_months' : 'replace';
+  return { state, importMode, mergeMonths: importMode === 'merge_months' ? requestedMonths : [] };
+}
+
+export function parseBackupText(text, now = new Date()) {
+  return parseBackupPackage(text, now).state;
+}
+
+export function mergeImportedMonths(currentState, incomingState, monthKeys, now = new Date()) {
+  const current = migrateState(currentState, now);
+  const incoming = migrateState(incomingState, now);
+  const validMonths = [...new Set((monthKeys || []).filter(isValidMonthKey))];
+  if (!validMonths.length) return current;
+
+  const txnsByMonth = { ...current.txnsByMonth };
+  const incomeByMonth = { ...current.incomeByMonth };
+  const savingsByMonth = { ...current.savingsByMonth };
+  const budgetsByMonth = { ...current.budgetsByMonth };
+
+  validMonths.forEach((monthKey) => {
+    if (incoming.txnsByMonth[monthKey]?.length) txnsByMonth[monthKey] = incoming.txnsByMonth[monthKey];
+    else delete txnsByMonth[monthKey];
+    if (incoming.incomeByMonth[monthKey]?.length) incomeByMonth[monthKey] = incoming.incomeByMonth[monthKey];
+    else delete incomeByMonth[monthKey];
+    if (incoming.savingsByMonth[monthKey]?.length) savingsByMonth[monthKey] = incoming.savingsByMonth[monthKey];
+    else delete savingsByMonth[monthKey];
+    if (incoming.budgetsByMonth[monthKey]) budgetsByMonth[monthKey] = incoming.budgetsByMonth[monthKey];
+  });
+
+  return migrateState({
+    ...current,
+    version: CURRENT_STATE_VERSION,
+    txnsByMonth,
+    incomeByMonth,
+    savingsByMonth,
+    budgetsByMonth,
+    customCats: mergeById(current.customCats, incoming.customCats),
+    people: mergeById(current.people, incoming.people),
+    accounts: mergeById(current.accounts, incoming.accounts),
+  }, now);
 }
 
 export function clearPennyState(storage) {
