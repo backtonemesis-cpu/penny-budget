@@ -403,7 +403,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, on
         <Stat label="Expenses This Month" value={formatMoney(summary.expenses)} tone="amber" sub={summary.isComplete ? 'Recorded actual expenses' : 'Paid and unpaid costs'} onClick={onAddExpense} />
         <Stat label="Saved This Month" value={formatMoney(summary.savedThisMonth)} tone={summary.savedThisMonth >= 0 ? 'green' : 'red'} sub="Income − all expenses" />
         <Stat label={summary.isComplete ? 'Unpaid at Close' : 'Remaining Bills'} value={formatMoney(summary.remainingBills)} tone={summary.remainingBills ? 'amber' : 'green'} sub={summary.isComplete ? 'Should be zero for a completed month' : 'Still unpaid / to fund'} />
-        <Stat label={summary.isComplete ? 'Closing Position' : 'Projected End'} value={formatMoney(summary.projectedEndSavings)} tone={summary.projectedEndSavings >= 0 ? 'green' : 'red'} sub={summary.isComplete ? 'Recorded closing savings less any unpaid items' : 'Savings + income − unpaid bills'} />
+        <Stat label={summary.isComplete ? 'Closing Position' : 'Projected End'} value={formatMoney(summary.projectedEndSavings)} tone={summary.projectedEndSavings >= 0 ? 'green' : 'red'} sub={summary.isComplete ? 'Recorded closing savings less any unpaid items' : 'Savings + saved this month'} />
       </div>
 
       {summary.isComplete ? (
@@ -451,9 +451,9 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, on
           <section className="card" aria-labelledby="transfer-check-title">
             <h2 className="section-title" id="transfer-check-title">Transfer Check</h2>
             <SummaryRow label="Current Savings Now" value={summary.currentSavings} />
-            <SummaryRow label="Less: Unpaid Bills Still to Cover" value={-summary.remainingBills} />
-            <SummaryRow label="Free Savings After Bills" value={summary.freeSavingsAfterBills} emphasis />
-            <SummaryRow label="Plus: Income This Month" value={summary.income} />
+            <SummaryRow label="Free Savings After Bills (info)" value={summary.freeSavingsAfterBills} />
+            <SummaryRow label="Plus: Saved This Month" value={summary.savedThisMonth} />
+            <SummaryRow label="Remaining Bills Still Unpaid (info)" value={summary.remainingBills} />
             <SummaryRow label="Projected Increase This Month" value={summary.projectedIncrease} />
             <SummaryRow label="Projected End Savings" value={summary.projectedEndSavings} emphasis />
           </section>

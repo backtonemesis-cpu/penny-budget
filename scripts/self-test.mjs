@@ -79,15 +79,15 @@ assert.equal(july.fixedExpenses, 1400);
 assert.equal(july.variableExpenses, 600);
 assert.equal(july.savedThisMonth, 2000);
 assert.equal(july.freeSavingsAfterBills, 9800);
-assert.equal(july.projectedIncrease, 3800);
-assert.equal(july.projectedEndSavings, 13800);
+assert.equal(july.projectedIncrease, 2000);
+assert.equal(july.projectedEndSavings, 12000);
 assert.equal(july.excludedMovements, 300);
 assert.deepEqual(july.transferPlan, [{ key: 'p2::a2', paidBy: 'p2', account: 'a2', amount: 200, count: 1 }]);
 assert.equal(july.incompleteRecords, 0);
 
 const toggled = appReducer(state, { type: 'TOGGLE_PAID', monthKey: '2026-07', id: 'e2' });
 assert.equal(monthSummary(toggled, '2026-07').remainingBills, 0);
-assert.equal(monthSummary(toggled, '2026-07').projectedEndSavings, 14000);
+assert.equal(monthSummary(toggled, '2026-07').projectedEndSavings, 12000, 'Changing paid status must not change net monthly saving.');
 
 const changedJuneSavings = appReducer(state, {
   type: 'SET_SAVINGS_ACCOUNTS',
@@ -117,7 +117,7 @@ const backup = createBackupText(state, new Date('2026-07-20T12:00:00Z'));
 const restored = parseBackupText(backup, new Date(2026, 6, 20));
 assert.equal(restored.version, CURRENT_STATE_VERSION);
 assert.equal(monthSummary(restored, '2026-06').projectedEndSavings, 10000);
-assert.equal(monthSummary(restored, '2026-07').projectedEndSavings, 13800);
+assert.equal(monthSummary(restored, '2026-07').projectedEndSavings, 12000);
 
 const juneImportState = {
   ...createBlankState(),
