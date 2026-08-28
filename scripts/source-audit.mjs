@@ -85,7 +85,8 @@ function financeAudit() {
   assert.match(files.finance, /paidByLabel/);
   assert.match(files.finance, /receivedByLabel/);
   assert.match(files.state, /auditLog/);
-  assert.match(files.state, /before:\s*before/, 'Change History must retain before-state for destructive financial changes.');
+  assert.match(files.state, /before:\s*event\.before \?\? null/, 'Change History must store the event before-state.');
+  assert.match(files.state, /action:\s*'delete'.*before \}\);/s, 'Delete actions must pass the deleted record into Change History.');
   assert.match(files.app, /Date TBC/);
   assert.match(files.app, /Completed month — locked/);
   assert.match(files.app, /Change History/);
