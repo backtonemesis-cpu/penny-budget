@@ -3,7 +3,7 @@ import { BASE_CATEGORIES } from './catalog.js';
 export const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 export const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const TRANSACTION_TYPES = new Set(['expense','internal_transfer','savings_transfer','card_repayment','refund']);
-export const CURRENT_STATE_VERSION = 5;
+export const CURRENT_STATE_VERSION = 6;
 
 const BASE_CATEGORY_MAP = Object.fromEntries(BASE_CATEGORIES.map((category) => [category.id, category]));
 
@@ -48,6 +48,10 @@ export function positiveNumber(value) {
 export function signedNumber(value) {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function nonNegativeNumber(value) {
+  return Math.max(0, signedNumber(value));
 }
 
 export function formatMoney(value, { plus = false, decimals = 2 } = {}) {
@@ -100,7 +104,7 @@ function normaliseSavingsAccounts(value) {
     const label = cleanText(item?.label, '', 80);
     const id = cleanText(item?.id, '', 120);
     if (!label || !id) return [];
-    return [{ id, label, balance: Math.max(0, signedNumber(item?.balance)) }];
+    return [{ id, label, balance: nonNegativeNumber(item?.balance) }];
   }));
 }
 
@@ -111,6 +115,20 @@ function normaliseSavingsByMonth(value) {
       .filter(([monthKey, rows]) => isValidMonthKey(monthKey) && Array.isArray(rows))
       .map(([monthKey, rows]) => [monthKey, normaliseSavingsAccounts(rows)])
       .filter(([, rows]) => rows.length),
+  );
+}
+
+function normaliseMonthMetaByMonth(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([monthKey, meta]) => {
+      if (!isValidMonthKey(monthKey) || !meta || typeof meta !== 'object' || Array.isArray(meta)) return [];
+      if (meta.status !== 'complete') return [];
+      return [[monthKey, {
+        status: 'complete',
+        startingSavings: nonNegativeNumber(meta.startingSavings),
+      }]];
+    }),
   );
 }
 
@@ -251,6 +269,7 @@ export function createBlankState() {
     people: [],
     accounts: [],
     savingsByMonth: {},
+    monthMetaByMonth: {},
     savingsGoal: 0,
     savingsContrib: 0,
     budgetsByMonth: {},
@@ -294,6 +313,7 @@ export function migrateState(saved, now = new Date()) {
     people: normaliseReferenceList(saved.people, 'person'),
     accounts: normaliseReferenceList(saved.accounts, 'account'),
     savingsByMonth,
+    monthMetaByMonth: normaliseMonthMetaByMonth(saved.monthMetaByMonth),
     savingsGoal: positiveNumber(saved.savingsGoal),
     savingsContrib: positiveNumber(saved.savingsContrib),
     budgetsByMonth: normaliseLegacyMap(saved.budgetsByMonth),
@@ -303,7 +323,7 @@ export function migrateState(saved, now = new Date()) {
 
 export function currentSavingsTotal(state, monthKey) {
   if (!isValidMonthKey(monthKey)) return 0;
-  return (state?.savingsByMonth?.[monthKey] || []).reduce((sum, account) => sum + Math.max(0, signedNumber(account.balance)), 0);
+  return (state?.savingsByMonth?.[monthKey] || []).reduce((sum, account) => sum + nonNegativeNumber(account.balance), 0);
 }
 
 function isIncompleteExpense(transaction) {
@@ -336,9 +356,16 @@ export function monthSummary(state, monthKey) {
     .reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
   const currentSavings = currentSavingsTotal(state, monthKey);
   const savedThisMonth = income - expenses;
+  const monthMeta = state?.monthMetaByMonth?.[monthKey] || {};
+  const isComplete = monthMeta.status === 'complete';
+  const startingSavings = isComplete ? nonNegativeNumber(monthMeta.startingSavings) : 0;
+  const expectedClosingSavings = isComplete ? startingSavings + income - expenses : null;
+  const closingVariance = isComplete ? currentSavings - expectedClosingSavings : null;
   const freeSavingsAfterBills = currentSavings - remainingBills;
-  const projectedIncrease = income - remainingBills;
-  const projectedEndSavings = currentSavings + income - remainingBills;
+  const projectedIncrease = isComplete ? savedThisMonth : income - remainingBills;
+  const projectedEndSavings = isComplete
+    ? currentSavings - remainingBills
+    : currentSavings + income - remainingBills;
 
   const plan = new Map();
   expenseTransactions.filter((transaction) => !transaction.paid).forEach((transaction) => {
@@ -378,7 +405,12 @@ export function monthSummary(state, monthKey) {
     incompleteExpenses,
     incompleteIncome,
     incompleteRecords: incompleteExpenses + incompleteIncome,
-    hasData: incomeRecords.length > 0 || transactions.length > 0 || hasSavingsSnapshot,
+    monthMeta,
+    isComplete,
+    startingSavings,
+    expectedClosingSavings,
+    closingVariance,
+    hasData: incomeRecords.length > 0 || transactions.length > 0 || hasSavingsSnapshot || isComplete,
   };
 }
 
