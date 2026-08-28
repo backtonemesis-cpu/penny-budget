@@ -9,14 +9,16 @@ const files = {
   currentPeriod: await read('../src/current-period.js'),
   finance: await read('../src/finance.js'),
   main: await read('../src/main.jsx'),
+  mobileNav: await read('../src/mobile-navigation.css'),
   state: await read('../src/state.js'),
   storage: await read('../src/storage.js'),
+  styles: await read('../src/styles.css'),
   selfTest: await read('./self-test.mjs'),
   workflow: await read('../.github/workflows/deploy.yml'),
   index: await read('../index.html'),
 };
 
-const publicSource = [files.app, files.catalog, files.currentPeriod, files.finance, files.main, files.state, files.storage].join('\n');
+const publicSource = [files.app, files.catalog, files.currentPeriod, files.finance, files.main, files.mobileNav, files.state, files.storage, files.styles].join('\n');
 const auditedCode = [publicSource, files.selfTest, files.workflow].join('\n');
 const group = process.argv[2] || 'all';
 const blockedIdentityHashes = new Set([
@@ -34,19 +36,24 @@ function accessibilityAudit() {
   assert.doesNotMatch(files.index, /maximum-scale\s*=\s*1/i, 'Page zoom must not be artificially capped.');
   assert.match(files.app, /label="Paid By"/);
   assert.match(files.app, /label="Received By"/);
+  assert.match(files.app, /querySelectorAll\('button:not\(\[disabled\]\)/, 'Modal must contain a keyboard focus trap.');
+  assert.match(files.styles, /min-height:\s*44px/, 'Primary form controls must retain accessible touch targets.');
+  assert.match(files.mobileNav, /font-size:\s*10\.5px/, 'Mobile navigation labels must remain legible.');
+  assert.doesNotMatch(files.mobileNav, /font-size:\s*[0-8](?:\.\d+)?px/, 'Mobile navigation labels must not regress below 9px.');
 }
 
 function storageAudit() {
   assert.doesNotMatch(files.main, /indexedDB\.deleteDatabase|caches\.delete/, 'Startup must not purge browser-wide storage.');
   assert.doesNotMatch(files.main, /location\.reload/, 'Release checks should use a versioned replace, not reload loops.');
-  assert.match(files.storage, /KNOWN_STATE_FIELDS/);
-  assert.match(files.storage, /formatVersion:\s*CURRENT_STATE_VERSION/);
+  assert.match(files.storage, /ROLLBACK_STORAGE_KEY/);
+  assert.match(files.storage, /saveRollbackState/);
+  assert.match(files.storage, /loadRollbackState/);
+  assert.match(files.storage, /recoveryRequired:\s*true/, 'Unreadable saved state must enter protected recovery mode.');
+  assert.match(files.storage, /formatVersion.*> CURRENT_STATE_VERSION/s, 'Future-format backups must be rejected.');
   assert.match(files.storage, /mergeImportedMonths/);
-  assert.match(files.storage, /importMode === 'merge_months'/);
-  assert.match(files.storage, /monthMetaByMonth/);
+  assert.match(files.storage, /auditLog/);
   assert.match(files.finance, /savingsByMonth/);
   assert.match(files.finance, /monthMetaByMonth/);
-  assert.match(files.app, /month-specific savings snapshot/i);
 }
 
 function identityAudit() {
@@ -64,24 +71,30 @@ function currencyAudit() {
 }
 
 function financeAudit() {
-  assert.match(files.finance, /expectedClosingSavings\s*=\s*isComplete \? startingSavings \+ income - expenses/, 'Completed months must reconcile starting savings plus income less actual expenses.');
-  assert.match(files.finance, /projectedEndSavings\s*=\s*currentSavings \+ savedThisMonth/, 'Projected end savings must equal current savings plus net monthly saving for every month status.');
-  assert.match(files.finance, /projectedIncrease\s*=\s*savedThisMonth/, 'Projected increase must equal Saved This Month.');
+  assert.match(files.finance, /roundMoney/);
+  assert.match(files.finance, /sumMoney/);
+  assert.match(files.finance, /expectedClosingSavings\s*=\s*isComplete \? roundMoney\(startingSavings \+ income - expenses\)/, 'Completed months must reconcile starting savings plus income less expenses.');
+  assert.match(files.finance, /projectedEndSavings\s*=\s*isComplete \? currentSavings : roundMoney\(currentSavings \+ savedThisMonth\)/, 'Completed months must stop at recorded closing savings; live months may project snapshot plus net saving.');
+  assert.match(files.finance, /projectedIncrease\s*=\s*isComplete \? 0 : savedThisMonth/, 'Completed months must not have a forward projected increase.');
   assert.doesNotMatch(files.finance, /currentSavings \+ income - remainingBills/, 'The superseded gross-income projection formula must not return.');
-  assert.match(files.app, /Plus: Saved This Month/);
-  assert.match(files.app, /Savings \+ saved this month/);
-  assert.match(files.finance, /currentSavingsTotal\(state, monthKey\)/, 'Savings must be resolved from the selected month.');
-  assert.match(files.finance, /paidBy/);
-  assert.match(files.finance, /receivedBy/);
-  assert.match(files.finance, /transferPlan/);
-  assert.match(files.finance, /freeSavingsAfterBills\s*=\s*currentSavings - remainingBills/);
+  assert.match(files.finance, /confirmationIssues/);
+  assert.match(files.finance, /dateConfirmed/);
+  assert.match(files.finance, /paid:\s*type === 'expense'.*false/s, 'Expense payment status must default conservatively to unpaid.');
+  assert.match(files.finance, /isLikelyDuplicateTransaction/);
+  assert.match(files.finance, /isLikelyDuplicateIncome/);
+  assert.match(files.finance, /paidByLabel/);
+  assert.match(files.finance, /receivedByLabel/);
+  assert.match(files.state, /auditLog/);
+  assert.match(files.state, /before:\s*before/, 'Change History must retain before-state for destructive financial changes.');
+  assert.match(files.app, /Date TBC/);
+  assert.match(files.app, /Completed month — locked/);
+  assert.match(files.app, /Change History/);
+  assert.match(files.app, /Possible duplicate blocked/);
+  assert.match(files.app, /followCurrentPeriodRef\.current/, 'Historical month selection must not be overwritten by automatic current-period refresh.');
+  assert.match(files.app, /auditReady/);
+  assert.match(files.styles, /white-space:\s*nowrap/, 'Currency values must not wrap mid-number.');
   assert.doesNotMatch(files.catalog, /id:\s*['"]refund['"]/, 'Refund entry must not return to the public transaction choices.');
   assert.match(files.catalog, /id:\s*'household',\s*label:\s*'Joint'/, 'The shared payer label must match the current Family Tracker terminology.');
-  assert.match(files.app, /Historical Reconciliation/);
-  assert.match(files.app, /Expected Closing Savings/);
-  assert.match(files.app, /Reconciliation Variance/);
-  assert.match(files.app, /Transfer Plan/);
-  assert.match(files.app, /Payment status/);
 }
 
 const audits = {
