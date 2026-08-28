@@ -39,6 +39,11 @@ function isStateCandidate(value) {
   );
 }
 
+function hasFutureStateVersion(value) {
+  const version = Number(value?.version);
+  return Number.isFinite(version) && version > CURRENT_STATE_VERSION;
+}
+
 function mergeById(existing = [], incoming = []) {
   const merged = new Map(existing.map((item) => [item.id, item]));
   incoming.forEach((item) => {
@@ -79,6 +84,13 @@ export function loadState(storage, now = new Date()) {
     if (!raw) return { state: createBlankState(), warning: '', recoveryRequired: false };
     const parsed = JSON.parse(raw);
     if (!isStateCandidate(parsed)) throw new Error('Unknown state shape');
+    if (hasFutureStateVersion(parsed)) {
+      return {
+        state: createBlankState(),
+        warning: 'Saved Penny data was created by a newer Penny data format. Editing is locked so the newer saved data is not overwritten. Update Penny or import a compatible backup.',
+        recoveryRequired: true,
+      };
+    }
     return { state: migrateState(parsed, now), warning: '', recoveryRequired: false };
   } catch {
     return {
@@ -129,6 +141,7 @@ export function loadRollbackState(storage, now = new Date()) {
     throw new Error('The automatic recovery copy could not be read.');
   }
   if (!isStateCandidate(parsed)) throw new Error('The automatic recovery copy is not a recognised Penny state.');
+  if (hasFutureStateVersion(parsed)) throw new Error('The automatic recovery copy was created by a newer Penny data format. Update Penny before restoring it.');
   return migrateState(parsed, now);
 }
 
@@ -168,6 +181,7 @@ function parseRawBackup(text) {
   }
   const candidate = parsed.state ?? parsed;
   if (!isStateCandidate(candidate)) throw new Error('The backup does not contain a recognised Penny state.');
+  if (hasFutureStateVersion(candidate)) throw new Error('This backup contains a newer Penny state format. Update Penny before importing it.');
   return { parsed, candidate };
 }
 
