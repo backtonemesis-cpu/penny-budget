@@ -77,8 +77,13 @@ export function appReducer(state, action) {
     case 'SET_REFERENCE_LIST':
       if (!['people', 'accounts'].includes(action.field) || !Array.isArray(action.items)) return state;
       return { ...state, [action.field]: action.items };
-    case 'SET_SAVINGS_ACCOUNTS':
-      return { ...state, savingsAccounts: Array.isArray(action.items) ? action.items : [] };
+    case 'SET_SAVINGS_ACCOUNTS': {
+      if (!isValidMonthKey(action.monthKey)) return state;
+      const next = { ...state.savingsByMonth };
+      if (Array.isArray(action.items) && action.items.length) next[action.monthKey] = action.items;
+      else delete next[action.monthKey];
+      return { ...state, savingsByMonth: next };
+    }
     case 'SET_SAVINGS':
       if (!['savingsGoal', 'savingsContrib'].includes(action.field)) return state;
       return { ...state, [action.field]: positiveNumber(action.value) };
