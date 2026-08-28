@@ -472,8 +472,11 @@ export function monthSummary(state, monthKey) {
   const transferPlan = [...plan.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
+  const incompleteRecords = incompleteExpenses + incompleteIncome;
   const hasSavingsSnapshot = Boolean(state?.savingsByMonth?.[monthKey]?.length);
   const reconciliationProblem = Boolean(isComplete && (Math.abs(closingVariance || 0) >= 0.005 || remainingBills > 0));
+  const auditReady = Boolean(isComplete && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot);
+  const evidenceStatus = !isComplete ? (incomeRecords.length || transactions.length || hasSavingsSnapshot ? 'in_progress' : 'empty') : (auditReady ? 'ready' : 'review');
 
   return {
     incomeRecords,
@@ -496,14 +499,15 @@ export function monthSummary(state, monthKey) {
     transferPlan,
     incompleteExpenses,
     incompleteIncome,
-    incompleteRecords: incompleteExpenses + incompleteIncome,
+    incompleteRecords,
     monthMeta,
     isComplete,
     startingSavings,
     expectedClosingSavings,
     closingVariance,
     reconciliationProblem,
-    auditReady: incompleteExpenses + incompleteIncome === 0 && !reconciliationProblem,
+    auditReady,
+    evidenceStatus,
     hasData: incomeRecords.length > 0 || transactions.length > 0 || hasSavingsSnapshot || isComplete,
   };
 }
@@ -518,16 +522,20 @@ export function annualSummary(state, year) {
   const fields = ['income','expenses','paidExpenses','remainingBills','fixedExpenses','variableExpenses','excludedMovements','savedThisMonth'];
   const totals = Object.fromEntries(fields.map((field) => [field, sumMoney(withData.map((item) => item[field]))]));
   const incompleteRecords = withData.reduce((sum, item) => sum + item.incompleteRecords, 0);
-  const monthsNeedingReview = withData.filter((item) => !item.auditReady).length;
+  const monthsInProgress = withData.filter((item) => !item.isComplete).length;
+  const monthsNeedingReview = withData.filter((item) => item.isComplete && !item.auditReady).length;
   const unreconciledMonths = withData.filter((item) => item.reconciliationProblem).length;
+  const auditReady = Boolean(withData.length && monthsInProgress === 0 && monthsNeedingReview === 0 && incompleteRecords === 0 && unreconciledMonths === 0);
   return {
     months,
     withData,
     ...totals,
     incompleteRecords,
+    monthsInProgress,
     monthsNeedingReview,
     unreconciledMonths,
-    auditReady: incompleteRecords === 0 && unreconciledMonths === 0,
+    auditReady,
+    evidenceStatus: auditReady ? 'ready' : monthsInProgress > 0 ? 'in_progress' : 'review',
   };
 }
 
