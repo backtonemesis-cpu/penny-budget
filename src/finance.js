@@ -138,8 +138,12 @@ function normaliseMonthMetaByMonth(value) {
     Object.entries(value).flatMap(([monthKey, meta]) => {
       if (!isValidMonthKey(monthKey) || !meta || typeof meta !== 'object' || Array.isArray(meta)) return [];
       if (meta.status !== 'complete') return [];
-      const rawStartingSavings = Number(meta.startingSavings);
-      const startingSavingsProvided = Number.isFinite(rawStartingSavings) && rawStartingSavings >= 0;
+      const rawInput = meta.startingSavings;
+      const startingSavingsProvided = (
+        typeof rawInput === 'number'
+        || (typeof rawInput === 'string' && rawInput.trim() !== '')
+      ) && Number.isFinite(Number(rawInput)) && Number(rawInput) >= 0;
+      const rawStartingSavings = startingSavingsProvided ? Number(rawInput) : 0;
       return [[monthKey, {
         status: 'complete',
         startingSavings: startingSavingsProvided ? nonNegativeNumber(rawStartingSavings) : 0,
