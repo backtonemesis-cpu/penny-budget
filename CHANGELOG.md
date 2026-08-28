@@ -1,5 +1,15 @@
 # Penny Change Log
 
+## 28 August 2026 — Historical month savings and merge imports
+
+- Changed savings balances from one global snapshot to month-specific snapshots.
+- Existing version-4 savings migrate automatically to the latest month already containing Penny records.
+- Added safe `merge_months` imports so a historical month can be added without replacing other months.
+- Month imports replace only the specified month's transactions, income, savings snapshot and month-specific budget data.
+- Household people, accounts and custom categories are merged safely by ID.
+- Savings tab now clearly identifies the selected month and edits only that month's snapshot.
+- Added regression tests proving a June import cannot overwrite July savings or July transactions.
+
 ## 20 July 2026 — Family Tracker alignment
 
 - Rebuilt Penny around household cash planning rather than a generic spending ledger.

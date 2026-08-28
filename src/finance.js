@@ -3,7 +3,7 @@ import { BASE_CATEGORIES } from './catalog.js';
 export const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 export const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const TRANSACTION_TYPES = new Set(['expense','internal_transfer','savings_transfer','card_repayment','refund']);
-export const CURRENT_STATE_VERSION = 4;
+export const CURRENT_STATE_VERSION = 5;
 
 const BASE_CATEGORY_MAP = Object.fromEntries(BASE_CATEGORIES.map((category) => [category.id, category]));
 
@@ -102,6 +102,16 @@ function normaliseSavingsAccounts(value) {
     if (!label || !id) return [];
     return [{ id, label, balance: Math.max(0, signedNumber(item?.balance)) }];
   }));
+}
+
+function normaliseSavingsByMonth(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([monthKey, rows]) => isValidMonthKey(monthKey) && Array.isArray(rows))
+      .map(([monthKey, rows]) => [monthKey, normaliseSavingsAccounts(rows)])
+      .filter(([, rows]) => rows.length),
+  );
 }
 
 function normaliseCustomCategories(value) {
@@ -224,6 +234,13 @@ function normaliseLegacyMap(value) {
   }));
 }
 
+function latestDataMonth(txnsByMonth, incomeByMonth, fallbackMonth) {
+  const keys = [...new Set([...Object.keys(txnsByMonth), ...Object.keys(incomeByMonth)])]
+    .filter(isValidMonthKey)
+    .sort();
+  return keys.at(-1) || fallbackMonth;
+}
+
 export function createBlankState() {
   return {
     version: CURRENT_STATE_VERSION,
@@ -233,7 +250,7 @@ export function createBlankState() {
     hiddenCats: [],
     people: [],
     accounts: [],
-    savingsAccounts: [],
+    savingsByMonth: {},
     savingsGoal: 0,
     savingsContrib: 0,
     budgetsByMonth: {},
@@ -253,10 +270,17 @@ export function migrateState(saved, now = new Date()) {
     if (migrated.length) incomeByMonth = { [currentKey]: migrated };
   }
 
-  let savingsAccounts = normaliseSavingsAccounts(saved.savingsAccounts);
-  const legacySavings = positiveNumber(saved.savingsBal);
-  if (!savingsAccounts.length && legacySavings) {
-    savingsAccounts = [{ id: 'legacy_savings', label: 'Savings', balance: legacySavings }];
+  let savingsByMonth = normaliseSavingsByMonth(saved.savingsByMonth);
+  if (!Object.keys(savingsByMonth).length) {
+    let legacyAccounts = normaliseSavingsAccounts(saved.savingsAccounts);
+    const legacySavings = positiveNumber(saved.savingsBal);
+    if (!legacyAccounts.length && legacySavings) {
+      legacyAccounts = [{ id: 'legacy_savings', label: 'Savings', balance: legacySavings }];
+    }
+    if (legacyAccounts.length) {
+      const targetMonth = latestDataMonth(txnsByMonth, incomeByMonth, currentKey);
+      savingsByMonth = { [targetMonth]: legacyAccounts };
+    }
   }
 
   return {
@@ -269,7 +293,7 @@ export function migrateState(saved, now = new Date()) {
       : [],
     people: normaliseReferenceList(saved.people, 'person'),
     accounts: normaliseReferenceList(saved.accounts, 'account'),
-    savingsAccounts,
+    savingsByMonth,
     savingsGoal: positiveNumber(saved.savingsGoal),
     savingsContrib: positiveNumber(saved.savingsContrib),
     budgetsByMonth: normaliseLegacyMap(saved.budgetsByMonth),
@@ -277,8 +301,9 @@ export function migrateState(saved, now = new Date()) {
   };
 }
 
-export function currentSavingsTotal(state) {
-  return (state?.savingsAccounts || []).reduce((sum, account) => sum + Math.max(0, signedNumber(account.balance)), 0);
+export function currentSavingsTotal(state, monthKey) {
+  if (!isValidMonthKey(monthKey)) return 0;
+  return (state?.savingsByMonth?.[monthKey] || []).reduce((sum, account) => sum + Math.max(0, signedNumber(account.balance)), 0);
 }
 
 function isIncompleteExpense(transaction) {
@@ -309,7 +334,7 @@ export function monthSummary(state, monthKey) {
   const legacyRefunds = transactions
     .filter((transaction) => transaction.type === 'refund')
     .reduce((sum, transaction) => sum + positiveNumber(transaction.amount), 0);
-  const currentSavings = currentSavingsTotal(state);
+  const currentSavings = currentSavingsTotal(state, monthKey);
   const savedThisMonth = income - expenses;
   const freeSavingsAfterBills = currentSavings - remainingBills;
   const projectedIncrease = income - remainingBills;
@@ -329,6 +354,7 @@ export function monthSummary(state, monthKey) {
   const transferPlan = [...plan.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
+  const hasSavingsSnapshot = Boolean(state?.savingsByMonth?.[monthKey]?.length);
 
   return {
     incomeRecords,
@@ -343,6 +369,7 @@ export function monthSummary(state, monthKey) {
     excludedMovements,
     legacyRefunds,
     currentSavings,
+    hasSavingsSnapshot,
     savedThisMonth,
     freeSavingsAfterBills,
     projectedIncrease,
@@ -351,7 +378,7 @@ export function monthSummary(state, monthKey) {
     incompleteExpenses,
     incompleteIncome,
     incompleteRecords: incompleteExpenses + incompleteIncome,
-    hasData: incomeRecords.length > 0 || transactions.length > 0 || currentSavings > 0,
+    hasData: incomeRecords.length > 0 || transactions.length > 0 || hasSavingsSnapshot,
   };
 }
 

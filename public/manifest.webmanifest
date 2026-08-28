@@ -2,7 +2,7 @@
   "name": "Penny Budget",
   "short_name": "Penny",
   "description": "A private, browser-local household cash-planning tracker.",
-  "start_url": "/penny-budget/?v=2026-07-20-family-tracker-v1",
+  "start_url": "/penny-budget/?v=2026-08-28-historical-months-v1",
   "scope": "/penny-budget/",
   "display": "standalone",
   "background_color": "#0e1117",
