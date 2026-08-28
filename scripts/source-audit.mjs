@@ -14,13 +14,15 @@ const files = {
   storage: await read('../src/storage.js'),
   styles: await read('../src/styles.css'),
   selfTest: await read('./self-test.mjs'),
+  finalTest: await read('./final-audit-test.mjs'),
   workflow: await read('../.github/workflows/deploy.yml'),
   index: await read('../index.html'),
   lockfile: await read('../package-lock.json'),
+  packageJson: await read('../package.json'),
 };
 
 const publicSource = [files.app, files.catalog, files.currentPeriod, files.finance, files.main, files.mobileNav, files.state, files.storage, files.styles].join('\n');
-const auditedCode = [publicSource, files.selfTest, files.workflow].join('\n');
+const auditedCode = [publicSource, files.selfTest, files.finalTest, files.workflow].join('\n');
 const group = process.argv[2] || 'all';
 const blockedIdentityHashes = new Set([
   '5b39bfccb1447d4aae30e7a4fb0f4ba37e79ea96ec54b5ba7223979a15e4d0ae',
@@ -41,6 +43,8 @@ function accessibilityAudit() {
   assert.match(files.app, /label="Paid By"/);
   assert.match(files.app, /label="Received By"/);
   assert.match(files.app, /querySelectorAll\('button:not\(\[disabled\]\)/, 'Modal must contain a keyboard focus trap.');
+  assert.match(files.app, /previouslyFocused/, 'Modal must remember the opener for focus restoration.');
+  assert.match(files.app, /document\.contains\(previouslyFocused\).*previouslyFocused\.focus\(\)/s, 'Modal must restore focus to the opener when possible.');
   assert.match(files.styles, /min-height:\s*44px/, 'Primary form controls must retain accessible touch targets.');
   assert.match(files.mobileNav, /font-size:\s*10\.5px/, 'Mobile navigation labels must remain legible.');
   assert.doesNotMatch(files.mobileNav, /font-size:\s*[0-8](?:\.\d+)?px/, 'Mobile navigation labels must not regress below 9px.');
@@ -53,11 +57,15 @@ function storageAudit() {
   assert.match(files.storage, /saveRollbackState/);
   assert.match(files.storage, /loadRollbackState/);
   assert.match(files.storage, /recoveryRequired:\s*true/, 'Unreadable saved state must enter protected recovery mode.');
-  assert.match(files.storage, /formatVersion.*> CURRENT_STATE_VERSION/s, 'Future-format backups must be rejected.');
+  assert.match(files.storage, /hasFutureStateVersion/, 'Newer local state must be detected before migration.');
+  assert.match(files.storage, /formatVersion.*> CURRENT_STATE_VERSION/s, 'Future-format backup wrappers must be rejected.');
+  assert.match(files.storage, /hasFutureStateVersion\(candidate\)/, 'Future raw state inside backups must also be rejected.');
   assert.match(files.storage, /mergeImportedMonths/);
   assert.match(files.storage, /auditLog/);
   assert.match(files.finance, /savingsByMonth/);
   assert.match(files.finance, /monthMetaByMonth/);
+  assert.match(files.app, /disabled=\{recoveryRequired\}/, 'Normal backup export must be disabled while storage recovery is required.');
+  assert.match(files.app, /blank in-memory fallback is deliberately not exportable/i, 'Recovery UI must explain why ordinary backup export is unavailable.');
 }
 
 function identityAudit() {
@@ -81,6 +89,10 @@ function financeAudit() {
   assert.match(files.finance, /projectedEndSavings\s*=\s*isComplete \? currentSavings : roundMoney\(currentSavings \+ savedThisMonth\)/, 'Completed months must stop at recorded closing savings; live months may project snapshot plus net saving.');
   assert.match(files.finance, /projectedIncrease\s*=\s*isComplete \? 0 : savedThisMonth/, 'Completed months must not have a forward projected increase.');
   assert.doesNotMatch(files.finance, /currentSavings \+ income - remainingBills/, 'The superseded gross-income projection formula must not return.');
+  assert.match(files.finance, /auditReady\s*=\s*Boolean\(isComplete && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot\)/, 'Only completed, reconciled, fully confirmed months may be audit-ready.');
+  assert.match(files.finance, /evidenceStatus/);
+  assert.match(files.finance, /monthsInProgress/);
+  assert.match(files.finance, /!withData\.length \? 'empty'/, 'An empty year must be represented as empty rather than review-ready evidence.');
   assert.match(files.finance, /confirmationIssues/);
   assert.match(files.finance, /dateConfirmed/);
   assert.match(files.finance, /paid:\s*type === 'expense'.*false/s, 'Expense payment status must default conservatively to unpaid.');
@@ -97,12 +109,18 @@ function financeAudit() {
   assert.match(files.app, /Save this second record anyway\?/);
   assert.match(files.app, /createRollbackAfterApproval/);
   assert.match(files.app, /<AuditSnapshot title="Before"/);
+  assert.match(files.app, /In progress — this month is planning data, not final mortgage evidence/);
+  assert.match(files.app, /evidenceStatusLabel/);
+  assert.match(files.app, /Only completed, reconciled months can be mortgage-ready/);
   assert.match(files.app, /!summary\.isComplete && \(/, 'Current savings-goal planning must be hidden from completed historical months.');
   assert.match(files.app, /followCurrentPeriodRef\.current/, 'Historical month selection must not be overwritten by automatic current-period refresh.');
-  assert.match(files.app, /auditReady/);
   assert.match(files.styles, /white-space:\s*nowrap/, 'Currency values must not wrap mid-number.');
   assert.doesNotMatch(files.catalog, /id:\s*['"]refund['"]/, 'Refund entry must not return to the public transaction choices.');
   assert.match(files.catalog, /id:\s*'household',\s*label:\s*'Joint'/, 'The shared payer label must match the current Family Tracker terminology.');
+  assert.match(files.packageJson, /"postcss":\s*"8\.5\.23"/, 'The patched PostCSS build dependency must remain pinned.');
+  assert.match(files.lockfile, /"node_modules\/postcss"[\s\S]*?"version":\s*"8\.5\.23"/, 'The lockfile must resolve the patched PostCSS release.');
+  assert.match(files.workflow, /actions\/checkout@v5/);
+  assert.match(files.workflow, /actions\/setup-node@v5/);
 }
 
 const audits = {
