@@ -41,6 +41,10 @@ function storageAudit() {
   assert.doesNotMatch(files.main, /location\.reload/, 'Release checks should use a versioned replace, not reload loops.');
   assert.match(files.storage, /KNOWN_STATE_FIELDS/);
   assert.match(files.storage, /formatVersion:\s*CURRENT_STATE_VERSION/);
+  assert.match(files.storage, /mergeImportedMonths/);
+  assert.match(files.storage, /importMode === 'merge_months'/);
+  assert.match(files.finance, /savingsByMonth/);
+  assert.match(files.app, /month-specific savings snapshot/i);
 }
 
 function identityAudit() {
@@ -59,6 +63,7 @@ function currencyAudit() {
 
 function financeAudit() {
   assert.match(files.finance, /projectedEndSavings\s*=\s*currentSavings \+ income - remainingBills/, 'Projected End Savings must match the tracker rule.');
+  assert.match(files.finance, /currentSavingsTotal\(state, monthKey\)/, 'Savings must be resolved from the selected month.');
   assert.match(files.finance, /paidBy/);
   assert.match(files.finance, /receivedBy/);
   assert.match(files.finance, /transferPlan/);
