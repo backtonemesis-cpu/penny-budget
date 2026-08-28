@@ -556,6 +556,13 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
         </div>
       )}
 
+      {summary.isComplete && !summary.startingSavingsConfirmed && (
+        <div className="audit-warning" role="alert">
+          <strong>Starting savings needs confirmation.</strong>
+          <span>This completed month cannot be reconciled or marked Ready until an explicit starting-savings figure is supplied. Penny will not treat a missing value as £0.00.</span>
+        </div>
+      )}
+
       {summary.reconciliationProblem && (
         <div className="audit-warning" role="alert">
           <strong>Historical reconciliation needs review.</strong>
@@ -574,9 +581,9 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
         <Stat
           variant="hero"
           label={summary.isComplete ? 'Reconciliation Variance' : 'Projected End'}
-          value={formatMoney(summary.isComplete ? summary.closingVariance : summary.projectedEndSavings)}
-          tone={summary.isComplete ? (Math.abs(summary.closingVariance || 0) < 0.005 ? 'green' : 'red') : (summary.projectedEndSavings >= 0 ? 'green' : 'red')}
-          sub={summary.isComplete ? 'Expected vs recorded closing savings' : 'Savings snapshot + net saving'}
+          value={summary.isComplete && !summary.startingSavingsConfirmed ? 'TBC' : formatMoney(summary.isComplete ? summary.closingVariance : summary.projectedEndSavings)}
+          tone={summary.isComplete ? (!summary.startingSavingsConfirmed ? 'amber' : Math.abs(summary.closingVariance || 0) < 0.005 ? 'green' : 'red') : (summary.projectedEndSavings >= 0 ? 'green' : 'red')}
+          sub={summary.isComplete ? (summary.startingSavingsConfirmed ? 'Expected vs recorded closing savings' : 'Starting savings not confirmed') : 'Savings snapshot + net saving'}
         />
       </div>
 
@@ -615,12 +622,12 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
         <section className="card" aria-labelledby="historical-reconciliation-title">
           <h2 className="section-title" id="historical-reconciliation-title">Historical Reconciliation</h2>
           <p className="section-note">Completed months reconcile once: starting savings + income − expenses = closing savings. The closing balance is never projected forward again.</p>
-          <SummaryRow label="Starting Savings" value={summary.startingSavings} />
+          {summary.startingSavingsConfirmed ? <SummaryRow label="Starting Savings" value={summary.startingSavings} /> : <EvidenceTbcRow label="Starting Savings" />}
           <SummaryRow label="Plus: Income" value={summary.income} />
           <SummaryRow label="Less: Expenses" value={-summary.expenses} />
-          <SummaryRow label="Expected Closing Savings" value={summary.expectedClosingSavings} emphasis />
+          {summary.startingSavingsConfirmed ? <SummaryRow label="Expected Closing Savings" value={summary.expectedClosingSavings} emphasis /> : <EvidenceTbcRow label="Expected Closing Savings" emphasis />}
           <SummaryRow label="Recorded Closing Savings" value={summary.currentSavings} />
-          <SummaryRow label="Reconciliation Variance" value={summary.closingVariance} emphasis />
+          {summary.startingSavingsConfirmed ? <SummaryRow label="Reconciliation Variance" value={summary.closingVariance} emphasis /> : <EvidenceTbcRow label="Reconciliation Variance" emphasis />}
         </section>
       ) : (
         <details className="card disclosure-card">
@@ -673,6 +680,15 @@ function SummaryRow({ label, value, emphasis = false }) {
     <div className={`row ${emphasis ? 'summary-emphasis' : ''}`}>
       <div className="grow">{label}</div>
       <div className={`money ${value < 0 ? 'red' : ''}`}>{formatMoney(value)}</div>
+    </div>
+  );
+}
+
+function EvidenceTbcRow({ label, emphasis = false }) {
+  return (
+    <div className={`row ${emphasis ? 'summary-emphasis' : ''}`}>
+      <div className="grow">{label}</div>
+      <span className="status-pill warning">TBC</span>
     </div>
   );
 }
