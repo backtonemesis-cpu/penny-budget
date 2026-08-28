@@ -160,8 +160,8 @@ function App() {
     }
     const targetRows = state.txnsByMonth[targetMonthKey] || [];
     const duplicate = targetRows.find((existing) => isLikelyDuplicateTransaction(existing, transaction));
-    if (duplicate) {
-      setMessage(`Possible duplicate blocked: “${transaction.desc}” for ${formatMoney(transaction.amount)} already exists on that date.`);
+    if (duplicate && !globalThis.confirm(`Possible duplicate: “${transaction.desc}” for ${formatMoney(transaction.amount)} already exists on that date. Save this second record anyway?`)) {
+      setMessage('Duplicate save cancelled. Existing record was left unchanged.');
       return false;
     }
 
@@ -195,8 +195,8 @@ function App() {
     }
     const targetRows = state.incomeByMonth[targetMonthKey] || [];
     const duplicate = targetRows.find((existing) => isLikelyDuplicateIncome(existing, income));
-    if (duplicate) {
-      setMessage(`Possible duplicate blocked: “${income.description}” for ${formatMoney(income.amount)} already exists on that date.`);
+    if (duplicate && !globalThis.confirm(`Possible duplicate: “${income.description}” for ${formatMoney(income.amount)} already exists on that date. Save this second record anyway?`)) {
+      setMessage('Duplicate save cancelled. Existing record was left unchanged.');
       return false;
     }
 
@@ -265,19 +265,22 @@ function App() {
     }
     try {
       const backupPackage = parseBackupPackage(await file.text());
-      if (!recoveryRequired) {
+      const createRollbackAfterApproval = () => {
+        if (recoveryRequired) return true;
         const rollbackResult = saveRollbackState(browserStorage, state);
         if (!rollbackResult.ok) {
           setMessage(`${rollbackResult.error} Export a manual backup before importing.`);
-          return;
+          return false;
         }
         setRollbackAvailable(true);
-      }
+        return true;
+      };
 
       if (backupPackage.importMode === 'merge_months') {
         const monthLabels = backupPackage.mergeMonths.map((key) => `${MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`);
         const label = monthLabels.join(', ');
-        if (!globalThis.confirm(`Merge ${label} into Penny? Existing records for the imported month will be replaced, but all other months will be preserved. Penny has created an automatic pre-import recovery copy.`)) return;
+        if (!globalThis.confirm(`Merge ${label} into Penny? Existing records for the imported month will be replaced, but all other months will be preserved. Penny will create an automatic pre-import recovery copy after you approve.`)) return;
+        if (!createRollbackAfterApproval()) return;
         const restored = mergeImportedMonths(state, backupPackage.state, backupPackage.mergeMonths);
         setSaveEnabled(true);
         setRecoveryRequired(false);
@@ -293,7 +296,8 @@ function App() {
         return;
       }
 
-      if (!globalThis.confirm('Replace the current Penny data with this backup? Penny has created an automatic pre-import recovery copy.')) return;
+      if (!globalThis.confirm('Replace the current Penny data with this backup? Penny will create an automatic pre-import recovery copy after you approve.')) return;
+      if (!createRollbackAfterApproval()) return;
       setSaveEnabled(true);
       setRecoveryRequired(false);
       dispatch({
@@ -884,15 +888,17 @@ function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
         <div className="total-line"><span>{summary.isComplete ? 'Closing Savings' : 'Savings Snapshot'}</span><span className="money green">{formatMoney(summary.currentSavings)}</span></div>
       </section>
 
-      <section className="card" aria-labelledby="savings-goal-title">
-        <h2 className="section-title" id="savings-goal-title">Savings Goal</h2>
-        <div className="form-grid">
-          <NumberField label="Goal" value={state.savingsGoal} onCommit={(value) => mutate({ type: 'SET_SAVINGS', field: 'savingsGoal', value })} />
-          <NumberField label="Monthly Contribution" value={state.savingsContrib} onCommit={(value) => mutate({ type: 'SET_SAVINGS', field: 'savingsContrib', value })} />
-        </div>
-        <SummaryRow label="Remaining" value={goalRemaining ?? 0} />
-        <div className="row"><div className="grow">Forecast</div><div>{state.savingsGoal ? (goalRemaining === 0 ? 'Goal reached' : months ? `${months} months` : 'Set monthly contribution') : 'Set a goal'}</div></div>
-      </section>
+      {!summary.isComplete && (
+        <section className="card" aria-labelledby="savings-goal-title">
+          <h2 className="section-title" id="savings-goal-title">Savings Goal</h2>
+          <div className="form-grid">
+            <NumberField label="Goal" value={state.savingsGoal} onCommit={(value) => mutate({ type: 'SET_SAVINGS', field: 'savingsGoal', value })} />
+            <NumberField label="Monthly Contribution" value={state.savingsContrib} onCommit={(value) => mutate({ type: 'SET_SAVINGS', field: 'savingsContrib', value })} />
+          </div>
+          <SummaryRow label="Remaining" value={goalRemaining ?? 0} />
+          <div className="row"><div className="grow">Forecast</div><div>{state.savingsGoal ? (goalRemaining === 0 ? 'Goal reached' : months ? `${months} months` : 'Set monthly contribution') : 'Set a goal'}</div></div>
+        </section>
+      )}
     </>
   );
 }
@@ -1276,18 +1282,34 @@ function ChangeHistory({ auditLog }) {
           <summary>Show recent changes ({auditLog.length})</summary>
           <div className="history-list">
             {visible.map((entry) => (
-              <div className="history-row" key={entry.id}>
-                <div className="grow">
-                  <div className="row-title">{auditActionLabel(entry.action)} · {entry.label}</div>
-                  <div className="muted">{formatAuditTime(entry.at)}{entry.monthKey ? ` · ${entry.monthKey}` : ''}</div>
+              <details className="history-row" key={entry.id}>
+                <summary className="history-summary">
+                  <div className="grow">
+                    <div className="row-title">{auditActionLabel(entry.action)} · {entry.label}</div>
+                    <div className="muted">{formatAuditTime(entry.at)}{entry.monthKey ? ` · ${entry.monthKey}` : ''}</div>
+                  </div>
+                  <span className="status-pill neutral">{entry.entityType}</span>
+                </summary>
+                <div className="history-details">
+                  <AuditSnapshot title="Before" value={entry.before} />
+                  <AuditSnapshot title="After" value={entry.after} />
                 </div>
-                <span className="status-pill neutral">{entry.entityType}</span>
-              </div>
+              </details>
             ))}
           </div>
         </details>
       ) : <div className="empty">No changes have been recorded yet.</div>}
     </>
+  );
+}
+
+function AuditSnapshot({ title, value }) {
+  if (!value) return <div className="history-snapshot"><div className="mini-label">{title}</div><div className="muted">Not applicable</div></div>;
+  return (
+    <div className="history-snapshot">
+      <div className="mini-label">{title}</div>
+      <pre>{JSON.stringify(value, null, 2)}</pre>
+    </div>
   );
 }
 

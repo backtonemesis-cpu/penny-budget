@@ -16,6 +16,7 @@ const files = {
   selfTest: await read('./self-test.mjs'),
   workflow: await read('../.github/workflows/deploy.yml'),
   index: await read('../index.html'),
+  lockfile: await read('../package-lock.json'),
 };
 
 const publicSource = [files.app, files.catalog, files.currentPeriod, files.finance, files.main, files.mobileNav, files.state, files.storage, files.styles].join('\n');
@@ -34,6 +35,9 @@ function digest(value) {
 function accessibilityAudit() {
   assert.doesNotMatch(files.index, /user-scalable\s*=\s*no/i, 'Pinch zoom must remain available.');
   assert.doesNotMatch(files.index, /maximum-scale\s*=\s*1/i, 'Page zoom must not be artificially capped.');
+  assert.match(files.index, /Content-Security-Policy/, 'A restrictive browser Content Security Policy must remain present.');
+  assert.match(files.index, /object-src 'none'/, 'CSP must block plugin/object content.');
+  assert.match(files.index, /referrer.*no-referrer/, 'Financial app must not leak navigation referrers.');
   assert.match(files.app, /label="Paid By"/);
   assert.match(files.app, /label="Received By"/);
   assert.match(files.app, /querySelectorAll\('button:not\(\[disabled\]\)/, 'Modal must contain a keyboard focus trap.');
@@ -90,7 +94,10 @@ function financeAudit() {
   assert.match(files.app, /Date TBC/);
   assert.match(files.app, /Completed month — locked/);
   assert.match(files.app, /Change History/);
-  assert.match(files.app, /Possible duplicate blocked/);
+  assert.match(files.app, /Save this second record anyway\?/);
+  assert.match(files.app, /createRollbackAfterApproval/);
+  assert.match(files.app, /<AuditSnapshot title="Before"/);
+  assert.match(files.app, /!summary\.isComplete && \(/, 'Current savings-goal planning must be hidden from completed historical months.');
   assert.match(files.app, /followCurrentPeriodRef\.current/, 'Historical month selection must not be overwritten by automatic current-period refresh.');
   assert.match(files.app, /auditReady/);
   assert.match(files.styles, /white-space:\s*nowrap/, 'Currency values must not wrap mid-number.');
