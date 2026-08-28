@@ -31,6 +31,8 @@ jobs:
         run: npm run audit:all
       - name: Run finance and storage tests
         run: node scripts/self-test.mjs
+      - name: Run final evidence and recovery tests
+        run: node scripts/final-audit-test.mjs
       - name: Audit accessibility source
         run: node scripts/source-audit.mjs accessibility
       - name: Audit storage source
