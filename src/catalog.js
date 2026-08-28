@@ -34,7 +34,7 @@ export const SPECIAL_TRANSACTION_META = Object.fromEntries(
 );
 
 export const SPECIAL_PEOPLE = [
-  { id: 'household', label: 'Household' },
+  { id: 'household', label: 'Joint' },
   { id: 'unassigned', label: 'Unassigned' },
 ];
 
