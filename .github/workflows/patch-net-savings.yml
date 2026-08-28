@@ -1,0 +1,104 @@
+name: Apply net savings projection correction
+
+on:
+  push:
+    branches:
+      - fix-net-savings-projection
+    paths:
+      - '.github/workflows/patch-net-savings.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix-net-savings-projection
+      - name: Patch Penny projection logic and regression tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'src/finance.js',
+              "  const projectedIncrease = isComplete ? savedThisMonth : income - remainingBills;\n  const projectedEndSavings = isComplete\n    ? currentSavings - remainingBills\n    : currentSavings + income - remainingBills;",
+              "  const projectedIncrease = savedThisMonth;\n  const projectedEndSavings = isComplete\n    ? currentSavings - remainingBills\n    : currentSavings + savedThisMonth;",
+              'finance projection',
+          )
+
+          replace_once(
+              'src/App.jsx',
+              "sub={summary.isComplete ? 'Recorded closing savings less any unpaid items' : 'Savings + income − unpaid bills'}",
+              "sub={summary.isComplete ? 'Recorded closing savings less any unpaid items' : 'Savings + saved this month'}",
+              'overview projection subtitle',
+          )
+
+          replace_once(
+              'src/App.jsx',
+              '''            <SummaryRow label="Current Savings Now" value={summary.currentSavings} />
+            <SummaryRow label="Less: Unpaid Bills Still to Cover" value={-summary.remainingBills} />
+            <SummaryRow label="Free Savings After Bills" value={summary.freeSavingsAfterBills} emphasis />
+            <SummaryRow label="Plus: Income This Month" value={summary.income} />
+            <SummaryRow label="Projected Increase This Month" value={summary.projectedIncrease} />
+            <SummaryRow label="Projected End Savings" value={summary.projectedEndSavings} emphasis />''',
+              '''            <SummaryRow label="Current Savings Now" value={summary.currentSavings} />
+            <SummaryRow label="Free Savings After Bills (info)" value={summary.freeSavingsAfterBills} />
+            <SummaryRow label="Plus: Saved This Month" value={summary.savedThisMonth} />
+            <SummaryRow label="Remaining Bills Still Unpaid (info)" value={summary.remainingBills} />
+            <SummaryRow label="Projected Increase This Month" value={summary.projectedIncrease} />
+            <SummaryRow label="Projected End Savings" value={summary.projectedEndSavings} emphasis />''',
+              'transfer check',
+          )
+
+          replace_once('scripts/self-test.mjs', 'assert.equal(july.projectedIncrease, 3800);', 'assert.equal(july.projectedIncrease, 2000);', 'live projected increase test')
+          replace_once('scripts/self-test.mjs', 'assert.equal(july.projectedEndSavings, 13800);', 'assert.equal(july.projectedEndSavings, 12000);', 'live projected end test')
+          replace_once('scripts/self-test.mjs', "assert.equal(monthSummary(toggled, '2026-07').projectedEndSavings, 14000);", "assert.equal(monthSummary(toggled, '2026-07').projectedEndSavings, 12000, 'Changing paid status must not change net monthly saving.');", 'paid status projection test')
+          replace_once('scripts/self-test.mjs', "assert.equal(monthSummary(restored, '2026-07').projectedEndSavings, 13800);", "assert.equal(monthSummary(restored, '2026-07').projectedEndSavings, 12000);", 'restored live projection test')
+
+          audit = Path('scripts/source-audit.mjs')
+          text = audit.read_text()
+          old = "  assert.match(files.finance, /projectedEndSavings\\s*=\\s*isComplete[\\s\\S]*currentSavings - remainingBills[\\s\\S]*currentSavings \\+ income - remainingBills/, 'Completed and live months must use separate closing-position rules.');"
+          new = "  assert.match(files.finance, /projectedEndSavings\\s*=\\s*isComplete[\\s\\S]*currentSavings - remainingBills[\\s\\S]*currentSavings \\+ savedThisMonth/, 'Live projected end must add only net monthly saving to current savings.');\n  assert.match(files.finance, /projectedIncrease\\s*=\\s*savedThisMonth/, 'Projected increase must equal Saved This Month.');\n  assert.doesNotMatch(files.finance, /currentSavings \\+ income - remainingBills/, 'The superseded gross-income projection formula must not return.');\n  assert.match(files.app, /Plus: Saved This Month/);\n  assert.match(files.app, /Savings \\+ saved this month/);"
+          if text.count(old) != 1:
+              raise SystemExit(f'source audit projection rule: expected exactly 1 match, found {text.count(old)}')
+          audit.write_text(text.replace(old, new, 1))
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text()
+          marker = '# Penny Change Log\n\n'
+          entry = '''## 28 August 2026 — Corrected live savings projection\n\n- Corrected live-month Projected End Savings to: Current Savings + Saved This Month.\n- Saved This Month remains Income - all recorded Expenses, so expenses are counted exactly once.\n- Projected Increase now equals Saved This Month and is independent of whether an already-recorded expense is marked paid or unpaid.\n- Remaining Bills and Transfer Plan remain available as funding-status information, but no longer substitute gross income for net monthly saving in the projection.\n- Added regression and source-audit gates preventing the superseded Current Savings + Income - Remaining Bills formula from returning.\n\n'''
+          if marker not in text:
+              raise SystemExit('Change log marker not found')
+          text = text.replace(marker, marker + entry, 1)
+          text = text.replace('- Live months continue using Current Savings + Income - Remaining Bills Still Unpaid.', '- This live-month formula was superseded on 28 August 2026 by Current Savings + Saved This Month.', 1)
+          text = text.replace('- Changed Projected End Savings to: Current Savings + Income This Month - Remaining Bills Still Unpaid.', '- The original live projection formula was superseded on 28 August 2026 by Current Savings + Saved This Month.', 1)
+          changelog.write_text(text)
+
+          Path('public/version.json').write_text('{\n  "version": "2026-08-28-net-savings-projection-v1"\n}\n')
+          manifest = Path('public/manifest.webmanifest')
+          text = manifest.read_text()
+          old_version = '/penny-budget/?v=2026-08-28-june-history-v1'
+          new_version = '/penny-budget/?v=2026-08-28-net-savings-projection-v1'
+          if text.count(old_version) != 1:
+              raise SystemExit(f'manifest version: expected 1 match, found {text.count(old_version)}')
+          manifest.write_text(text.replace(old_version, new_version, 1))
+          PY
+      - name: Remove one-time patch workflow and commit
+        run: |
+          rm .github/workflows/patch-net-savings.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/finance.js src/App.jsx scripts/self-test.mjs scripts/source-audit.mjs CHANGELOG.md public/version.json public/manifest.webmanifest .github/workflows/patch-net-savings.yml
+          git commit -m 'Fix live projected savings to use net monthly saving'
+          git push origin HEAD:fix-net-savings-projection
