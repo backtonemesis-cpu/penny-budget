@@ -526,6 +526,7 @@ export function annualSummary(state, year) {
   const monthsNeedingReview = withData.filter((item) => item.isComplete && !item.auditReady).length;
   const unreconciledMonths = withData.filter((item) => item.reconciliationProblem).length;
   const auditReady = Boolean(withData.length && monthsInProgress === 0 && monthsNeedingReview === 0 && incompleteRecords === 0 && unreconciledMonths === 0);
+  const evidenceStatus = !withData.length ? 'empty' : auditReady ? 'ready' : monthsInProgress > 0 ? 'in_progress' : 'review';
   return {
     months,
     withData,
@@ -535,7 +536,7 @@ export function annualSummary(state, year) {
     monthsNeedingReview,
     unreconciledMonths,
     auditReady,
-    evidenceStatus: auditReady ? 'ready' : monthsInProgress > 0 ? 'in_progress' : 'review',
+    evidenceStatus,
   };
 }
 
