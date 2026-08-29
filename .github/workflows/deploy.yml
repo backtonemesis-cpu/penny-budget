@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -31,6 +31,8 @@ jobs:
         run: npm run audit:all
       - name: Run finance and storage tests
         run: node scripts/self-test.mjs
+      - name: Run final evidence and recovery tests
+        run: node scripts/final-audit-test.mjs
       - name: Audit accessibility source
         run: node scripts/source-audit.mjs accessibility
       - name: Audit storage source
@@ -57,8 +59,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm

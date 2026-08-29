@@ -1,0 +1,119 @@
+import assert from 'node:assert/strict';
+import {
+  CURRENT_STATE_VERSION,
+  annualSummary,
+  createBlankState,
+  migrateState,
+  monthSummary,
+  normaliseTransaction,
+} from '../src/finance.js';
+import { appReducer } from '../src/state.js';
+import {
+  loadState,
+  parseBackupPackage,
+} from '../src/storage.js';
+
+function memoryStorage(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return {
+    getItem(key) { return map.has(key) ? map.get(key) : null; },
+    setItem(key, value) { map.set(key, String(value)); },
+    removeItem(key) { map.delete(key); },
+  };
+}
+
+const emptyYear = annualSummary(createBlankState(), 2026);
+assert.equal(emptyYear.auditReady, false);
+assert.equal(emptyYear.evidenceStatus, 'empty', 'An empty year must not be described as Ready or Review.');
+
+const missingStart = migrateState({
+  version: CURRENT_STATE_VERSION,
+  monthMetaByMonth: { '2026-06': { status: 'complete', startingSavings: null } },
+  savingsByMonth: { '2026-06': [{ id: 's', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 5, 30));
+const missingStartSummary = monthSummary(missingStart, '2026-06');
+assert.equal(missingStartSummary.startingSavingsConfirmed, false, 'Null starting savings must remain missing evidence, not become an explicit zero.');
+assert.equal(missingStartSummary.expectedClosingSavings, null);
+assert.equal(missingStartSummary.closingVariance, null);
+assert.equal(missingStartSummary.auditReady, false);
+assert.equal(missingStartSummary.evidenceStatus, 'review');
+
+const absentStart = migrateState({
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-02': { status: 'complete' } },
+  savingsByMonth: { '2026-02': [{ id: 's0', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 1, 28));
+const absentStartSummary = monthSummary(absentStart, '2026-02');
+assert.equal(absentStartSummary.startingSavingsConfirmed, false, 'Absent starting savings must remain TBC rather than becoming a synthetic zero.');
+assert.equal(absentStartSummary.expectedClosingSavings, null);
+assert.equal(absentStartSummary.auditReady, false);
+
+const blankStart = migrateState({
+  version: CURRENT_STATE_VERSION,
+  monthMetaByMonth: { '2026-06': { status: 'complete', startingSavings: '   ' } },
+  savingsByMonth: { '2026-06': [{ id: 's', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 5, 30));
+assert.equal(monthSummary(blankStart, '2026-06').startingSavingsConfirmed, false, 'Blank starting savings must remain missing evidence.');
+
+const explicitZeroStart = migrateState({
+  version: CURRENT_STATE_VERSION,
+  monthMetaByMonth: { '2026-06': { status: 'complete', startingSavings: 0 } },
+  savingsByMonth: { '2026-06': [{ id: 's', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 5, 30));
+const explicitZeroSummary = monthSummary(explicitZeroStart, '2026-06');
+assert.equal(explicitZeroSummary.startingSavingsConfirmed, true, 'An explicitly supplied £0 starting balance is valid evidence.');
+assert.equal(explicitZeroSummary.expectedClosingSavings, 0);
+assert.equal(explicitZeroSummary.closingVariance, 0);
+assert.equal(explicitZeroSummary.auditReady, true);
+assert.equal(explicitZeroSummary.evidenceStatus, 'ready');
+
+const rawLegacyComplete = {
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-03': { status: 'complete', startingSavings: 8000 } },
+  savingsByMonth: { '2026-03': [{ id: 's1', label: 'Savings', balance: 8000 }] },
+};
+assert.equal(monthSummary(rawLegacyComplete, '2026-03').startingSavingsConfirmed, true, 'Existing valid pre-flag state must remain compatible.');
+
+const unassignedMovement = normaliseTransaction({
+  id: 'movement-tbc',
+  type: 'card_repayment',
+  date: '2026-04-01',
+  amount: 25,
+  desc: 'Card repayment',
+  account: 'unassigned',
+  confirmationIssues: [],
+});
+assert.equal(unassignedMovement.confirmationIssues.includes('account'), true, 'Excluded movements must retain unresolved account evidence.');
+const movementEvidenceState = migrateState({
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-04': { status: 'complete', startingSavings: 100 } },
+  savingsByMonth: { '2026-04': [{ id: 's1', label: 'Savings', balance: 100 }] },
+  txnsByMonth: { '2026-04': [unassignedMovement] },
+}, new Date(2026, 3, 30));
+const movementEvidenceSummary = monthSummary(movementEvidenceState, '2026-04');
+assert.equal(movementEvidenceSummary.incompleteMovements, 1, 'An unresolved transfer/card-repayment account must be counted as incomplete evidence.');
+assert.equal(movementEvidenceSummary.auditReady, false, 'A completed month with an unresolved excluded movement must not be Ready.');
+
+const subPennySavings = appReducer(createBlankState(), {
+  type: 'SET_SAVINGS_ACCOUNTS',
+  monthKey: '2026-08',
+  items: [{ id: 's1', label: 'Savings', balance: 100.001 }],
+  auditAt: '2026-08-28T12:00:00.000Z',
+  auditId: 'audit-savings-rounding',
+});
+assert.equal(subPennySavings.savingsByMonth['2026-08'][0].balance, 100, 'Stored savings evidence must be normalised to pennies.');
+assert.equal(subPennySavings.auditLog[0].after[0].balance, 100, 'Change History must record the penny-normalised savings value.');
+
+const futureState = { ...createBlankState(), version: CURRENT_STATE_VERSION + 1 };
+const futureStorage = memoryStorage({ penny_state: JSON.stringify(futureState) });
+const futureLoad = loadState(futureStorage, new Date(2026, 7, 28));
+assert.equal(futureLoad.recoveryRequired, true, 'Newer local data must be protected from overwrite by an older app build.');
+assert.match(futureLoad.warning, /newer Penny data format/);
+
+assert.throws(
+  () => parseBackupPackage(JSON.stringify({ app: 'Penny', state: futureState })),
+  /newer Penny state format/,
+  'A raw backup with a future state version must be rejected even if formatVersion is absent.',
+);
+
+console.log('Penny final evidence-status, starting-savings, penny-storage and future-format recovery tests passed');
