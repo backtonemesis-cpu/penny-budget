@@ -204,7 +204,7 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
 .filter-card { display: grid; grid-template-columns: minmax(0, 2fr) minmax(140px, 1fr); gap: 10px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .compact-field { margin-bottom: 0; }
-.field input, .field select, .settings-row input {
+.field input, .field select, .settings-row input, .settings-row select {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--border);
@@ -338,4 +338,16 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
   .choice-group { grid-template-columns: 1fr; }
   .icon-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .status-pill { font-size: 9.5px; }
+}
+
+
+.account-settings-row { flex-wrap: wrap; }
+.account-settings-row input { flex: 1 1 180px; }
+.account-settings-row select { flex: 0 0 160px; }
+.compact-warning { margin: 8px 0 4px; }
+@media (max-width: 480px) {
+  .account-settings-row input,
+  .account-settings-row select,
+  .account-settings-row .primary-button,
+  .account-settings-row .danger-button { flex: 1 1 100%; }
 }

@@ -1,5 +1,16 @@
 # Penny Change Log
 
+## 29 August 2026 — Explicit bank-account ownership
+
+- Added an Owner field to every bill-paying account using local household person, Joint or TBC references.
+- Existing accounts migrate to Owner TBC; Penny never infers ownership from transaction usage.
+- Account ownership is visible in Settings, account choices, Transactions, Bills, Savings and the Start-of-Month Transfer Plan.
+- New financial records snapshot the account owner alongside the account label so later owner changes do not rewrite historical evidence.
+- Monthly bank-balance snapshots preserve ownership metadata for transfer planning.
+- Month imports may fill a TBC owner from explicit evidence but cannot overwrite an already-confirmed owner.
+- Account-owner edits are recorded in Change History.
+- No household identities or private ownership assignments are embedded in the public repository.
+
 ## 29 August 2026 — True transfer shortfall planning
 
 - Added monthly bill-paying bank balance snapshots so Penny can calculate how much already sits in each spending account before a savings top-up.

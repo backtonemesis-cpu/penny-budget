@@ -101,6 +101,10 @@ function financeAudit() {
   assert.match(files.finance, /accountPlan/, 'Bank-account funding must be calculated separately from person-level transfer rows.');
   assert.match(files.finance, /transferNeeded:\s*roundMoney\(Math\.max\(0, row\.amount - row\.currentBalance\)\)/, 'Account transfer planning must subtract confirmed bank balances from unpaid account costs.');
   assert.match(files.finance, /hasUnconfirmedBankBalances/, 'Missing bank balances must keep transfer totals marked as unconfirmed.');
+  assert.match(files.finance, /ownerId/, 'Accounts and transfer rows must carry ownership metadata.');
+  assert.match(files.finance, /accountOwnerId/, 'Financial records must snapshot account-owner evidence.');
+  assert.match(files.finance, /hasUnconfirmedAccountOwners/, 'Transfer planning must expose owner TBC state.');
+  assert.match(files.storage, /mergeAccountsById/, 'Imports must not overwrite a confirmed account owner.');
   assert.match(files.selfTest, /subtract confirmed bank balances/, 'Account-level funding must remain covered by regression tests.');
   assert.match(files.finance, /auditReady\s*=\s*Boolean\(isComplete && startingSavingsConfirmed && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot\)/, 'Only completed, explicitly grounded, reconciled and fully confirmed months may be audit-ready.');
   assert.match(files.finance, /evidenceStatus/);
@@ -133,6 +137,11 @@ function financeAudit() {
   assert.match(files.app, /enter bank balances in Savings/);
   assert.match(files.app, /summary\.accountFundingPlan/);
   assert.match(files.app, /Bill-Paying Bank Balances/);
+  assert.match(files.app, /Every bill-paying account has an explicit owner/);
+  assert.match(files.app, /AccountReferenceEditor/);
+  assert.match(files.app, /ownedAccountLabel/);
+  assert.match(files.app, /Account owner:/);
+  assert.match(files.app, /preservedOrSelectedAccountOwner/);
   assert.match(files.app, /Current bank balance: TBC/);
   assert.match(files.app, /evidenceStatusLabel/);
   assert.match(files.app, /Only completed, reconciled months can be mortgage-ready/);
