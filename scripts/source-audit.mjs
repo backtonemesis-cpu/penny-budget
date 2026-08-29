@@ -89,7 +89,8 @@ function financeAudit() {
   assert.match(files.finance, /sumMoney/);
   assert.match(files.finance, /typeof rawInput === 'number'/, 'Completed-month starting savings must distinguish missing values from explicit numeric zero.');
   assert.match(files.finance, /typeof rawInput === 'string' && rawInput\.trim\(\) !== ''/, 'Blank starting-savings strings must remain missing evidence.');
-  assert.match(files.finance, /startingSavingsConfirmed\s*=\s*Boolean\(isComplete && monthMeta\.startingSavingsConfirmed\)/, 'Completed reconciliation must depend on confirmed starting savings.');
+  assert.match(files.finance, /Object\.hasOwn\(monthMeta, 'startingSavings'\)/, 'Starting-savings confirmation must distinguish a missing field from an explicit zero.');
+  assert.match(files.finance, /startingSavingsConfirmed\s*=\s*Boolean\(isComplete && hasStartingSavingsValue && monthMeta\.startingSavingsConfirmed !== false\)/, 'Completed reconciliation must accept existing valid starting-savings evidence unless it is explicitly unconfirmed.');
   assert.match(files.finance, /expectedClosingSavings\s*=\s*startingSavingsConfirmed \? roundMoney\(startingSavings \+ income - expenses\) : null/, 'Expected closing savings must remain TBC when starting savings evidence is missing.');
   assert.match(files.finance, /projectedEndSavings\s*=\s*isComplete \? currentSavings : roundMoney\(currentSavings \+ savedThisMonth\)/, 'Completed months must stop at recorded closing savings; live months may project snapshot plus net saving.');
   assert.match(files.finance, /projectedIncrease\s*=\s*isComplete \? 0 : savedThisMonth/, 'Completed months must not have a forward projected increase.');

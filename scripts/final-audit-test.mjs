@@ -5,6 +5,8 @@ import {
   createBlankState,
   migrateState,
   monthSummary,
+  migrateState,
+  monthSummary,
 } from '../src/finance.js';
 import { appReducer } from '../src/state.js';
 import {
@@ -24,6 +26,29 @@ function memoryStorage(initial = {}) {
 const emptyYear = annualSummary(createBlankState(), 2026);
 assert.equal(emptyYear.auditReady, false);
 assert.equal(emptyYear.evidenceStatus, 'empty', 'An empty year must not be described as Ready or Review.');
+
+const explicitZeroStart = migrateState({
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-01': { status: 'complete', startingSavings: 0 } },
+}, new Date(2026, 0, 31));
+assert.equal(monthSummary(explicitZeroStart, '2026-01').startingSavingsConfirmed, true, 'An explicit zero starting balance is valid evidence.');
+
+const missingStart = migrateState({
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-02': { status: 'complete' } },
+  savingsByMonth: { '2026-02': [{ id: 's0', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 1, 28));
+const missingStartSummary = monthSummary(missingStart, '2026-02');
+assert.equal(missingStartSummary.startingSavingsConfirmed, false, 'Missing starting savings must remain TBC rather than becoming a synthetic zero.');
+assert.equal(missingStartSummary.expectedClosingSavings, null);
+assert.equal(missingStartSummary.auditReady, false);
+
+const rawLegacyComplete = {
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-03': { status: 'complete', startingSavings: 8000 } },
+  savingsByMonth: { '2026-03': [{ id: 's1', label: 'Savings', balance: 8000 }] },
+};
+assert.equal(monthSummary(rawLegacyComplete, '2026-03').startingSavingsConfirmed, true, 'Existing valid pre-flag state must remain compatible.');
 
 const subPennySavings = appReducer(createBlankState(), {
   type: 'SET_SAVINGS_ACCOUNTS',

@@ -450,8 +450,13 @@ export function monthSummary(state, monthKey) {
   const savedThisMonth = roundMoney(income - expenses);
   const monthMeta = state?.monthMetaByMonth?.[monthKey] || {};
   const isComplete = monthMeta.status === 'complete';
-  const startingSavingsConfirmed = Boolean(isComplete && monthMeta.startingSavingsConfirmed);
-  const startingSavings = startingSavingsConfirmed ? nonNegativeNumber(monthMeta.startingSavings) : 0;
+  const rawStartingSavings = monthMeta.startingSavings;
+  const hasStartingSavingsValue = Object.hasOwn(monthMeta, 'startingSavings')
+    && (typeof rawStartingSavings === 'number' || (typeof rawStartingSavings === 'string' && rawStartingSavings.trim() !== ''))
+    && Number.isFinite(Number(rawStartingSavings))
+    && Number(rawStartingSavings) >= 0;
+  const startingSavingsConfirmed = Boolean(isComplete && hasStartingSavingsValue && monthMeta.startingSavingsConfirmed !== false);
+  const startingSavings = startingSavingsConfirmed ? nonNegativeNumber(rawStartingSavings) : 0;
   const expectedClosingSavings = startingSavingsConfirmed ? roundMoney(startingSavings + income - expenses) : null;
   const closingVariance = startingSavingsConfirmed ? roundMoney(currentSavings - expectedClosingSavings) : null;
   const freeSavingsAfterBills = roundMoney(currentSavings - remainingBills);
