@@ -95,6 +95,9 @@ function financeAudit() {
   assert.match(files.finance, /projectedEndSavings\s*=\s*isComplete \? currentSavings : roundMoney\(currentSavings \+ savedThisMonth\)/, 'Completed months must stop at recorded closing savings; live months may project snapshot plus net saving.');
   assert.match(files.finance, /projectedIncrease\s*=\s*isComplete \? 0 : savedThisMonth/, 'Completed months must not have a forward projected increase.');
   assert.doesNotMatch(files.finance, /currentSavings \+ income - remainingBills/, 'The superseded gross-income projection formula must not return.');
+  assert.match(files.finance, /accountFundingPlan/, 'Live month transfer planning must include a bank-account grouped view.');
+  assert.match(files.finance, /accountPlan/, 'Bank-account funding must be calculated separately from person-level transfer rows.');
+  assert.match(files.selfTest, /Start-of-month transfer planning must group unpaid expenses by bank account/, 'Account-level funding must remain covered by regression tests.');
   assert.match(files.finance, /auditReady\s*=\s*Boolean\(isComplete && startingSavingsConfirmed && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot\)/, 'Only completed, explicitly grounded, reconciled and fully confirmed months may be audit-ready.');
   assert.match(files.finance, /evidenceStatus/);
   assert.match(files.finance, /monthsInProgress/);
@@ -122,6 +125,9 @@ function financeAudit() {
   assert.match(files.app, /createRollbackAfterApproval/);
   assert.match(files.app, /<AuditSnapshot title="Before"/);
   assert.match(files.app, /In progress — this month is planning data, not final mortgage evidence/);
+  assert.match(files.app, /Start-of-Month Transfer Plan/);
+  assert.match(files.app, /select the month you are preparing/);
+  assert.match(files.app, /summary\.accountFundingPlan/);
   assert.match(files.app, /evidenceStatusLabel/);
   assert.match(files.app, /Only completed, reconciled months can be mortgage-ready/);
   assert.match(files.app, /!summary\.isComplete && \(/, 'Current savings-goal planning must be hidden from completed historical months.');

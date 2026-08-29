@@ -593,29 +593,32 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
         <Stat variant="compact" label="Net Saving" value={formatMoney(summary.savedThisMonth)} tone={summary.savedThisMonth >= 0 ? 'green' : 'red'} sub="Income − expenses" />
       </div>
 
-      {!summary.isComplete && summary.remainingBills > 0 && (
-        <section className="card attention-card" aria-labelledby="remaining-bills-title">
+      {!summary.isComplete && summary.expenseTransactions.length > 0 && (
+        <section className={`card ${summary.remainingBills > 0 ? 'attention-card' : ''}`} aria-labelledby="remaining-bills-title">
           <div className="section-heading">
             <div>
-              <h2 className="section-title" id="remaining-bills-title">Remaining Bills</h2>
-              <p className="section-note">Unpaid expenses still requiring funding.</p>
+              <h2 className="section-title" id="remaining-bills-title">Start-of-Month Transfer Plan</h2>
+              <p className="section-note">Use this at month-end: select the month you are preparing, then transfer these amounts from savings into the bank accounts that will pay the unpaid bills and expenses.</p>
             </div>
-            <div className="money strong amber">{formatMoney(summary.remainingBills)}</div>
+            <div className={`money strong ${summary.remainingBills > 0 ? 'amber' : 'green'}`}>{formatMoney(summary.remainingBills)}</div>
           </div>
-          {summary.transferPlan.map((row) => (
-            <div className="row" key={row.key}>
+          {summary.accountFundingPlan.length ? summary.accountFundingPlan.map((row) => (
+            <div className="row transfer-account-row" key={row.key}>
               <div className="grow">
-                <div className="row-title">{row.paidByLabel || peopleMap[row.paidBy]?.label || row.paidBy}</div>
-                <div className="muted">{row.accountLabel || accountMap[row.account]?.label || row.account} · {row.count} item{row.count === 1 ? '' : 's'}</div>
+                <div className="row-title">{row.accountLabel || accountMap[row.account]?.label || row.account}</div>
+                <div className="muted">{row.count} unpaid item{row.count === 1 ? '' : 's'} to cover from this account</div>
+                <div className="transfer-breakdown">
+                  {row.payers.map((payer) => (
+                    <span key={`${row.key}-${payer.paidBy}`}>
+                      {payer.paidByLabel || peopleMap[payer.paidBy]?.label || payer.paidBy}: {formatMoney(payer.amount)}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="money">{formatMoney(row.amount)}</div>
             </div>
-          ))}
+          )) : <div className="status-banner success" role="status">All recorded expenses are marked paid. No transfer is currently required.</div>}
         </section>
-      )}
-
-      {!summary.isComplete && summary.remainingBills === 0 && summary.expenseTransactions.length > 0 && (
-        <div className="status-banner success" role="status">All recorded expenses are marked paid. No transfer is currently required.</div>
       )}
 
       {summary.isComplete ? (

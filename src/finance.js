@@ -489,6 +489,33 @@ export function monthSummary(state, monthKey) {
   });
 
   const transferPlan = [...plan.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
+  const accountPlan = new Map();
+  transferPlan.forEach((row) => {
+    const key = row.account || 'unassigned';
+    const current = accountPlan.get(key) || {
+      key,
+      account: key,
+      accountLabel: row.accountLabel,
+      amount: 0,
+      count: 0,
+      payers: [],
+    };
+    current.amount = roundMoney(current.amount + positiveNumber(row.amount));
+    current.count += row.count;
+    current.payers.push({
+      paidBy: row.paidBy,
+      paidByLabel: row.paidByLabel,
+      amount: row.amount,
+      count: row.count,
+    });
+    accountPlan.set(key, current);
+  });
+  const accountFundingPlan = [...accountPlan.values()]
+    .map((row) => ({
+      ...row,
+      payers: row.payers.sort((a, b) => b.amount - a.amount || String(a.paidBy).localeCompare(String(b.paidBy))),
+    }))
+    .sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
   const incompleteMovements = transactions.filter(isIncompleteMovement).length;
@@ -517,6 +544,7 @@ export function monthSummary(state, monthKey) {
     projectedIncrease,
     projectedEndSavings,
     transferPlan,
+    accountFundingPlan,
     incompleteExpenses,
     incompleteIncome,
     incompleteMovements,

@@ -1,5 +1,13 @@
 # Penny Change Log
 
+## 29 August 2026 — Start-of-month account funding view
+
+- Added a Start-of-Month Transfer Plan on Overview for live planning months.
+- The plan groups unpaid bills and expenses by the bank account they will be paid from, so month-end savings transfers can be prepared account by account.
+- Kept the payer breakdown visible inside each account row for audit traceability.
+- No schema migration, projection formula, income treatment, expense treatment or completed-month evidence logic was changed.
+- Added regression and source-audit checks for the account-level funding plan.
+
 ## 28 August 2026 — Audit hardening and mobile UX rebuild
 
 - Preserved backward compatibility for completed months that already contain a valid starting-savings value while keeping genuinely missing starting-savings evidence as `TBC`; an explicit £0 remains valid evidence.
