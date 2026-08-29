@@ -101,6 +101,9 @@ function financeAudit() {
   assert.match(files.finance, /!withData\.length \? 'empty'/, 'An empty year must be represented as empty rather than review-ready evidence.');
   assert.match(files.finance, /confirmationIssues/);
   assert.match(files.finance, /dateConfirmed/);
+  assert.match(files.finance, /accountRequired = type === 'expense' \|\| \['internal_transfer','savings_transfer','card_repayment'\]\.includes\(type\)/, 'Excluded movements must require account evidence.');
+  assert.match(files.finance, /incompleteMovements/, 'Unresolved transfer and card-repayment evidence must prevent Ready status.');
+  assert.match(files.app, /kind === 'movement'.*account === 'unassigned'/, 'Movement entry UI must preserve unassigned-account confirmation issues.');
   assert.match(files.finance, /paid:\s*type === 'expense'.*false/s, 'Expense payment status must default conservatively to unpaid.');
   assert.match(files.finance, /isLikelyDuplicateTransaction/);
   assert.match(files.finance, /isLikelyDuplicateIncome/);

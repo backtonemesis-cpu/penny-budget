@@ -199,15 +199,16 @@ export function normaliseTransaction(transaction, customCategories = []) {
       : categoryDefaultClass(category, customCategories)
     : undefined;
   const paidBy = cleanText(transaction.paidBy, type === 'expense' ? 'unassigned' : '', 120);
-  const account = cleanText(transaction.account, type === 'expense' ? 'unassigned' : '', 120);
+  const accountRequired = type === 'expense' || ['internal_transfer','savings_transfer','card_repayment'].includes(type);
+  const account = cleanText(transaction.account, accountRequired ? 'unassigned' : '', 120);
   const explicitIssues = Array.isArray(transaction.confirmationIssues);
   const issueSet = new Set(normaliseConfirmationIssues(transaction.confirmationIssues));
   if (!explicitIssues && transaction.needsConfirmation) issueSet.add('date');
   if (transaction.dateConfirmed === false) issueSet.add('date');
   if (type === 'expense' && paidBy === 'unassigned') issueSet.add('paidBy');
   else issueSet.delete('paidBy');
-  if (type === 'expense' && account === 'unassigned') issueSet.add('account');
-  else if (type === 'expense') issueSet.delete('account');
+  if (accountRequired && account === 'unassigned') issueSet.add('account');
+  else if (accountRequired) issueSet.delete('account');
   const confirmationIssues = [...issueSet];
 
   return {
@@ -432,6 +433,11 @@ function isIncompleteIncome(record) {
   return Boolean(record.needsConfirmation || record.confirmationIssues?.length);
 }
 
+function isIncompleteMovement(transaction) {
+  return ['internal_transfer','savings_transfer','card_repayment'].includes(transaction.type)
+    && Boolean(transaction.needsConfirmation || transaction.confirmationIssues?.length);
+}
+
 export function monthSummary(state, monthKey) {
   const incomeRecords = state?.incomeByMonth?.[monthKey] || [];
   const transactions = state?.txnsByMonth?.[monthKey] || [];
@@ -485,7 +491,8 @@ export function monthSummary(state, monthKey) {
   const transferPlan = [...plan.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
-  const incompleteRecords = incompleteExpenses + incompleteIncome;
+  const incompleteMovements = transactions.filter(isIncompleteMovement).length;
+  const incompleteRecords = incompleteExpenses + incompleteIncome + incompleteMovements;
   const hasSavingsSnapshot = Boolean(state?.savingsByMonth?.[monthKey]?.length);
   const reconciliationProblem = Boolean(isComplete && startingSavingsConfirmed && (Math.abs(closingVariance || 0) >= 0.005 || remainingBills > 0));
   const auditReady = Boolean(isComplete && startingSavingsConfirmed && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot);
@@ -512,6 +519,7 @@ export function monthSummary(state, monthKey) {
     transferPlan,
     incompleteExpenses,
     incompleteIncome,
+    incompleteMovements,
     incompleteRecords,
     monthMeta,
     isComplete,

@@ -5,6 +5,7 @@ import {
   createBlankState,
   migrateState,
   monthSummary,
+  normaliseTransaction,
 } from '../src/finance.js';
 import { appReducer } from '../src/state.js';
 import {
@@ -72,6 +73,26 @@ const rawLegacyComplete = {
   savingsByMonth: { '2026-03': [{ id: 's1', label: 'Savings', balance: 8000 }] },
 };
 assert.equal(monthSummary(rawLegacyComplete, '2026-03').startingSavingsConfirmed, true, 'Existing valid pre-flag state must remain compatible.');
+
+const unassignedMovement = normaliseTransaction({
+  id: 'movement-tbc',
+  type: 'card_repayment',
+  date: '2026-04-01',
+  amount: 25,
+  desc: 'Card repayment',
+  account: 'unassigned',
+  confirmationIssues: [],
+});
+assert.equal(unassignedMovement.confirmationIssues.includes('account'), true, 'Excluded movements must retain unresolved account evidence.');
+const movementEvidenceState = migrateState({
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-04': { status: 'complete', startingSavings: 100 } },
+  savingsByMonth: { '2026-04': [{ id: 's1', label: 'Savings', balance: 100 }] },
+  txnsByMonth: { '2026-04': [unassignedMovement] },
+}, new Date(2026, 3, 30));
+const movementEvidenceSummary = monthSummary(movementEvidenceState, '2026-04');
+assert.equal(movementEvidenceSummary.incompleteMovements, 1, 'An unresolved transfer/card-repayment account must be counted as incomplete evidence.');
+assert.equal(movementEvidenceSummary.auditReady, false, 'A completed month with an unresolved excluded movement must not be Ready.');
 
 const subPennySavings = appReducer(createBlankState(), {
   type: 'SET_SAVINGS_ACCOUNTS',

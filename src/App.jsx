@@ -559,7 +559,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
       {summary.isComplete && !summary.startingSavingsConfirmed && (
         <div className="audit-warning" role="alert">
           <strong>Starting savings needs confirmation.</strong>
-          <span>This completed month cannot be reconciled or marked Ready until an explicit starting-savings figure is supplied. Penny will not treat a missing value as £0.00.</span>
+          <span>This completed month cannot be reconciled or marked Ready until an explicit starting-savings figure is supplied. Penny will not treat a missing value as zero.</span>
         </div>
       )}
 
@@ -1557,7 +1557,7 @@ function buildConfirmationIssues(existingIssues, { dateConfirmed, paidBy, receiv
   if (!dateConfirmed) issues.add('date');
   if (kind === 'expense' && paidBy === 'unassigned') issues.add('paidBy');
   if (kind === 'income' && receivedBy === 'unassigned') issues.add('receivedBy');
-  if ((kind === 'expense' || kind === 'income') && account === 'unassigned') issues.add('account');
+  if ((kind === 'expense' || kind === 'income' || kind === 'movement') && account === 'unassigned') issues.add('account');
   return [...issues];
 }
 

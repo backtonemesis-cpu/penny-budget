@@ -21,6 +21,7 @@ This document defines the release checklist for the browser-local Penny applicat
 - Empty periods are **No data**, not Review or Ready.
 - Unknown dates are shown as Date TBC; the internal first-of-month placement date is never presented as confirmed evidence.
 - Unknown payer, receiver or account assignments remain explicitly unresolved until confirmed.
+- Internal transfers, savings transfers and card repayments require an assigned account; unresolved movement evidence prevents a completed month from being **Ready** even though the movement is excluded from spending.
 - Historical person/account labels are snapshotted on records so later reference renaming does not rewrite old evidence.
 - Completed months are locked by default and require an explicit correction unlock for the current session.
 - Financial edits and deletions are recorded in local Change History with before/after evidence where applicable.

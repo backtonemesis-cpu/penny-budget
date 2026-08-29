@@ -7,6 +7,7 @@
 - Corrected completed-month display logic so recorded closing savings is never projected forward a second time.
 - Added penny-safe rounding helpers to prevent floating-point drift in financial totals.
 - Added structured confirmation issues so unknown dates, payer/receiver and account evidence remain unresolved until explicitly confirmed.
+- Tightened excluded-movement evidence: internal transfers, savings transfers and card repayments now require an assigned account and can block `Ready` status when unresolved.
 - Historical records with unknown exact dates now display `Date TBC` instead of presenting the technical month-placement date as fact.
 - New expenses now default to Unpaid rather than assuming payment.
 - Added duplicate detection: a matching expense or income record now requires explicit confirmation before a second identical record can be saved.
