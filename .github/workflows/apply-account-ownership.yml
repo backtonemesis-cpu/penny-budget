@@ -1,0 +1,36 @@
+name: Apply account ownership patch
+
+on:
+  push:
+    branches:
+      - account-ownership
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: account-ownership
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply patch
+        run: python3 scripts/patch-account-ownership.py
+      - name: Validate exact patched tree
+        run: |
+          npm ci
+          npm run check
+      - name: Commit patched source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/patch-account-ownership.py .github/workflows/apply-account-ownership.yml
+          git add -A
+          git commit -m "Add explicit bank account ownership"
+          git push origin HEAD:account-ownership
