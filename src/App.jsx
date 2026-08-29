@@ -598,15 +598,23 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
           <div className="section-heading">
             <div>
               <h2 className="section-title" id="remaining-bills-title">Start-of-Month Transfer Plan</h2>
-              <p className="section-note">Use this at month-end: select the month you are preparing, then transfer these amounts from savings into the bank accounts that will pay the unpaid bills and expenses.</p>
+              <p className="section-note">Use this at month-end: select the month you are preparing, enter bank balances in Savings, then move only the shortfall from savings.</p>
             </div>
-            <div className={`money strong ${summary.remainingBills > 0 ? 'amber' : 'green'}`}>{formatMoney(summary.remainingBills)}</div>
+            <div>
+              <div className={`money strong ${summary.hasUnconfirmedBankBalances ? 'amber' : summary.totalTransferNeeded > 0 ? 'amber' : 'green'}`}>{summary.hasUnconfirmedBankBalances ? 'TBC' : formatMoney(summary.totalTransferNeeded)}</div>
+              <div className="mini-label right-align">Transfer needed</div>
+            </div>
           </div>
           {summary.accountFundingPlan.length ? summary.accountFundingPlan.map((row) => (
             <div className="row transfer-account-row" key={row.key}>
               <div className="grow">
                 <div className="row-title">{row.accountLabel || accountMap[row.account]?.label || row.account}</div>
                 <div className="muted">{row.count} unpaid item{row.count === 1 ? '' : 's'} to cover from this account</div>
+                <div className="funding-math">
+                  <span>Planned costs: {formatMoney(row.amount)}</span>
+                  <span>{row.hasCurrentBalance ? `Current bank balance: ${formatMoney(row.currentBalance)}` : 'Current bank balance: TBC'}</span>
+                  <span className={row.transferNeeded > 0 ? 'amber' : 'green'}>Transfer needed: {row.hasCurrentBalance ? formatMoney(row.transferNeeded) : 'TBC'}</span>
+                </div>
                 <div className="transfer-breakdown">
                   {row.payers.map((payer) => (
                     <span key={`${row.key}-${payer.paidBy}`}>
@@ -615,7 +623,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
                   ))}
                 </div>
               </div>
-              <div className="money">{formatMoney(row.amount)}</div>
+              <div className="money">{row.hasCurrentBalance ? formatMoney(row.transferNeeded) : 'TBC'}</div>
             </div>
           )) : <div className="status-banner success" role="status">All recorded expenses are marked paid. No transfer is currently required.</div>}
         </section>
@@ -881,7 +889,9 @@ function Bills({ summary, categoryMap, peopleMap, accountMap, canEdit, onToggleP
 
 function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
   const savingsAccounts = state.savingsByMonth?.[monthKey] || [];
+  const bankBalances = state.bankBalancesByMonth?.[monthKey] || [];
   const setAccounts = (items, label = 'Update savings snapshot') => mutate({ type: 'SET_SAVINGS_ACCOUNTS', monthKey, items, auditLabel: label });
+  const setBankBalances = (items, label = 'Update bill-paying bank balances') => mutate({ type: 'SET_BANK_BALANCES', monthKey, items, auditLabel: label });
   const addAccount = () => setAccounts([...savingsAccounts, { id: createId('saving'), label: 'New savings account', balance: 0 }], 'Add savings account');
   const removeAccount = (id) => {
     const account = savingsAccounts.find((item) => item.id === id);
@@ -889,6 +899,15 @@ function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
     setAccounts(savingsAccounts.filter((item) => item.id !== id), `Remove ${account?.label || 'savings account'}`);
   };
   const updateAccount = (id, patch) => setAccounts(savingsAccounts.map((account) => account.id === id ? { ...account, ...patch } : account), 'Update savings account');
+  const bankBalanceMap = Object.fromEntries(bankBalances.map((account) => [account.id, account]));
+  const updateBankBalance = (account, balance) => {
+    const existing = bankBalanceMap[account.id];
+    const nextRow = { id: account.id, label: account.label, balance: Math.max(0, Number(balance) || 0) };
+    const next = existing
+      ? bankBalances.map((row) => row.id === account.id ? nextRow : row)
+      : [...bankBalances, nextRow];
+    setBankBalances(next, `Update ${account.label} bank balance`);
+  };
   const goalRemaining = state.savingsGoal > 0 ? Math.max(state.savingsGoal - summary.currentSavings, 0) : null;
   const months = goalRemaining && state.savingsContrib > 0 ? Math.ceil(goalRemaining / state.savingsContrib) : null;
 
@@ -916,6 +935,27 @@ function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
       </section>
 
       {!summary.isComplete && (
+        <section className="card" aria-labelledby="bank-balances-title">
+          <div className="section-heading">
+            <div>
+              <h2 className="section-title" id="bank-balances-title">Bill-Paying Bank Balances — {MONTHS[month]} {year}</h2>
+              <p className="section-note">Enter the money already sitting in each spending account before you top it up from savings. These balances only calculate the transfer shortfall.</p>
+            </div>
+          </div>
+          {state.accounts.length ? state.accounts.map((account) => (
+            <BankBalanceEditor
+              key={account.id}
+              account={account}
+              balance={bankBalanceMap[account.id]?.balance}
+              canEdit={canEdit}
+              onCommit={(value) => updateBankBalance(account, value)}
+            />
+          )) : <div className="empty">Add bill-paying accounts in Settings before entering bank balances.</div>}
+          <div className="total-line"><span>Transfer Needed</span><span className={`money ${summary.hasUnconfirmedBankBalances ? 'amber' : summary.totalTransferNeeded > 0 ? 'amber' : 'green'}`}>{summary.hasUnconfirmedBankBalances ? 'TBC' : formatMoney(summary.totalTransferNeeded)}</span></div>
+        </section>
+      )}
+
+      {!summary.isComplete && (
         <section className="card" aria-labelledby="savings-goal-title">
           <h2 className="section-title" id="savings-goal-title">Savings Goal</h2>
           <div className="form-grid">
@@ -927,6 +967,28 @@ function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
         </section>
       )}
     </>
+  );
+}
+
+function BankBalanceEditor({ account, balance, canEdit, onCommit }) {
+  const [draft, setDraft] = useState(balance == null ? '' : String(balance));
+  useEffect(() => setDraft(balance == null ? '' : String(balance)), [balance]);
+  const commit = () => {
+    if (!canEdit) return;
+    const next = Math.max(0, Number(draft) || 0);
+    if (balance == null || next !== balance) onCommit(next);
+  };
+  return (
+    <div className="bank-balance-row">
+      <div className="grow">
+        <div className="row-title">{account.label}</div>
+        <div className="muted">Current balance before savings top-up</div>
+      </div>
+      <div className="field amount-field compact-field">
+        <label htmlFor={`bank-balance-${account.id}`}>Bank balance</label>
+        <input id={`bank-balance-${account.id}`} disabled={!canEdit} type="number" inputMode="decimal" min="0" step="0.01" value={draft} placeholder="TBC" onChange={(event) => setDraft(event.target.value)} onBlur={commit} />
+      </div>
+    </div>
   );
 }
 

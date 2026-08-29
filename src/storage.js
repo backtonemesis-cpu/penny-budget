@@ -18,6 +18,7 @@ const KNOWN_STATE_FIELDS = [
   'people',
   'accounts',
   'savingsByMonth',
+  'bankBalancesByMonth',
   'monthMetaByMonth',
   'savingsAccounts',
   'savingsGoal',
@@ -212,6 +213,7 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
   const txnsByMonth = { ...current.txnsByMonth };
   const incomeByMonth = { ...current.incomeByMonth };
   const savingsByMonth = { ...current.savingsByMonth };
+  const bankBalancesByMonth = { ...(current.bankBalancesByMonth || {}) };
   const monthMetaByMonth = { ...current.monthMetaByMonth };
   const budgetsByMonth = { ...current.budgetsByMonth };
 
@@ -222,6 +224,8 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
     else delete incomeByMonth[monthKey];
     if (incoming.savingsByMonth[monthKey]?.length) savingsByMonth[monthKey] = incoming.savingsByMonth[monthKey];
     else delete savingsByMonth[monthKey];
+    if (incoming.bankBalancesByMonth?.[monthKey]?.length) bankBalancesByMonth[monthKey] = incoming.bankBalancesByMonth[monthKey];
+    else delete bankBalancesByMonth[monthKey];
     if (incoming.monthMetaByMonth[monthKey]) monthMetaByMonth[monthKey] = incoming.monthMetaByMonth[monthKey];
     else delete monthMetaByMonth[monthKey];
     if (incoming.budgetsByMonth[monthKey]) budgetsByMonth[monthKey] = incoming.budgetsByMonth[monthKey];
@@ -234,6 +238,7 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
     txnsByMonth,
     incomeByMonth,
     savingsByMonth,
+    bankBalancesByMonth,
     monthMetaByMonth,
     budgetsByMonth,
     customCats: mergeById(current.customCats, incoming.customCats),

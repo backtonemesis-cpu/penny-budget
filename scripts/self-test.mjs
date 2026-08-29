@@ -104,12 +104,18 @@ assert.equal(july.projectedEndSavings, 12000);
 assert.equal(july.excludedMovements, 300);
 assert.deepEqual(july.transferPlan.map(({ key, paidBy, account, amount, count }) => ({ key, paidBy, account, amount, count })), [{ key: 'p2::a2', paidBy: 'p2', account: 'a2', amount: 200, count: 1 }]);
 assert.deepEqual(july.accountFundingPlan.map(({ key, account, amount, count }) => ({ key, account, amount, count })), [{ key: 'a2', account: 'a2', amount: 200, count: 1 }]);
+assert.equal(july.accountFundingPlan[0].hasCurrentBalance, false, 'Missing bank balances must not be treated as confirmed zero evidence.');
+assert.equal(july.hasUnconfirmedBankBalances, true);
 assert.equal(july.incompleteRecords, 0);
 assert.equal(july.auditReady, false, 'A live or in-progress month must never be labelled final audit evidence.');
 assert.equal(july.evidenceStatus, 'in_progress');
 
 const fundingPlanState = {
   ...createBlankState(),
+  accounts: [{ id: 'a1', label: 'Account 1' }],
+  bankBalancesByMonth: {
+    '2026-10': [{ id: 'a1', label: 'Account 1', balance: 60 }],
+  },
   txnsByMonth: {
     '2026-10': [
       normaliseTransaction({ id: 'fund-1', type: 'expense', date: '2026-10-01', amount: 100, desc: 'Bill one', category: 'other', expenseClass: 'fixed', paid: false, paidBy: 'p1', paidByLabel: 'Person 1', account: 'a1', accountLabel: 'Account 1', confirmationIssues: [] }),
@@ -119,7 +125,9 @@ const fundingPlanState = {
   },
 };
 const fundingPlan = monthSummary(fundingPlanState, '2026-10').accountFundingPlan;
-assert.deepEqual(fundingPlan.map(({ key, account, amount, count }) => ({ key, account, amount, count })), [{ key: 'a1', account: 'a1', amount: 150, count: 2 }], 'Start-of-month transfer planning must group unpaid expenses by bank account.');
+assert.deepEqual(fundingPlan.map(({ key, account, amount, currentBalance, transferNeeded, count }) => ({ key, account, amount, currentBalance, transferNeeded, count })), [{ key: 'a1', account: 'a1', amount: 150, currentBalance: 60, transferNeeded: 90, count: 2 }], 'Start-of-month transfer planning must group unpaid expenses by bank account and subtract confirmed bank balances.');
+assert.equal(monthSummary(fundingPlanState, '2026-10').totalTransferNeeded, 90);
+assert.equal(monthSummary(fundingPlanState, '2026-10').hasUnconfirmedBankBalances, false);
 assert.deepEqual(fundingPlan[0].payers.map(({ paidBy, amount, count }) => ({ paidBy, amount, count })), [
   { paidBy: 'p1', amount: 100, count: 1 },
   { paidBy: 'p2', amount: 50, count: 1 },
@@ -143,6 +151,17 @@ assert.equal(monthSummary(changedJuneSavings, '2026-06').currentSavings, 9000);
 assert.equal(monthSummary(changedJuneSavings, '2026-06').closingVariance, -1000);
 assert.equal(monthSummary(changedJuneSavings, '2026-07').currentSavings, 10000, 'Editing June savings must not change July.');
 assert.equal(changedJuneSavings.auditLog[0].entityType, 'savings_snapshot');
+
+const changedBankBalance = appReducer(fundingPlanState, {
+  type: 'SET_BANK_BALANCES',
+  monthKey: '2026-10',
+  items: [{ id: 'a1', label: 'Account 1', balance: 72.345 }],
+  auditAt: '2026-10-01T12:00:00.000Z',
+  auditId: 'audit-bank-balance',
+});
+assert.equal(changedBankBalance.bankBalancesByMonth['2026-10'][0].balance, 72.35, 'Bill-paying bank balances must be normalised to pennies.');
+assert.equal(monthSummary(changedBankBalance, '2026-10').accountFundingPlan[0].transferNeeded, 77.65);
+assert.equal(changedBankBalance.auditLog[0].entityType, 'bank_balance_snapshot');
 
 const legacyUncertain = normaliseTransaction({
   id: 'legacy-uncertain', type: 'expense', date: '2026-09-01', amount: 10, desc: 'Imported cost', category: 'other', paid: true, paidBy: 'p1', account: 'a1', needsConfirmation: true,
@@ -269,6 +288,7 @@ assert.equal(mergedJune.expectedClosingSavings, 8500);
 assert.equal(mergedJune.closingVariance, 0);
 assert.equal(mergedJune.projectedEndSavings, 8500, 'Completed merged month must show the recorded closing balance, not add saving again.');
 assert.equal(monthSummary(merged, '2026-07').currentSavings, 10000, 'June merge must preserve July savings.');
+assert.equal(merged.bankBalancesByMonth['2026-10']?.[0]?.balance, undefined, 'Month merge must not introduce unrelated bank-balance months.');
 assert.equal(monthSummary(merged, '2026-07').income, 4000, 'June merge must preserve July records.');
 assert.equal(merged.txnsByMonth['2026-06'][0].source, 'import');
 assert.equal(merged.people.some((person) => person.id === 'p3'), true);

@@ -65,6 +65,8 @@ function storageAudit() {
   assert.match(files.storage, /mergeImportedMonths/);
   assert.match(files.storage, /auditLog/);
   assert.match(files.finance, /savingsByMonth/);
+  assert.match(files.finance, /bankBalancesByMonth/);
+  assert.match(files.storage, /bankBalancesByMonth/);
   assert.match(files.finance, /monthMetaByMonth/);
   assert.match(files.app, /disabled=\{recoveryRequired\}/, 'Normal backup export must be disabled while storage recovery is required.');
   assert.match(files.app, /blank in-memory fallback is deliberately not exportable/i, 'Recovery UI must explain why ordinary backup export is unavailable.');
@@ -97,7 +99,9 @@ function financeAudit() {
   assert.doesNotMatch(files.finance, /currentSavings \+ income - remainingBills/, 'The superseded gross-income projection formula must not return.');
   assert.match(files.finance, /accountFundingPlan/, 'Live month transfer planning must include a bank-account grouped view.');
   assert.match(files.finance, /accountPlan/, 'Bank-account funding must be calculated separately from person-level transfer rows.');
-  assert.match(files.selfTest, /Start-of-month transfer planning must group unpaid expenses by bank account/, 'Account-level funding must remain covered by regression tests.');
+  assert.match(files.finance, /transferNeeded:\s*roundMoney\(Math\.max\(0, row\.amount - row\.currentBalance\)\)/, 'Account transfer planning must subtract confirmed bank balances from unpaid account costs.');
+  assert.match(files.finance, /hasUnconfirmedBankBalances/, 'Missing bank balances must keep transfer totals marked as unconfirmed.');
+  assert.match(files.selfTest, /subtract confirmed bank balances/, 'Account-level funding must remain covered by regression tests.');
   assert.match(files.finance, /auditReady\s*=\s*Boolean\(isComplete && startingSavingsConfirmed && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot\)/, 'Only completed, explicitly grounded, reconciled and fully confirmed months may be audit-ready.');
   assert.match(files.finance, /evidenceStatus/);
   assert.match(files.finance, /monthsInProgress/);
@@ -126,8 +130,10 @@ function financeAudit() {
   assert.match(files.app, /<AuditSnapshot title="Before"/);
   assert.match(files.app, /In progress — this month is planning data, not final mortgage evidence/);
   assert.match(files.app, /Start-of-Month Transfer Plan/);
-  assert.match(files.app, /select the month you are preparing/);
+  assert.match(files.app, /enter bank balances in Savings/);
   assert.match(files.app, /summary\.accountFundingPlan/);
+  assert.match(files.app, /Bill-Paying Bank Balances/);
+  assert.match(files.app, /Current bank balance: TBC/);
   assert.match(files.app, /evidenceStatusLabel/);
   assert.match(files.app, /Only completed, reconciled months can be mortgage-ready/);
   assert.match(files.app, /!summary\.isComplete && \(/, 'Current savings-goal planning must be hidden from completed historical months.');

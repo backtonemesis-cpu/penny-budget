@@ -143,6 +143,20 @@ export function appReducer(state, action) {
       const next = { ...state, savingsByMonth };
       return appendAudit(next, action, { action: 'update', entityType: 'savings_snapshot', monthKey: action.monthKey, label: 'Savings snapshot', before, after: normalisedItems });
     }
+    case 'SET_BANK_BALANCES': {
+      if (!isValidMonthKey(action.monthKey)) return state;
+      const before = state.bankBalancesByMonth?.[action.monthKey] || [];
+      const normalisedItems = Array.isArray(action.items)
+        ? action.items
+          .filter((item) => item?.id && item?.label && item.id !== 'unassigned')
+          .map((item) => ({ id: item.id, label: item.label, balance: positiveNumber(item?.balance) }))
+        : [];
+      const bankBalancesByMonth = { ...(state.bankBalancesByMonth || {}) };
+      if (normalisedItems.length) bankBalancesByMonth[action.monthKey] = normalisedItems;
+      else delete bankBalancesByMonth[action.monthKey];
+      const next = { ...state, bankBalancesByMonth };
+      return appendAudit(next, action, { action: 'update', entityType: 'bank_balance_snapshot', monthKey: action.monthKey, label: 'Bill-paying bank balances', before, after: normalisedItems });
+    }
     case 'SET_SAVINGS': {
       if (!['savingsGoal', 'savingsContrib'].includes(action.field)) return state;
       const before = state[action.field];
@@ -166,7 +180,8 @@ export function referenceInUse(state, field, referenceId) {
   }
   if (field === 'accounts') {
     return Object.values(state.txnsByMonth).some((rows) => rows.some((transaction) => transaction.account === referenceId))
-      || Object.values(state.incomeByMonth).some((rows) => rows.some((record) => record.account === referenceId));
+      || Object.values(state.incomeByMonth).some((rows) => rows.some((record) => record.account === referenceId))
+      || Object.values(state.bankBalancesByMonth || {}).some((rows) => rows.some((record) => record.id === referenceId));
   }
   return false;
 }

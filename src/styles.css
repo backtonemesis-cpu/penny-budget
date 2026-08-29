@@ -141,6 +141,7 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
 .accent { color: var(--accent); }
 .neutral { color: var(--muted); }
 .strong { font-size: 19px; font-weight: 800; }
+.right-align { text-align: right; }
 
 .notice, .audit-warning, .locked-banner, .status-banner, .form-error {
   display: flex;
@@ -173,6 +174,7 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
 .muted, .record-meta { color: var(--muted); font-size: 12px; line-height: 1.42; }
 .money { font-family: Georgia, serif; font-style: italic; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .transfer-account-row { align-items: flex-start; }
+.funding-math { display: grid; gap: 4px; margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .transfer-breakdown { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
 .transfer-breakdown span {
   border: 1px solid var(--border-soft);
@@ -240,6 +242,8 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
 .bill-actions button { min-height: 40px; padding: 6px 9px; font-size: 11px; }
 
 .savings-account-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 180px) auto; align-items: end; gap: 9px; border-bottom: 1px solid var(--border-soft); padding: 10px 0; }
+.bank-balance-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 180px); align-items: end; gap: 9px; border-bottom: 1px solid var(--border-soft); padding: 11px 0; }
+.bank-balance-row:last-of-type { border-bottom: 0; }
 .amount-field { min-width: 0; }
 .remove-row-button { margin-bottom: 0; }
 .year-row { display: flex; align-items: center; width: 100%; min-height: 48px; gap: 9px; border: 0; border-bottom: 1px solid var(--border-soft); padding: 11px 0; background: transparent; color: var(--text); text-align: left; }
@@ -298,7 +302,7 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
   .record-side { width: 100%; min-width: 0; flex-direction: row; align-items: center; justify-content: space-between; padding-left: 47px; }
   .bill-row { align-items: flex-start; flex-wrap: wrap; }
   .bill-actions { width: 100%; grid-template-columns: 1fr auto auto; padding-left: 47px; }
-  .savings-account-row { grid-template-columns: minmax(0, 1fr) minmax(100px, 140px); }
+  .savings-account-row, .bank-balance-row { grid-template-columns: minmax(0, 1fr) minmax(100px, 140px); }
   .remove-row-button { grid-column: 1 / -1; width: 100%; }
   .section-heading { align-items: flex-start; }
   .icon-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -328,6 +332,9 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
   .stat-compact .value { font-size: 21px; }
   .tabs button { font-size: 12px; }
   .record-side, .bill-actions { padding-left: 0; }
+  .transfer-account-row { flex-wrap: wrap; }
+  .transfer-account-row > .money { width: 100%; text-align: right; }
+  .bank-balance-row { grid-template-columns: 1fr; }
   .choice-group { grid-template-columns: 1fr; }
   .icon-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .status-pill { font-size: 9.5px; }

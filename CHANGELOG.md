@@ -1,5 +1,14 @@
 # Penny Change Log
 
+## 29 August 2026 — True transfer shortfall planning
+
+- Added monthly bill-paying bank balance snapshots so Penny can calculate how much already sits in each spending account before a savings top-up.
+- Updated the Start-of-Month Transfer Plan to show planned unpaid costs, current bank balance and true transfer needed per account.
+- Marked transfer totals as `TBC` when a required bank balance has not been entered, instead of treating missing evidence as a confirmed zero.
+- Preserved bank-balance snapshots through backups and month-merge imports.
+- Kept this as a planning-only layer; income, expense, savings projection and completed-month reconciliation logic were not changed.
+- Added regression and source-audit checks for bank-balance snapshots and shortfall calculation.
+
 ## 29 August 2026 — Start-of-month account funding view
 
 - Added a Start-of-Month Transfer Plan on Overview for live planning months.

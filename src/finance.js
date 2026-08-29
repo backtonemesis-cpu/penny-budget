@@ -4,7 +4,7 @@ export const MONTHS = ['January','February','March','April','May','June','July',
 export const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const TRANSACTION_TYPES = new Set(['expense','internal_transfer','savings_transfer','card_repayment','refund']);
 export const CONFIRMATION_ISSUES = new Set(['date','paidBy','account','receivedBy','other']);
-export const CURRENT_STATE_VERSION = 7;
+export const CURRENT_STATE_VERSION = 8;
 export const MAX_AUDIT_ENTRIES = 1000;
 
 const BASE_CATEGORY_MAP = Object.fromEntries(BASE_CATEGORIES.map((category) => [category.id, category]));
@@ -128,6 +128,21 @@ function normaliseSavingsByMonth(value) {
     Object.entries(value)
       .filter(([monthKey, rows]) => isValidMonthKey(monthKey) && Array.isArray(rows))
       .map(([monthKey, rows]) => [monthKey, normaliseSavingsAccounts(rows)])
+      .filter(([, rows]) => rows.length),
+  );
+}
+
+function normaliseBankBalancesByMonth(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([monthKey, rows]) => isValidMonthKey(monthKey) && Array.isArray(rows))
+      .map(([monthKey, rows]) => [monthKey, uniqueById(rows.flatMap((item) => {
+        const id = cleanText(item?.id, '', 120);
+        const label = cleanText(item?.label, '', 80);
+        if (!id || !label || id === 'unassigned') return [];
+        return [{ id, label, balance: nonNegativeNumber(item?.balance) }];
+      }))])
       .filter(([, rows]) => rows.length),
   );
 }
@@ -362,6 +377,7 @@ export function createBlankState() {
     people: [],
     accounts: [],
     savingsByMonth: {},
+    bankBalancesByMonth: {},
     monthMetaByMonth: {},
     savingsGoal: 0,
     savingsContrib: 0,
@@ -398,6 +414,7 @@ export function migrateState(saved, now = new Date()) {
 
   const people = normaliseReferenceList(saved.people, 'person');
   const accounts = normaliseReferenceList(saved.accounts, 'account');
+  const bankBalancesByMonth = normaliseBankBalancesByMonth(saved.bankBalancesByMonth);
   ({ txnsByMonth, incomeByMonth } = snapshotReferenceLabels(txnsByMonth, incomeByMonth, people, accounts));
 
   return {
@@ -411,6 +428,7 @@ export function migrateState(saved, now = new Date()) {
     people,
     accounts,
     savingsByMonth,
+    bankBalancesByMonth,
     monthMetaByMonth: normaliseMonthMetaByMonth(saved.monthMetaByMonth),
     savingsGoal: positiveNumber(saved.savingsGoal),
     savingsContrib: positiveNumber(saved.savingsContrib),
@@ -423,6 +441,10 @@ export function migrateState(saved, now = new Date()) {
 export function currentSavingsTotal(state, monthKey) {
   if (!isValidMonthKey(monthKey)) return 0;
   return sumMoney((state?.savingsByMonth?.[monthKey] || []).map((account) => nonNegativeNumber(account.balance)));
+}
+
+function bankBalanceMap(state, monthKey) {
+  return Object.fromEntries((state?.bankBalancesByMonth?.[monthKey] || []).map((account) => [account.id, account]));
 }
 
 function isIncompleteExpense(transaction) {
@@ -489,14 +511,18 @@ export function monthSummary(state, monthKey) {
   });
 
   const transferPlan = [...plan.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
+  const bankBalances = bankBalanceMap(state, monthKey);
   const accountPlan = new Map();
   transferPlan.forEach((row) => {
     const key = row.account || 'unassigned';
+    const bankBalance = bankBalances[key];
     const current = accountPlan.get(key) || {
       key,
       account: key,
-      accountLabel: row.accountLabel,
+      accountLabel: row.accountLabel || bankBalance?.label,
       amount: 0,
+      currentBalance: bankBalance ? nonNegativeNumber(bankBalance.balance) : 0,
+      hasCurrentBalance: Boolean(bankBalance),
       count: 0,
       payers: [],
     };
@@ -513,9 +539,13 @@ export function monthSummary(state, monthKey) {
   const accountFundingPlan = [...accountPlan.values()]
     .map((row) => ({
       ...row,
+      transferNeeded: roundMoney(Math.max(0, row.amount - row.currentBalance)),
+      balanceAfterPlannedPayments: roundMoney(row.currentBalance - row.amount),
       payers: row.payers.sort((a, b) => b.amount - a.amount || String(a.paidBy).localeCompare(String(b.paidBy))),
     }))
     .sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
+  const hasUnconfirmedBankBalances = accountFundingPlan.some((row) => !row.hasCurrentBalance);
+  const totalTransferNeeded = sumMoney(accountFundingPlan.map((row) => row.transferNeeded));
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
   const incompleteMovements = transactions.filter(isIncompleteMovement).length;
@@ -545,6 +575,8 @@ export function monthSummary(state, monthKey) {
     projectedEndSavings,
     transferPlan,
     accountFundingPlan,
+    hasUnconfirmedBankBalances,
+    totalTransferNeeded,
     incompleteExpenses,
     incompleteIncome,
     incompleteMovements,
