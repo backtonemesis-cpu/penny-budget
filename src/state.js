@@ -128,8 +128,11 @@ export function appReducer(state, action) {
     case 'SET_REFERENCE_LIST': {
       if (!['people', 'accounts'].includes(action.field) || !Array.isArray(action.items)) return state;
       const before = state[action.field];
-      const next = { ...state, [action.field]: action.items };
-      return appendAudit(next, action, { action: 'update', entityType: action.field, label: action.field === 'people' ? 'Household people' : 'Accounts', before, after: action.items });
+      const items = action.field === 'accounts'
+        ? action.items.map((item) => ({ ...item, ownerId: item?.ownerId || 'unassigned' }))
+        : action.items;
+      const next = { ...state, [action.field]: items };
+      return appendAudit(next, action, { action: 'update', entityType: action.field, label: action.field === 'people' ? 'Household people' : 'Accounts', before, after: items });
     }
     case 'SET_SAVINGS_ACCOUNTS': {
       if (!isValidMonthKey(action.monthKey)) return state;
@@ -149,7 +152,7 @@ export function appReducer(state, action) {
       const normalisedItems = Array.isArray(action.items)
         ? action.items
           .filter((item) => item?.id && item?.label && item.id !== 'unassigned')
-          .map((item) => ({ id: item.id, label: item.label, balance: positiveNumber(item?.balance) }))
+          .map((item) => ({ id: item.id, label: item.label, balance: positiveNumber(item?.balance), ownerId: item?.ownerId || 'unassigned', ownerLabel: item?.ownerLabel || '' }))
         : [];
       const bankBalancesByMonth = { ...(state.bankBalancesByMonth || {}) };
       if (normalisedItems.length) bankBalancesByMonth[action.monthKey] = normalisedItems;
@@ -176,7 +179,8 @@ export function categoryInUse(state, categoryId) {
 export function referenceInUse(state, field, referenceId) {
   if (field === 'people') {
     return Object.values(state.txnsByMonth).some((rows) => rows.some((transaction) => transaction.paidBy === referenceId))
-      || Object.values(state.incomeByMonth).some((rows) => rows.some((record) => record.receivedBy === referenceId));
+      || Object.values(state.incomeByMonth).some((rows) => rows.some((record) => record.receivedBy === referenceId))
+      || (state.accounts || []).some((account) => account.ownerId === referenceId);
   }
   if (field === 'accounts') {
     return Object.values(state.txnsByMonth).some((rows) => rows.some((transaction) => transaction.account === referenceId))

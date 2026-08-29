@@ -117,8 +117,16 @@ function App() {
   const visibleCategories = allCategories.filter((category) => !state.hiddenCats.includes(category.id));
   const categoryMap = useMemo(() => makeCategoryMap(state.customCats), [state.customCats]);
   const peopleOptions = useMemo(() => [...state.people, ...SPECIAL_PEOPLE], [state.people]);
-  const accountOptions = useMemo(() => [...state.accounts, ...SPECIAL_ACCOUNTS], [state.accounts]);
   const peopleMap = useMemo(() => makeReferenceMap(state.people, SPECIAL_PEOPLE), [state.people]);
+  const accountOwnerOptions = useMemo(() => [...state.people, { id: 'household', label: 'Joint' }, { id: 'unassigned', label: 'TBC' }], [state.people]);
+  const accountOptions = useMemo(() => [
+    ...state.accounts.map((account) => ({
+      ...account,
+      ownerLabel: accountOwnerLabel(account, peopleMap),
+      displayLabel: ownedAccountLabel(account, peopleMap),
+    })),
+    ...SPECIAL_ACCOUNTS,
+  ], [state.accounts, peopleMap]);
   const accountMap = useMemo(() => makeReferenceMap(state.accounts, SPECIAL_ACCOUNTS), [state.accounts]);
   const monthUnlocked = unlockedMonths.has(monthKey);
   const canEditMonth = !recoveryRequired && (!summary.isComplete || monthUnlocked);
@@ -432,6 +440,7 @@ function App() {
             month={period.month}
             year={period.year}
             canEdit={canEditMonth}
+            peopleMap={peopleMap}
             mutate={mutate}
           />
         )}
@@ -484,6 +493,7 @@ function App() {
         <SettingsModal
           state={state}
           allCategories={allCategories}
+          accountOwnerOptions={accountOwnerOptions}
           recoveryRequired={recoveryRequired}
           rollbackAvailable={rollbackAvailable}
           mutate={mutate}
@@ -605,11 +615,12 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
               <div className="mini-label right-align">Transfer needed</div>
             </div>
           </div>
+          {summary.hasUnconfirmedAccountOwners && <div className="audit-warning compact-warning" role="note"><strong>Account owner TBC.</strong><span>Confirm each bill-paying account owner in Settings so the transfer instruction identifies the correct person.</span></div>}
           {summary.accountFundingPlan.length ? summary.accountFundingPlan.map((row) => (
             <div className="row transfer-account-row" key={row.key}>
               <div className="grow">
-                <div className="row-title">{row.accountLabel || accountMap[row.account]?.label || row.account}</div>
-                <div className="muted">{row.count} unpaid item{row.count === 1 ? '' : 's'} to cover from this account</div>
+                <div className="row-title">{fundingAccountLabel(row, accountMap, peopleMap)}</div>
+                <div className="muted">Account owner: {fundingOwnerLabel(row, peopleMap)} · {row.count} unpaid item{row.count === 1 ? '' : 's'} to cover</div>
                 <div className="funding-math">
                   <span>Planned costs: {formatMoney(row.amount)}</span>
                   <span>{row.hasCurrentBalance ? `Current bank balance: ${formatMoney(row.currentBalance)}` : 'Current bank balance: TBC'}</span>
@@ -769,7 +780,7 @@ function Transactions({ summary, categoryMap, peopleMap, accountMap, canEdit, on
               <div className="record-main">
                 <div className="record-title">{record.description}</div>
                 <div className="record-meta">{recordDateLabel(record)} · {record.incomeType}</div>
-                <div className="record-meta">Received by {record.receivedByLabel || peopleMap[record.receivedBy]?.label || record.receivedBy} · {record.accountLabel || accountMap[record.account]?.label || record.account}</div>
+                <div className="record-meta">Received by {record.receivedByLabel || peopleMap[record.receivedBy]?.label || record.receivedBy} · {ownedRecordAccountLabel(record, accountMap, peopleMap)}</div>
                 <RecordBadges record={record} />
               </div>
               <div className="record-side">
@@ -817,7 +828,7 @@ function ExpenseRow({ transaction, categoryMap, peopleMap, accountMap, canEdit, 
       <div className="record-main">
         <div className="record-title">{transaction.desc}</div>
         <div className="record-meta">{recordDateLabel(transaction)} · {categoryMap[transaction.category]?.label || transaction.category} · {transaction.expenseClass === 'fixed' ? 'Fixed' : 'Variable'}</div>
-        <div className="record-meta">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy} · {transaction.accountLabel || accountMap[transaction.account]?.label || transaction.account}</div>
+        <div className="record-meta">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy} · {ownedRecordAccountLabel(transaction, accountMap, peopleMap)}</div>
         <div className="pill-line">
           <span className={`status-pill ${transaction.paid ? 'success' : 'warning'}`}>{transaction.paid ? 'Paid' : 'Unpaid'}</span>
           <RecordBadges record={transaction} compact />
@@ -867,7 +878,7 @@ function Bills({ summary, categoryMap, peopleMap, accountMap, canEdit, onToggleP
             <div className="record-icon" aria-hidden="true">{categoryMap[transaction.category]?.icon || '🧾'}</div>
             <div className="grow">
               <div className="row-title">{transaction.desc}</div>
-              <div className="muted">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy} · {transaction.accountLabel || accountMap[transaction.account]?.label || transaction.account}</div>
+              <div className="muted">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy} · {ownedRecordAccountLabel(transaction, accountMap, peopleMap)}</div>
               <div className="pill-line">
                 <span className={`status-pill ${transaction.paid ? 'success' : 'warning'}`}>{transaction.paid ? 'Paid' : 'Unpaid'}</span>
                 <RecordBadges record={transaction} compact />
@@ -887,7 +898,7 @@ function Bills({ summary, categoryMap, peopleMap, accountMap, canEdit, onToggleP
   );
 }
 
-function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
+function Savings({ state, summary, monthKey, month, year, canEdit, peopleMap, mutate }) {
   const savingsAccounts = state.savingsByMonth?.[monthKey] || [];
   const bankBalances = state.bankBalancesByMonth?.[monthKey] || [];
   const setAccounts = (items, label = 'Update savings snapshot') => mutate({ type: 'SET_SAVINGS_ACCOUNTS', monthKey, items, auditLabel: label });
@@ -902,7 +913,7 @@ function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
   const bankBalanceMap = Object.fromEntries(bankBalances.map((account) => [account.id, account]));
   const updateBankBalance = (account, balance) => {
     const existing = bankBalanceMap[account.id];
-    const nextRow = { id: account.id, label: account.label, balance: Math.max(0, Number(balance) || 0) };
+    const nextRow = { id: account.id, label: account.label, balance: Math.max(0, Number(balance) || 0), ownerId: account.ownerId || 'unassigned', ownerLabel: accountOwnerLabel(account, peopleMap) };
     const next = existing
       ? bankBalances.map((row) => row.id === account.id ? nextRow : row)
       : [...bankBalances, nextRow];
@@ -947,6 +958,7 @@ function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
               key={account.id}
               account={account}
               balance={bankBalanceMap[account.id]?.balance}
+              peopleMap={peopleMap}
               canEdit={canEdit}
               onCommit={(value) => updateBankBalance(account, value)}
             />
@@ -970,7 +982,7 @@ function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
   );
 }
 
-function BankBalanceEditor({ account, balance, canEdit, onCommit }) {
+function BankBalanceEditor({ account, balance, peopleMap, canEdit, onCommit }) {
   const [draft, setDraft] = useState(balance == null ? '' : String(balance));
   useEffect(() => setDraft(balance == null ? '' : String(balance)), [balance]);
   const commit = () => {
@@ -981,7 +993,7 @@ function BankBalanceEditor({ account, balance, canEdit, onCommit }) {
   return (
     <div className="bank-balance-row">
       <div className="grow">
-        <div className="row-title">{account.label}</div>
+        <div className="row-title">{ownedAccountLabel(account, peopleMap)}</div>
         <div className="muted">Current balance before savings top-up</div>
       </div>
       <div className="field amount-field compact-field">
@@ -1156,6 +1168,7 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
           account,
           receivedByLabel: preservedOrSelectedLabel(income?.receivedBy, income?.receivedByLabel, receivedBy, peopleOptions),
           accountLabel: preservedOrSelectedLabel(income?.account, income?.accountLabel, account, accountOptions),
+          ...preservedOrSelectedAccountOwner(income, account, accountOptions),
           confirmationIssues: issues,
           dateConfirmed,
           needsConfirmation: issues.length > 0,
@@ -1191,6 +1204,7 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
         account,
         paidByLabel: type === 'expense' ? preservedOrSelectedLabel(transaction?.paidBy, transaction?.paidByLabel, paidBy, peopleOptions) : '',
         accountLabel: preservedOrSelectedLabel(transaction?.account, transaction?.accountLabel, account, accountOptions),
+        ...preservedOrSelectedAccountOwner(transaction, account, accountOptions),
         confirmationIssues: issues,
         dateConfirmed,
         needsConfirmation: issues.length > 0,
@@ -1330,13 +1344,13 @@ function ReferenceSelect({ id, label, value, options, onChange }) {
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
-        {options.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+        {options.map((item) => <option key={item.id} value={item.id}>{item.displayLabel || item.label}</option>)}
       </select>
     </div>
   );
 }
 
-function SettingsModal({ state, allCategories, recoveryRequired, rollbackAvailable, mutate, fileRef, onImport, onExport, onRestorePreviousImport, onErase, onClose }) {
+function SettingsModal({ state, allCategories, accountOwnerOptions, recoveryRequired, rollbackAvailable, mutate, fileRef, onImport, onExport, onRestorePreviousImport, onErase, onClose }) {
   return (
     <SimpleModal title="Settings" onClose={onClose} wide>
       {recoveryRequired && (
@@ -1354,8 +1368,8 @@ function SettingsModal({ state, allCategories, recoveryRequired, rollbackAvailab
           </section>
           <section className="settings-section">
             <h3>Accounts</h3>
-            <p className="section-note">Renaming an account changes future choices; historical records keep their saved account label.</p>
-            <ReferenceEditor field="accounts" items={state.accounts} state={state} mutate={mutate} placeholder="Account name" />
+            <p className="section-note">Every bill-paying account has an explicit owner: a household person, Joint, or TBC. Existing accounts stay TBC until you confirm them.</p>
+            <AccountReferenceEditor items={state.accounts} ownerOptions={accountOwnerOptions} state={state} mutate={mutate} />
           </section>
           <section className="settings-section">
             <CategoryManager categories={allCategories} state={state} mutate={mutate} />
@@ -1458,6 +1472,92 @@ function ReferenceEditor({ field, items, state, mutate, placeholder }) {
         <button className="primary-button" disabled={!newLabel.trim()} onClick={add}>Add</button>
       </div>
     </>
+  );
+}
+
+function AccountReferenceEditor({ items, ownerOptions, state, mutate }) {
+  const [newLabel, setNewLabel] = useState('');
+  const [newOwnerId, setNewOwnerId] = useState('unassigned');
+
+  const add = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    mutate({
+      type: 'SET_REFERENCE_LIST',
+      field: 'accounts',
+      items: [...items, { id: createId('account'), label: label.slice(0, 80), ownerId: newOwnerId }],
+      auditLabel: `Add ${label} account`,
+    });
+    setNewLabel('');
+    setNewOwnerId('unassigned');
+  };
+
+  const update = (id, patch) => {
+    const before = items.find((item) => item.id === id);
+    if (!before) return;
+    const after = { ...before, ...patch };
+    if (after.label === before.label && (after.ownerId || 'unassigned') === (before.ownerId || 'unassigned')) return;
+    mutate({
+      type: 'SET_REFERENCE_LIST',
+      field: 'accounts',
+      items: items.map((item) => item.id === id ? after : item),
+      auditLabel: `Update ${before.label} account details`,
+    });
+  };
+
+  const remove = (id) => {
+    if (referenceInUse(state, 'accounts', id)) return;
+    const before = items.find((item) => item.id === id);
+    mutate({
+      type: 'SET_REFERENCE_LIST',
+      field: 'accounts',
+      items: items.filter((item) => item.id !== id),
+      auditLabel: `Remove ${before?.label || 'account'}`,
+    });
+  };
+
+  return (
+    <>
+      {items.map((item) => (
+        <AccountReferenceRowEditor
+          key={item.id}
+          item={item}
+          ownerOptions={ownerOptions}
+          inUse={referenceInUse(state, 'accounts', item.id)}
+          onCommit={(patch) => update(item.id, patch)}
+          onRemove={() => remove(item.id)}
+        />
+      ))}
+      <div className="settings-row account-settings-row">
+        <input value={newLabel} onChange={(event) => setNewLabel(event.target.value)} placeholder="Account name" aria-label="Account name" />
+        <select value={newOwnerId} onChange={(event) => setNewOwnerId(event.target.value)} aria-label="Account owner">
+          {ownerOptions.map((owner) => <option key={owner.id} value={owner.id}>{owner.label}</option>)}
+        </select>
+        <button className="primary-button" disabled={!newLabel.trim()} onClick={add}>Add</button>
+      </div>
+    </>
+  );
+}
+
+function AccountReferenceRowEditor({ item, ownerOptions, inUse, onCommit, onRemove }) {
+  const [draft, setDraft] = useState(item.label);
+  useEffect(() => setDraft(item.label), [item.label]);
+  const commitLabel = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setDraft(item.label);
+      return;
+    }
+    if (trimmed !== item.label) onCommit({ label: trimmed.slice(0, 80) });
+  };
+  return (
+    <div className="settings-row account-settings-row">
+      <input aria-label="Account name" value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={commitLabel} />
+      <select value={item.ownerId || 'unassigned'} onChange={(event) => onCommit({ ownerId: event.target.value })} aria-label={`${item.label} owner`}>
+        {ownerOptions.map((owner) => <option key={owner.id} value={owner.id}>{owner.label}</option>)}
+      </select>
+      <button className="danger-button" disabled={inUse} title={inUse ? 'Used by existing records' : 'Remove'} onClick={onRemove}>{inUse ? 'In use' : 'Remove'}</button>
+    </div>
   );
 }
 
@@ -1624,6 +1724,54 @@ function buildConfirmationIssues(existingIssues, { dateConfirmed, paidBy, receiv
   if (kind === 'income' && receivedBy === 'unassigned') issues.add('receivedBy');
   if ((kind === 'expense' || kind === 'income' || kind === 'movement') && account === 'unassigned') issues.add('account');
   return [...issues];
+}
+
+function accountOwnerLabel(account, peopleMap) {
+  const ownerId = account?.ownerId || 'unassigned';
+  if (ownerId === 'household') return 'Joint';
+  if (ownerId === 'unassigned') return 'TBC';
+  return peopleMap[ownerId]?.label || 'TBC';
+}
+
+function ownedAccountLabel(account, peopleMap) {
+  if (!account) return 'TBC · Unassigned';
+  return `${accountOwnerLabel(account, peopleMap)} · ${account.label}`;
+}
+
+function ownedRecordAccountLabel(record, accountMap, peopleMap) {
+  const account = accountMap[record?.account];
+  const label = record?.accountLabel || account?.label || record?.account || 'Unassigned';
+  if (!record?.account || record.account === 'unassigned') return label;
+  const ownerLabel = record?.accountOwnerLabel
+    || (record?.accountOwnerId === 'household' ? 'Joint' : record?.accountOwnerId && record.accountOwnerId !== 'unassigned' ? peopleMap[record.accountOwnerId]?.label : '')
+    || accountOwnerLabel(account, peopleMap);
+  return `${ownerLabel || 'TBC'} · ${label}`;
+}
+
+function fundingOwnerLabel(row, peopleMap) {
+  if (row?.ownerLabel && row.ownerLabel !== 'TBC') return row.ownerLabel;
+  if (row?.ownerId === 'household') return 'Joint';
+  if (!row?.ownerId || row.ownerId === 'unassigned') return 'TBC';
+  return peopleMap[row.ownerId]?.label || 'TBC';
+}
+
+function fundingAccountLabel(row, accountMap, peopleMap) {
+  const accountLabel = row?.accountLabel || accountMap[row?.account]?.label || row?.account || 'Unassigned';
+  return `${fundingOwnerLabel(row, peopleMap)} · ${accountLabel}`;
+}
+
+function preservedOrSelectedAccountOwner(existingRecord, nextAccountId, options) {
+  if (existingRecord?.account === nextAccountId && existingRecord?.accountOwnerId) {
+    return {
+      accountOwnerId: existingRecord.accountOwnerId,
+      accountOwnerLabel: existingRecord.accountOwnerLabel || '',
+    };
+  }
+  const account = options.find((item) => item.id === nextAccountId);
+  return {
+    accountOwnerId: account?.ownerId || '',
+    accountOwnerLabel: account?.ownerLabel || '',
+  };
 }
 
 function preservedOrSelectedLabel(existingId, existingLabel, nextId, options) {

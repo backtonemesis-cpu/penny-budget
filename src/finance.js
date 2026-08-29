@@ -4,7 +4,7 @@ export const MONTHS = ['January','February','March','April','May','June','July',
 export const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const TRANSACTION_TYPES = new Set(['expense','internal_transfer','savings_transfer','card_repayment','refund']);
 export const CONFIRMATION_ISSUES = new Set(['date','paidBy','account','receivedBy','other']);
-export const CURRENT_STATE_VERSION = 8;
+export const CURRENT_STATE_VERSION = 9;
 export const MAX_AUDIT_ENTRIES = 1000;
 
 const BASE_CATEGORY_MAP = Object.fromEntries(BASE_CATEGORIES.map((category) => [category.id, category]));
@@ -108,6 +108,13 @@ function normaliseReferenceList(value, prefix) {
     const label = cleanText(item?.label, '', 80);
     const id = cleanText(item?.id, '', 120);
     if (!label || !id || id === 'unassigned' || id === 'household') return [];
+    if (prefix === 'account') {
+      return [{
+        id: id || createId(prefix),
+        label,
+        ownerId: cleanText(item?.ownerId, 'unassigned', 120) || 'unassigned',
+      }];
+    }
     return [{ id: id || createId(prefix), label }];
   }));
 }
@@ -141,7 +148,7 @@ function normaliseBankBalancesByMonth(value) {
         const id = cleanText(item?.id, '', 120);
         const label = cleanText(item?.label, '', 80);
         if (!id || !label || id === 'unassigned') return [];
-        return [{ id, label, balance: nonNegativeNumber(item?.balance) }];
+        return [{ id, label, balance: nonNegativeNumber(item?.balance), ownerId: cleanText(item?.ownerId, 'unassigned', 120) || 'unassigned', ownerLabel: cleanText(item?.ownerLabel, '', 80) }];
       }))])
       .filter(([, rows]) => rows.length),
   );
@@ -239,6 +246,8 @@ export function normaliseTransaction(transaction, customCategories = []) {
     account,
     paidByLabel: cleanText(transaction.paidByLabel, '', 80),
     accountLabel: cleanText(transaction.accountLabel, '', 80),
+    accountOwnerId: cleanText(transaction.accountOwnerId, '', 120),
+    accountOwnerLabel: cleanText(transaction.accountOwnerLabel, '', 80),
     confirmationIssues,
     dateConfirmed: !confirmationIssues.includes('date'),
     needsConfirmation: confirmationIssues.length > 0,
@@ -277,6 +286,8 @@ export function normaliseIncomeRecord(record, monthKey) {
     account,
     receivedByLabel: cleanText(record.receivedByLabel, '', 80),
     accountLabel: cleanText(record.accountLabel, '', 80),
+    accountOwnerId: cleanText(record.accountOwnerId, '', 120),
+    accountOwnerLabel: cleanText(record.accountOwnerLabel, '', 80),
     confirmationIssues,
     dateConfirmed: !confirmationIssues.includes('date'),
     needsConfirmation: confirmationIssues.length > 0,
@@ -512,14 +523,20 @@ export function monthSummary(state, monthKey) {
 
   const transferPlan = [...plan.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
   const bankBalances = bankBalanceMap(state, monthKey);
+  const masterAccounts = Object.fromEntries((state?.accounts || []).map((account) => [account.id, account]));
   const accountPlan = new Map();
   transferPlan.forEach((row) => {
     const key = row.account || 'unassigned';
     const bankBalance = bankBalances[key];
+    const masterAccount = masterAccounts[key];
+    const masterOwner = masterAccount?.ownerId || 'unassigned';
+    const ownerId = masterOwner !== 'unassigned' ? masterOwner : bankBalance?.ownerId || 'unassigned';
     const current = accountPlan.get(key) || {
       key,
       account: key,
-      accountLabel: row.accountLabel || bankBalance?.label,
+      accountLabel: row.accountLabel || bankBalance?.label || masterAccount?.label,
+      ownerId,
+      ownerLabel: masterOwner !== 'unassigned' ? '' : bankBalance?.ownerLabel || '',
       amount: 0,
       currentBalance: bankBalance ? nonNegativeNumber(bankBalance.balance) : 0,
       hasCurrentBalance: Boolean(bankBalance),
@@ -545,6 +562,7 @@ export function monthSummary(state, monthKey) {
     }))
     .sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
   const hasUnconfirmedBankBalances = accountFundingPlan.some((row) => !row.hasCurrentBalance);
+  const hasUnconfirmedAccountOwners = accountFundingPlan.some((row) => !row.ownerId || row.ownerId === 'unassigned');
   const totalTransferNeeded = sumMoney(accountFundingPlan.map((row) => row.transferNeeded));
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
@@ -576,6 +594,7 @@ export function monthSummary(state, monthKey) {
     transferPlan,
     accountFundingPlan,
     hasUnconfirmedBankBalances,
+    hasUnconfirmedAccountOwners,
     totalTransferNeeded,
     incompleteExpenses,
     incompleteIncome,

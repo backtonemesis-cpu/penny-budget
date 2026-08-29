@@ -53,6 +53,24 @@ function mergeById(existing = [], incoming = []) {
   return [...merged.values()];
 }
 
+function mergeAccountsById(existing = [], incoming = []) {
+  const merged = new Map(existing.map((item) => [item.id, item]));
+  incoming.forEach((item) => {
+    if (!item?.id) return;
+    const current = merged.get(item.id);
+    if (!current) {
+      merged.set(item.id, item);
+      return;
+    }
+    const currentOwner = current.ownerId || 'unassigned';
+    const incomingOwner = item.ownerId || 'unassigned';
+    if (currentOwner === 'unassigned' && incomingOwner !== 'unassigned') {
+      merged.set(item.id, { ...current, ownerId: incomingOwner });
+    }
+  });
+  return [...merged.values()];
+}
+
 function mergeAuditLogs(existing = [], incoming = []) {
   const merged = new Map();
   [...existing, ...incoming].forEach((entry) => {
@@ -243,7 +261,7 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
     budgetsByMonth,
     customCats: mergeById(current.customCats, incoming.customCats),
     people: mergeById(current.people, incoming.people),
-    accounts: mergeById(current.accounts, incoming.accounts),
+    accounts: mergeAccountsById(current.accounts, incoming.accounts),
     auditLog: mergeAuditLogs(current.auditLog, incoming.auditLog),
   }, now);
 }

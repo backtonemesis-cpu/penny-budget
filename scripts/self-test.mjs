@@ -38,7 +38,7 @@ assert.equal(sumMoney([0.1, 0.2, 0.3]), 0.6, 'Money totals must not drift in bin
 const state = {
   ...createBlankState(),
   people: [{ id: 'p1', label: 'Person 1' }, { id: 'p2', label: 'Person 2' }],
-  accounts: [{ id: 'a1', label: 'Account 1' }, { id: 'a2', label: 'Account 2' }],
+  accounts: [{ id: 'a1', label: 'Account 1', ownerId: 'p1' }, { id: 'a2', label: 'Account 2', ownerId: 'p2' }],
   savingsByMonth: {
     '2026-06': [
       { id: 's1', label: 'Savings 1', balance: 6000 },
@@ -105,6 +105,8 @@ assert.equal(july.excludedMovements, 300);
 assert.deepEqual(july.transferPlan.map(({ key, paidBy, account, amount, count }) => ({ key, paidBy, account, amount, count })), [{ key: 'p2::a2', paidBy: 'p2', account: 'a2', amount: 200, count: 1 }]);
 assert.deepEqual(july.accountFundingPlan.map(({ key, account, amount, count }) => ({ key, account, amount, count })), [{ key: 'a2', account: 'a2', amount: 200, count: 1 }]);
 assert.equal(july.accountFundingPlan[0].hasCurrentBalance, false, 'Missing bank balances must not be treated as confirmed zero evidence.');
+assert.equal(july.accountFundingPlan[0].ownerId, 'p2', 'Transfer rows must identify the bank-account owner.');
+assert.equal(july.hasUnconfirmedAccountOwners, false);
 assert.equal(july.hasUnconfirmedBankBalances, true);
 assert.equal(july.incompleteRecords, 0);
 assert.equal(july.auditReady, false, 'A live or in-progress month must never be labelled final audit evidence.');
@@ -112,9 +114,10 @@ assert.equal(july.evidenceStatus, 'in_progress');
 
 const fundingPlanState = {
   ...createBlankState(),
-  accounts: [{ id: 'a1', label: 'Account 1' }],
+  people: [{ id: 'p1', label: 'Person 1' }, { id: 'p2', label: 'Person 2' }],
+  accounts: [{ id: 'a1', label: 'Account 1', ownerId: 'p1' }],
   bankBalancesByMonth: {
-    '2026-10': [{ id: 'a1', label: 'Account 1', balance: 60 }],
+    '2026-10': [{ id: 'a1', label: 'Account 1', balance: 60, ownerId: 'p1', ownerLabel: 'Person 1' }],
   },
   txnsByMonth: {
     '2026-10': [
@@ -128,6 +131,8 @@ const fundingPlan = monthSummary(fundingPlanState, '2026-10').accountFundingPlan
 assert.deepEqual(fundingPlan.map(({ key, account, amount, currentBalance, transferNeeded, count }) => ({ key, account, amount, currentBalance, transferNeeded, count })), [{ key: 'a1', account: 'a1', amount: 150, currentBalance: 60, transferNeeded: 90, count: 2 }], 'Start-of-month transfer planning must group unpaid expenses by bank account and subtract confirmed bank balances.');
 assert.equal(monthSummary(fundingPlanState, '2026-10').totalTransferNeeded, 90);
 assert.equal(monthSummary(fundingPlanState, '2026-10').hasUnconfirmedBankBalances, false);
+assert.equal(fundingPlan[0].ownerId, 'p1');
+assert.equal(monthSummary(fundingPlanState, '2026-10').hasUnconfirmedAccountOwners, false);
 assert.deepEqual(fundingPlan[0].payers.map(({ paidBy, amount, count }) => ({ paidBy, amount, count })), [
   { paidBy: 'p1', amount: 100, count: 1 },
   { paidBy: 'p2', amount: 50, count: 1 },
@@ -155,13 +160,33 @@ assert.equal(changedJuneSavings.auditLog[0].entityType, 'savings_snapshot');
 const changedBankBalance = appReducer(fundingPlanState, {
   type: 'SET_BANK_BALANCES',
   monthKey: '2026-10',
-  items: [{ id: 'a1', label: 'Account 1', balance: 72.345 }],
+  items: [{ id: 'a1', label: 'Account 1', balance: 72.345, ownerId: 'p1', ownerLabel: 'Person 1' }],
   auditAt: '2026-10-01T12:00:00.000Z',
   auditId: 'audit-bank-balance',
 });
 assert.equal(changedBankBalance.bankBalancesByMonth['2026-10'][0].balance, 72.35, 'Bill-paying bank balances must be normalised to pennies.');
+assert.equal(changedBankBalance.bankBalancesByMonth['2026-10'][0].ownerId, 'p1', 'Bank-balance snapshots must preserve account ownership.');
 assert.equal(monthSummary(changedBankBalance, '2026-10').accountFundingPlan[0].transferNeeded, 77.65);
 assert.equal(changedBankBalance.auditLog[0].entityType, 'bank_balance_snapshot');
+
+const ownerMigration = migrateState({
+  version: 8,
+  people: [{ id: 'p1', label: 'Person 1' }],
+  accounts: [
+    { id: 'owned', label: 'Owned Account', ownerId: 'p1' },
+    { id: 'legacy-account', label: 'Legacy Account' },
+  ],
+}, new Date(2026, 8, 1));
+assert.equal(ownerMigration.version, CURRENT_STATE_VERSION);
+assert.equal(ownerMigration.accounts.find((account) => account.id === 'owned').ownerId, 'p1');
+assert.equal(ownerMigration.accounts.find((account) => account.id === 'legacy-account').ownerId, 'unassigned', 'Legacy accounts must migrate to Owner TBC rather than being guessed.');
+
+const ownerSnapshotTxn = normaliseTransaction({
+  id: 'owner-snapshot', type: 'expense', date: '2026-09-01', amount: 10, desc: 'Owned bill', category: 'other', paid: false,
+  paidBy: 'p1', account: 'a1', accountLabel: 'Account 1', accountOwnerId: 'p1', accountOwnerLabel: 'Person 1', confirmationIssues: [],
+});
+assert.equal(ownerSnapshotTxn.accountOwnerId, 'p1');
+assert.equal(ownerSnapshotTxn.accountOwnerLabel, 'Person 1');
 
 const legacyUncertain = normaliseTransaction({
   id: 'legacy-uncertain', type: 'expense', date: '2026-09-01', amount: 10, desc: 'Imported cost', category: 'other', paid: true, paidBy: 'p1', account: 'a1', needsConfirmation: true,
