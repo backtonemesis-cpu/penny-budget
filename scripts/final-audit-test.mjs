@@ -5,8 +5,6 @@ import {
   createBlankState,
   migrateState,
   monthSummary,
-  migrateState,
-  monthSummary,
 } from '../src/finance.js';
 import { appReducer } from '../src/state.js';
 import {
@@ -27,39 +25,6 @@ const emptyYear = annualSummary(createBlankState(), 2026);
 assert.equal(emptyYear.auditReady, false);
 assert.equal(emptyYear.evidenceStatus, 'empty', 'An empty year must not be described as Ready or Review.');
 
-const explicitZeroStart = migrateState({
-  ...createBlankState(),
-  monthMetaByMonth: { '2026-01': { status: 'complete', startingSavings: 0 } },
-}, new Date(2026, 0, 31));
-assert.equal(monthSummary(explicitZeroStart, '2026-01').startingSavingsConfirmed, true, 'An explicit zero starting balance is valid evidence.');
-
-const missingStart = migrateState({
-  ...createBlankState(),
-  monthMetaByMonth: { '2026-02': { status: 'complete' } },
-  savingsByMonth: { '2026-02': [{ id: 's0', label: 'Savings', balance: 0 }] },
-}, new Date(2026, 1, 28));
-const missingStartSummary = monthSummary(missingStart, '2026-02');
-assert.equal(missingStartSummary.startingSavingsConfirmed, false, 'Missing starting savings must remain TBC rather than becoming a synthetic zero.');
-assert.equal(missingStartSummary.expectedClosingSavings, null);
-assert.equal(missingStartSummary.auditReady, false);
-
-const rawLegacyComplete = {
-  ...createBlankState(),
-  monthMetaByMonth: { '2026-03': { status: 'complete', startingSavings: 8000 } },
-  savingsByMonth: { '2026-03': [{ id: 's1', label: 'Savings', balance: 8000 }] },
-};
-assert.equal(monthSummary(rawLegacyComplete, '2026-03').startingSavingsConfirmed, true, 'Existing valid pre-flag state must remain compatible.');
-
-const subPennySavings = appReducer(createBlankState(), {
-  type: 'SET_SAVINGS_ACCOUNTS',
-  monthKey: '2026-08',
-  items: [{ id: 's1', label: 'Savings', balance: 100.001 }],
-  auditAt: '2026-08-28T12:00:00.000Z',
-  auditId: 'audit-savings-rounding',
-});
-assert.equal(subPennySavings.savingsByMonth['2026-08'][0].balance, 100, 'Stored savings evidence must be normalised to pennies.');
-assert.equal(subPennySavings.auditLog[0].after[0].balance, 100, 'Change History must record the penny-normalised savings value.');
-
 const missingStart = migrateState({
   version: CURRENT_STATE_VERSION,
   monthMetaByMonth: { '2026-06': { status: 'complete', startingSavings: null } },
@@ -71,6 +36,16 @@ assert.equal(missingStartSummary.expectedClosingSavings, null);
 assert.equal(missingStartSummary.closingVariance, null);
 assert.equal(missingStartSummary.auditReady, false);
 assert.equal(missingStartSummary.evidenceStatus, 'review');
+
+const absentStart = migrateState({
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-02': { status: 'complete' } },
+  savingsByMonth: { '2026-02': [{ id: 's0', label: 'Savings', balance: 0 }] },
+}, new Date(2026, 1, 28));
+const absentStartSummary = monthSummary(absentStart, '2026-02');
+assert.equal(absentStartSummary.startingSavingsConfirmed, false, 'Absent starting savings must remain TBC rather than becoming a synthetic zero.');
+assert.equal(absentStartSummary.expectedClosingSavings, null);
+assert.equal(absentStartSummary.auditReady, false);
 
 const blankStart = migrateState({
   version: CURRENT_STATE_VERSION,
@@ -90,6 +65,23 @@ assert.equal(explicitZeroSummary.expectedClosingSavings, 0);
 assert.equal(explicitZeroSummary.closingVariance, 0);
 assert.equal(explicitZeroSummary.auditReady, true);
 assert.equal(explicitZeroSummary.evidenceStatus, 'ready');
+
+const rawLegacyComplete = {
+  ...createBlankState(),
+  monthMetaByMonth: { '2026-03': { status: 'complete', startingSavings: 8000 } },
+  savingsByMonth: { '2026-03': [{ id: 's1', label: 'Savings', balance: 8000 }] },
+};
+assert.equal(monthSummary(rawLegacyComplete, '2026-03').startingSavingsConfirmed, true, 'Existing valid pre-flag state must remain compatible.');
+
+const subPennySavings = appReducer(createBlankState(), {
+  type: 'SET_SAVINGS_ACCOUNTS',
+  monthKey: '2026-08',
+  items: [{ id: 's1', label: 'Savings', balance: 100.001 }],
+  auditAt: '2026-08-28T12:00:00.000Z',
+  auditId: 'audit-savings-rounding',
+});
+assert.equal(subPennySavings.savingsByMonth['2026-08'][0].balance, 100, 'Stored savings evidence must be normalised to pennies.');
+assert.equal(subPennySavings.auditLog[0].after[0].balance, 100, 'Change History must record the penny-normalised savings value.');
 
 const futureState = { ...createBlankState(), version: CURRENT_STATE_VERSION + 1 };
 const futureStorage = memoryStorage({ penny_state: JSON.stringify(futureState) });
