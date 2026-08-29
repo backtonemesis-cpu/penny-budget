@@ -3,7 +3,6 @@
 ## 28 August 2026 — Audit hardening and mobile UX rebuild
 
 - Preserved backward compatibility for completed months that already contain a valid starting-savings value while keeping genuinely missing starting-savings evidence as `TBC`; an explicit £0 remains valid evidence.
-
 - Corrected completed-month display logic so recorded closing savings is never projected forward a second time.
 - Added penny-safe rounding helpers to prevent floating-point drift in financial totals.
 - Added structured confirmation issues so unknown dates, payer/receiver and account evidence remain unresolved until explicitly confirmed.
