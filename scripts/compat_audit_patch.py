@@ -32,22 +32,12 @@ replace_once(
 
 replace_once(
     'scripts/source-audit.mjs',
-    """  assert.match(files.finance, /expectedClosingSavings\\s*=\\s*isComplete \\? roundMoney\\(startingSavings \\+ income - expenses\\)/, 'Completed months must reconcile starting savings plus income less expenses.');
+    """  assert.match(files.finance, /startingSavingsConfirmed\\s*=\\s*Boolean\\(isComplete && monthMeta\\.startingSavingsConfirmed\\)/, 'Completed reconciliation must depend on confirmed starting savings.');
 """,
-    """  assert.match(files.finance, /expectedClosingSavings\\s*=\\s*startingSavingsConfirmed \\? roundMoney\\(startingSavings \\+ income - expenses\\)/, 'Completed months must reconcile only when starting-savings evidence is confirmed.');
+    """  assert.match(files.finance, /Object\\.hasOwn\\(monthMeta, 'startingSavings'\\)/, 'Starting-savings confirmation must distinguish a missing field from an explicit zero.');
+  assert.match(files.finance, /startingSavingsConfirmed\\s*=\\s*Boolean\\(isComplete && hasStartingSavingsValue && monthMeta\\.startingSavingsConfirmed !== false\\)/, 'Completed reconciliation must accept existing valid starting-savings evidence unless it is explicitly unconfirmed.');
 """,
-    'source audit expected closing rule',
-)
-
-replace_once(
-    'scripts/source-audit.mjs',
-    """  assert.match(files.finance, /auditReady\\s*=\\s*Boolean\\(isComplete && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot\\)/, 'Only completed, reconciled, fully confirmed months may be audit-ready.');
-""",
-    """  assert.match(files.finance, /auditReady\\s*=\\s*Boolean\\(isComplete && startingSavingsConfirmed && incompleteRecords === 0 && !reconciliationProblem && hasSavingsSnapshot\\)/, 'Only completed, reconciled, fully confirmed months with starting-savings evidence may be audit-ready.');
-  assert.match(files.finance, /Object\\.hasOwn\\(monthMeta, 'startingSavings'\\)/, 'Starting-savings confirmation must distinguish a missing field from an explicit zero.');
-  assert.match(files.finance, /monthMeta\\.startingSavingsConfirmed !== false/, 'Older valid starting-savings evidence must remain compatible unless explicitly marked unconfirmed.');
-""",
-    'source audit readiness rule',
+    'source audit starting savings compatibility rule',
 )
 
 replace_once(
