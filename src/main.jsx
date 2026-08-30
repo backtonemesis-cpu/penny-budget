@@ -85,9 +85,9 @@ function renderApp() {
   installOverviewFourCardFlow();
 }
 
-ensureCurrentRelease({ force: true }).then((ready) => {
-  if (ready) {
-    renderApp();
-    installReleaseChecks();
-  }
-});
+// Render immediately so a slow or stalled release check can never leave the app
+// on an empty background. Version checking remains active in the background and
+// will reload only when a newer deployed release is detected.
+renderApp();
+installReleaseChecks();
+void ensureCurrentRelease({ force: true });
