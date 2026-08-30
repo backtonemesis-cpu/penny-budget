@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 const mobileCss = await readFile(new URL('../src/mobile-navigation.css', import.meta.url), 'utf8');
+const transferPlanCss = await readFile(new URL('../src/transfer-plan-compact.css', import.meta.url), 'utf8');
 
 assert.match(css, /\.modal \{[^}]*overflow: hidden;[^}]*overscroll-behavior: contain;/s, 'Modal backdrop must not become a second scroll container.');
 assert.match(css, /\.modal-inner \{[^}]*max-height: calc\(100dvh - max\(14px, env\(safe-area-inset-top\)\) - max\(14px, env\(safe-area-inset-bottom\)\)\);[^}]*overflow-y: auto;[^}]*-webkit-overflow-scrolling: touch;/s, 'Modal content must use one safe-area-aware iOS vertical scroll container.');
@@ -23,5 +24,8 @@ assert.match(mobileCss, /@media \(max-width: 760px\)[\s\S]*?\.add-button \{[^}]*
 assert.match(mobileCss, /@media \(max-width: 390px\)[\s\S]*?\.header-row \{[^}]*grid-template-columns: max-content minmax\(0, 1fr\) 38px 52px;[^}]*column-gap: 5px;/, 'Narrow iPhones must reclaim additional width for the month selector.');
 assert.match(mobileCss, /@media \(max-width: 390px\)[\s\S]*?\.brand \{[^}]*font-size: 24px;/, 'Narrow-iPhone branding must remain compact.');
 assert.match(mobileCss, /@media \(max-width: 390px\)[\s\S]*?\.month-input \{[^}]*font-size: 15px;/, 'Narrow iPhones must use a compact month-label size rather than clipping the year.');
+assert.match(transferPlanCss, /\.attention-card \.section-heading \.section-note \{\s*display: none;/s, 'Transfer-plan instructional copy must not consume mobile overview space.');
+assert.match(transferPlanCss, /\.attention-card \.transfer-account-row > \.money,[\s\S]*\.attention-card \.transfer-breakdown,[\s\S]*\.attention-card \.funding-balance-editor small \{\s*display: none !important;/s, 'Duplicate information below each transfer-plan balance input must stay hidden on mobile.');
+assert.match(transferPlanCss, /\.attention-card \.funding-balance-editor input \{\s*margin-bottom: 0;/s, 'The current-bank-balance input must visually end each mobile transfer account block.');
 
-console.log('Penny mobile viewport, compact header and modal layout regression tests passed');
+console.log('Penny mobile viewport, compact header, transfer plan and modal layout regression tests passed');

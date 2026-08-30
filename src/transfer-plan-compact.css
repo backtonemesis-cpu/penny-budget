@@ -1,0 +1,82 @@
+@media (max-width: 760px) {
+  /* Transfer-plan summary: keep the heading and total, remove repeated explanatory copy. */
+  .attention-card .section-heading {
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .attention-card .section-heading > div:first-child {
+    min-width: 0;
+  }
+
+  .attention-card .section-heading .section-title {
+    margin-bottom: 0;
+    font-size: clamp(28px, 8.6vw, 38px);
+    line-height: 0.98;
+  }
+
+  .attention-card .section-heading .section-note {
+    display: none;
+  }
+
+  .attention-card .section-heading > div:last-child {
+    flex: 0 0 auto;
+    padding-top: 2px;
+  }
+
+  .attention-card .section-heading > div:last-child .money {
+    font-size: clamp(24px, 7.8vw, 34px);
+    line-height: 1;
+  }
+
+  .attention-card .section-heading .mini-label {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.05;
+  }
+
+  /* Each account should end at the balance input; everything below it duplicated information above. */
+  .attention-card .transfer-account-row {
+    padding: 16px 0;
+    align-items: stretch;
+  }
+
+  .attention-card .transfer-account-row > .grow {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .attention-card .transfer-account-row > .money,
+  .attention-card .transfer-breakdown,
+  .attention-card .funding-balance-editor small {
+    display: none !important;
+  }
+
+  .attention-card .transfer-account-row .row-title {
+    margin-bottom: 2px;
+  }
+
+  .attention-card .transfer-account-row .muted {
+    margin-bottom: 8px;
+    line-height: 1.25;
+  }
+
+  .attention-card .funding-math {
+    display: grid;
+    gap: 3px;
+    margin: 0 0 10px;
+  }
+
+  .attention-card .funding-balance-editor {
+    margin-top: 8px;
+  }
+
+  .attention-card .funding-balance-editor label {
+    margin-bottom: 5px;
+  }
+
+  .attention-card .funding-balance-editor input {
+    margin-bottom: 0;
+  }
+}
