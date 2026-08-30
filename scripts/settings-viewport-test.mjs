@@ -21,10 +21,15 @@ assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(84px, 108px\)
 assert.match(css, /account-settings-row:has\(> \.danger-button:not\(:disabled\)\)/, 'A real Remove action must still get its own account-row column when available.');
 assert.match(css, /\.account-settings-row > input,[\s\S]*\.account-settings-row > select,[\s\S]*\.account-settings-row > \.primary-button,[\s\S]*\.account-settings-row > \.danger-button:not\(:disabled\) \{\s*height: 52px;\s*min-height: 52px;/s, 'Account name, owner selector and action button must use exactly the same mobile row height.');
 assert.match(css, /\.icon-picker,[\s\S]*\.icon-grid,[\s\S]*\.category-list,[\s\S]*\.category-list-body,[\s\S]*\.category-settings-row \{\s*width: 100%;\s*min-width: 0;\s*max-width: 100%;/s, 'Every category control must be width-constrained inside the Settings card.');
-assert.match(categoryJs, /textContent\?\.trim\(\) === 'Change History'/, 'Visible Change History must be removed by heading while the underlying audit log remains untouched.');
+assert.match(categoryJs, /sectionByHeading\(modal, 'Change History'\)/, 'Visible Change History must be removed by heading while the underlying audit log remains untouched.');
 assert.match(categoryJs, /document\.createElement\('select'\)/, 'Category icons must use a compact select instead of the always-visible icon grid.');
 assert.match(categoryJs, /grid\.hidden = true/, 'The original icon grid must be hidden after the compact selector is installed.');
 assert.match(categoryJs, /This only removes an unused custom category/, 'Deleting a custom category must require explicit confirmation and explain the safe scope.');
+assert.match(categoryJs, /Global setup — kept when you clear a month/, 'Settings must explicitly distinguish global setup from month-specific data.');
+assert.match(categoryJs, /Cannot remove: owner of \$\{ownedAccounts\} account/, 'Blocked household-person removal must explain account ownership rather than showing an unexplained In use state.');
+assert.match(categoryJs, /Cannot remove: referenced by saved financial records\./, 'Blocked household-person removal must explain saved-record dependencies when no account ownership remains.');
+assert.match(categoryCss, /\.global-setup-note \{[\s\S]*background: var\(--surface-2\);[\s\S]*color: var\(--muted\);/s, 'Global setup explanation must use a compact, non-destructive Settings treatment.');
+assert.match(categoryCss, /\.reference-use-note \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*font-size: 12px;/s, 'Household dependency reasons must be visible beneath the affected row without breaking layout.');
 assert.match(categoryCss, /\.category-icon-select select \{[\s\S]*min-height: 52px;[\s\S]*border-radius: 14px;/s, 'Compact icon selector must match Penny Settings controls.');
 assert.match(categoryCss, /\.category-settings-row \{[\s\S]*grid-template-columns: 42px minmax\(0, 1fr\) auto auto;/s, 'Managed category rows must keep icon, label, visibility and delete actions aligned.');
 assert.match(css, /\.stacked-actions > \* \{[^}]*min-width: 0;[^}]*min-height: 42px;/s, 'Backup controls must stay compact and responsive before the final shared visual treatment.');
@@ -39,4 +44,4 @@ assert.match(incomeCss, /\.record-side \{\s*display: contents;/s, 'Income amount
 assert.match(incomeCss, /\.mini-actions \{[^}]*grid-column: 1 \/ -1;[^}]*grid-template-columns: minmax\(0, 1fr\) auto auto;/s, 'Income actions must share one compact row beneath the record details.');
 assert.match(incomeCss, /\.mini-actions button \{[^}]*min-height: 38px;/s, 'Income action controls must stay tap-friendly while reducing vertical space.');
 
-console.log('Penny mobile layout regression passed: Settings containment, category cleanup, uniform Backup and Recovery actions, and compact Income rows are protected.');
+console.log('Penny mobile layout regression passed: Settings containment, global-reference clarity, category cleanup, uniform Backup and Recovery actions, and compact Income rows are protected.');
