@@ -5,6 +5,7 @@ on:
       - owner-specific-accounts-income-carryforward
     paths:
       - scripts/apply-owner-income-v10.py
+      - scripts/fix-owner-income-v10.py
       - .github/workflows/apply-owner-income-v10.yml
 permissions:
   contents: write
@@ -21,7 +22,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Apply v10 patch
-        run: python scripts/apply-owner-income-v10.py
+        run: |
+          python scripts/apply-owner-income-v10.py
+          python scripts/fix-owner-income-v10.py
       - name: Validate exact patched tree
         run: |
           npm ci
@@ -29,6 +32,7 @@ jobs:
       - name: Commit validated source
         run: |
           rm scripts/apply-owner-income-v10.py
+          rm scripts/fix-owner-income-v10.py
           rm .github/workflows/apply-owner-income-v10.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
