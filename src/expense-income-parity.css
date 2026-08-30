@@ -1,0 +1,107 @@
+/* Mobile visual parity: Expenses use the same row geometry as Income. */
+@media (max-width: 760px) {
+  section[aria-labelledby="expenses-list-title"] {
+    padding: 12px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] > .section-title {
+    margin-bottom: 6px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 6px 10px;
+    padding: 10px 0;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-icon {
+    display: none;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-main {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-title {
+    margin-bottom: 2px;
+    font-size: 15px;
+    line-height: 1.18;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-meta {
+    font-size: 11px;
+    line-height: 1.28;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .pill-line {
+    margin-top: 5px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side {
+    display: contents;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .money {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 1px 0 0;
+    font-size: 18px;
+    line-height: 1.1;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .mini-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 5px;
+    width: 100%;
+    margin-top: 2px;
+    padding: 0;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .mini-actions button {
+    width: auto;
+    min-width: 0;
+    min-height: 38px;
+    padding: 6px 9px;
+    font-size: 10.5px;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .status-pill {
+    min-height: 22px;
+    padding: 3px 7px;
+    font-size: 9.5px;
+  }
+}
+
+@media (max-width: 390px) {
+  section[aria-labelledby="expenses-list-title"] .record-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 8px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .money {
+    font-size: 17px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .mini-actions {
+    grid-template-columns: minmax(0, 1fr) 52px 58px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .mini-actions button {
+    padding-inline: 5px;
+    font-size: 10px;
+  }
+}
