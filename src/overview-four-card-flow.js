@@ -19,18 +19,15 @@ function applyOverviewFourCardFlow() {
   if (heroCards.length < 2 || metricCards.length < 3) return;
 
   const monthInput = document.querySelector('.month-input');
-  const [year, monthNumber] = (monthInput?.value || '').split('-').map(Number);
+  const [, monthNumber] = (monthInput?.value || '').split('-').map(Number);
   const monthName = Number.isInteger(monthNumber)
     ? new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(2000, monthNumber - 1, 1))
     : '';
-  const monthLabel = monthName && year ? `${monthName} ${year}` : 'This month';
+  const monthPrefix = monthName ? `${monthName.toUpperCase()} ` : '';
 
-  setText(metricCards[0], '.label', 'INCOME');
-  setText(metricCards[0], '.sub', monthLabel);
-  setText(metricCards[1], '.label', 'EXPENSES');
-  setText(metricCards[1], '.sub', monthLabel);
-  setText(metricCards[2], '.label', `${monthName ? monthName.toUpperCase() + ' ' : ''}SAVINGS`);
-  setText(metricCards[2], '.sub', 'Income minus expenses');
+  setText(metricCards[0], '.label', `${monthPrefix}INCOME`);
+  setText(metricCards[1], '.label', `${monthPrefix}EXPENSES`);
+  setText(metricCards[2], '.label', `${monthPrefix}SAVINGS`);
 
   let totalCard = metricGrid.querySelector('.overview-total-savings');
   if (!totalCard) {
@@ -43,7 +40,6 @@ function applyOverviewFourCardFlow() {
   const projectedValue = heroCards[1].querySelector('.value')?.textContent || '£0.00';
   setText(totalCard, '.label', 'TOTAL SAVINGS');
   setText(totalCard, '.value', projectedValue);
-  setText(totalCard, '.sub', monthName && year ? `End of ${monthName} ${year}` : 'End of month');
 
   heroGrid.classList.add('overview-legacy-savings-hidden');
   metricGrid.classList.add('overview-four-card-grid');

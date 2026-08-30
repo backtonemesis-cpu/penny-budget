@@ -10,12 +10,12 @@
 
 .metric-grid.overview-four-card-grid > .stat {
   width: 100% !important;
-  min-height: 224px !important;
+  min-height: 0 !important;
   margin: 0 !important;
-  padding: 34px 34px !important;
+  padding: 26px 34px !important;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto !important;
-  grid-template-rows: auto 1fr auto !important;
+  grid-template-rows: auto !important;
   align-items: center !important;
   text-align: left !important;
 }
@@ -23,20 +23,19 @@
 .metric-grid.overview-four-card-grid > .stat .label {
   grid-column: 1;
   grid-row: 1;
+  white-space: nowrap !important;
 }
 
 .metric-grid.overview-four-card-grid > .stat .value {
   grid-column: 2;
-  grid-row: 1 / 4;
+  grid-row: 1;
   align-self: center;
   justify-self: end;
   white-space: nowrap;
 }
 
 .metric-grid.overview-four-card-grid > .stat .sub {
-  grid-column: 1;
-  grid-row: 3;
-  align-self: end;
+  display: none !important;
 }
 
 @media (max-width: 640px) {
@@ -45,7 +44,12 @@
   }
 
   .metric-grid.overview-four-card-grid > .stat {
-    min-height: 224px !important;
-    padding: 34px 32px !important;
+    min-height: 0 !important;
+    padding: 26px 24px !important;
+  }
+
+  .metric-grid.overview-four-card-grid > .stat .label {
+    font-size: clamp(13px, 3.6vw, 16px) !important;
+    letter-spacing: 0.12em !important;
   }
 }
