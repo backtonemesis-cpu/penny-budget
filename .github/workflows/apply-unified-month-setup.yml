@@ -23,7 +23,9 @@ jobs:
         with:
           python-version: '3.x'
       - name: Apply patch
-        run: python scripts/apply-unified-month-setup.py
+        run: |
+          python scripts/apply-unified-month-setup.py
+          python scripts/fix-unified-source-audit.py
       - name: Validate exact patched tree
         run: |
           npm ci
@@ -32,7 +34,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm scripts/apply-unified-month-setup.py .github/workflows/apply-unified-month-setup.yml
+          git rm scripts/apply-unified-month-setup.py scripts/fix-unified-source-audit.py .github/workflows/apply-unified-month-setup.yml
           git add src scripts package.json public CHANGELOG.md
           git commit -m "Unify month setup and transfer planning"
           git push origin HEAD:unified-month-setup
