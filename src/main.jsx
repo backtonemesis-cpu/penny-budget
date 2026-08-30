@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './mobile-navigation.css';
 import './settings-fix.css';
+import './income-compact.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
