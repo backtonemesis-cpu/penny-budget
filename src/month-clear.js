@@ -1,4 +1,5 @@
 import { MAX_AUDIT_ENTRIES, createId, isValidMonthKey } from './finance.js';
+import { getMonthAccounts, getMonthHiddenCats, getMonthPeople } from './month-scope.js';
 import { getBrowserStorage, loadState, saveState } from './storage.js';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -19,6 +20,10 @@ function hasMonthData(state, monthKey) {
     (state.txnsByMonth?.[monthKey] || []).length
     || (state.incomeByMonth?.[monthKey] || []).length
     || (state.bankBalancesByMonth?.[monthKey] || []).length
+    || (state.savingsByMonth?.[monthKey] || []).length
+    || getMonthPeople(state, monthKey).length
+    || getMonthAccounts(state, monthKey).length
+    || getMonthHiddenCats(state, monthKey).length
     || state.budgetsByMonth?.[monthKey]
     || state.monthMetaByMonth?.[monthKey]
   );
@@ -28,6 +33,10 @@ function withoutKey(record = {}, key) {
   const next = { ...record };
   delete next[key];
   return next;
+}
+
+function emptyMonthList(record = {}, key) {
+  return { ...record, [key]: [] };
 }
 
 function clearSelectedMonth() {
@@ -50,22 +59,24 @@ function clearSelectedMonth() {
     return;
   }
   if (!hasMonthData(state, monthKey)) {
-    globalThis.alert(`${label} has no month data to clear.`);
+    globalThis.alert(`${label} is already a blank standalone month.`);
     return;
   }
 
   const before = {
     transactions: state.txnsByMonth?.[monthKey] || [],
     income: state.incomeByMonth?.[monthKey] || [],
+    people: getMonthPeople(state, monthKey),
+    accounts: getMonthAccounts(state, monthKey),
+    hiddenCategories: getMonthHiddenCats(state, monthKey),
     bankBalances: state.bankBalancesByMonth?.[monthKey] || [],
+    savings: state.savingsByMonth?.[monthKey] || [],
     budget: state.budgetsByMonth?.[monthKey] || null,
     monthMeta: state.monthMetaByMonth?.[monthKey] || null,
   };
-  const transactionCount = before.transactions.length;
-  const incomeCount = before.income.length;
 
   const confirmed = globalThis.confirm(
-    `Clear ${label} data only?\n\nThis will remove ${transactionCount} transaction${transactionCount === 1 ? '' : 's'}, ${incomeCount} income item${incomeCount === 1 ? '' : 's'}, current bank-balance entries and month-specific budget/setup data for ${label} only.\n\nAll other months, accounts, categories and savings history will be kept. This action will be recorded in Change History.`
+    `Reset ${label} to a completely blank month?\n\nThis removes only ${label}'s household people, accounts and owners, transactions, income, bank balances, savings snapshot, budget/setup and month status.\n\nNo other month is changed. Historical evidence from other months remains untouched. This reset will be recorded in Change History.`
   );
   if (!confirmed) return;
 
@@ -73,7 +84,11 @@ function clearSelectedMonth() {
     ...state,
     txnsByMonth: withoutKey(state.txnsByMonth, monthKey),
     incomeByMonth: withoutKey(state.incomeByMonth, monthKey),
+    peopleByMonth: emptyMonthList(state.peopleByMonth, monthKey),
+    accountsByMonth: emptyMonthList(state.accountsByMonth, monthKey),
+    hiddenCatsByMonth: emptyMonthList(state.hiddenCatsByMonth, monthKey),
     bankBalancesByMonth: withoutKey(state.bankBalancesByMonth, monthKey),
+    savingsByMonth: withoutKey(state.savingsByMonth, monthKey),
     budgetsByMonth: withoutKey(state.budgetsByMonth, monthKey),
     monthMetaByMonth: withoutKey(state.monthMetaByMonth, monthKey),
     auditLog: [{
@@ -83,9 +98,9 @@ function clearSelectedMonth() {
       entityType: 'monthly_setup',
       entityId: '',
       monthKey,
-      label: `Cleared ${label}`,
+      label: `Reset ${label} to blank`,
       before,
-      after: { transactions: [], income: [], bankBalances: [], budget: null, monthMeta: null },
+      after: { transactions: [], income: [], people: [], accounts: [], hiddenCategories: [], bankBalances: [], savings: [], budget: null, monthMeta: null },
     }, ...(state.auditLog || [])].slice(0, MAX_AUDIT_ENTRIES),
   };
 
@@ -104,15 +119,12 @@ function backupRecoverySection() {
 }
 
 function ensureClearMonthControl() {
-  document.querySelectorAll('[data-penny-clear-month-row]').forEach((row) => row.remove());
-
   const target = backupRecoverySection();
   if (!target) return;
-
   const monthKey = selectedMonthKey();
   if (!monthKey) return;
   const label = monthLabel(monthKey);
-  const buttonLabel = `Clear ${label} data`;
+  const buttonLabel = `Reset ${label} to blank`;
 
   const existing = target.querySelector('[data-penny-clear-month-settings]');
   if (existing) {
@@ -124,18 +136,15 @@ function ensureClearMonthControl() {
   const eraseButton = [...target.querySelectorAll('button')].find((button) =>
     button.textContent?.includes('Erase Penny data on this device')
   );
-
   const wrap = document.createElement('div');
   wrap.className = 'settings-month-data-row';
   wrap.setAttribute('data-penny-clear-month-settings', '');
-
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'danger-button settings-clear-month-button';
   button.setAttribute('data-penny-clear-month', '');
   button.textContent = buttonLabel;
   button.addEventListener('click', clearSelectedMonth);
-
   wrap.append(button);
   if (eraseButton) target.insertBefore(wrap, eraseButton);
   else target.appendChild(wrap);

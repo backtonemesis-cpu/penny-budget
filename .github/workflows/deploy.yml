@@ -41,6 +41,8 @@ jobs:
         run: node scripts/account-removal-policy-test.mjs
       - name: Run clear-month safety regression
         run: node scripts/month-clear-test.mjs
+      - name: Run standalone month architecture regression
+        run: node scripts/month-scope-v28-test.mjs
       - name: Run transfer-plan layout regression
         run: node scripts/transfer-plan-layout-test.mjs
       - name: Audit accessibility source
