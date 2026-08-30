@@ -1,3 +1,10 @@
+## 2026-08-30 — Compact mobile header proportions
+
+- Reduced the mobile Penny wordmark, Settings width, `+ Add` width, header side padding and inter-control gaps to give the month selector substantially more room.
+- Kept the full `+ Add` label while tightening its typography and padding.
+- Forced the Settings gear toward a smaller text-style glyph rather than an oversized emoji presentation.
+- Preserved month selection, finance calculations, storage, reconciliation and household data unchanged.
+
 ## 2026-08-30 — Full mobile month label
 
 - Removed iPhone month-input chrome that was reserving horizontal space and clipping the year.
