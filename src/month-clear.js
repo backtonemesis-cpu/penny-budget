@@ -104,7 +104,6 @@ function backupRecoverySection() {
 }
 
 function ensureClearMonthControl() {
-  // Clear Month belongs only in Settings. Remove any stale Overview injection from an older release.
   document.querySelectorAll('[data-penny-clear-month-row]').forEach((row) => row.remove());
 
   const target = backupRecoverySection();
@@ -113,11 +112,15 @@ function ensureClearMonthControl() {
   const monthKey = selectedMonthKey();
   if (!monthKey) return;
   const label = monthLabel(monthKey);
+  const buttonLabel = `Clear ${label}`;
 
   const existing = target.querySelector('[data-penny-clear-month-settings]');
   if (existing) {
     const button = existing.querySelector('[data-penny-clear-month]');
-    if (button) button.textContent = `Clear ${label}`;
+    const note = existing.querySelector('.settings-month-data-copy span');
+    if (button && button.textContent !== buttonLabel) button.textContent = buttonLabel;
+    const noteLabel = `Selected: ${label}`;
+    if (note && note.textContent !== noteLabel) note.textContent = noteLabel;
     return;
   }
 
@@ -141,7 +144,7 @@ function ensureClearMonthControl() {
   button.type = 'button';
   button.className = 'settings-clear-month-button';
   button.setAttribute('data-penny-clear-month', '');
-  button.textContent = `Clear ${label}`;
+  button.textContent = buttonLabel;
   button.addEventListener('click', clearSelectedMonth);
 
   wrap.append(text, button);
@@ -153,9 +156,18 @@ export function installMonthClearControl() {
   ensureClearMonthControl();
   const root = document.getElementById('root');
   if (!root) return;
-  const observer = new MutationObserver(() => ensureClearMonthControl());
+  let scheduled = false;
+  const scheduleEnsure = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      ensureClearMonthControl();
+    });
+  };
+  const observer = new MutationObserver(scheduleEnsure);
   observer.observe(root, { childList: true, subtree: true });
   document.addEventListener('change', (event) => {
-    if (event.target?.classList?.contains('month-input')) queueMicrotask(ensureClearMonthControl);
+    if (event.target?.classList?.contains('month-input')) scheduleEnsure();
   });
 }
