@@ -1,3 +1,10 @@
+## 2026-08-30 — Mobile editor horizontal gesture lock
+
+- Locked the modal scroll container to vertical movement on iPhone so the transaction editor cannot be dragged left or right.
+- Added explicit horizontal overflow clipping, horizontal overscroll suppression and vertical-only touch panning for the modal sheet.
+- Kept the existing safe-area-aware vertical scrolling and sticky Save/Cancel action bar.
+- Added a regression test for horizontal modal panning. No finance calculations or household data were changed.
+
 ## 2026-08-30 — Mobile bottom navigation stability
 
 - Disabled root overscroll chaining in Penny so iPhone rubber-band gestures do not pull the bottom navigation away from the viewport.
