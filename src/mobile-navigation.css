@@ -197,140 +197,208 @@ body,
     letter-spacing: -0.02em;
   }
 
-  /* Settings audit/UX: compact, scannable cards with finance-critical fields kept easy to edit. */
+  /* Settings cleanup: dense single-row records, less explanatory copy and much shorter scrolling. */
   .wide-modal:has(> .settings-section) {
-    padding: 12px;
+    width: min(100%, 760px);
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+    padding: 9px;
+    border-radius: 16px;
     background: #161b27;
   }
 
   .wide-modal:has(> .settings-section) .modal-head {
-    top: -12px;
-    margin: -12px -12px 10px;
-    padding: 10px 12px;
+    top: -9px;
+    margin: -9px -9px 8px;
+    padding: 8px 10px;
   }
 
   .wide-modal:has(> .settings-section) .modal-head .section-title {
-    font-size: 20px;
+    font-size: 19px;
+  }
+
+  .wide-modal:has(> .settings-section) .modal-head .secondary-button {
+    min-height: 40px;
+    padding: 6px 10px;
+    font-size: 13px;
   }
 
   .wide-modal > .settings-section {
-    margin-bottom: 10px;
-    border: 1px solid rgba(52, 64, 90, 0.78);
-    border-radius: 14px;
-    padding: 12px;
-    background: rgba(28, 36, 51, 0.58);
+    margin-bottom: 8px;
+    border: 1px solid rgba(52, 64, 90, 0.72);
+    border-radius: 12px;
+    padding: 9px 10px;
+    background: rgba(28, 36, 51, 0.48);
   }
 
   .wide-modal > .settings-section:last-child {
     margin-bottom: 0;
-    border: 1px solid rgba(52, 64, 90, 0.78);
-    padding-bottom: 12px;
+    border: 1px solid rgba(52, 64, 90, 0.72);
+    padding-bottom: 9px;
   }
 
   .wide-modal > .settings-section h3 {
-    margin-bottom: 5px;
-    font-size: 15px;
+    margin: 0 0 5px;
+    font-size: 14px;
     line-height: 1.2;
   }
 
   .wide-modal > .settings-section .section-note {
-    font-size: 11.5px;
-    line-height: 1.38;
+    font-size: 10.5px;
+    line-height: 1.34;
+  }
+
+  .wide-modal > .settings-section:not(:first-of-type):not(:last-of-type) > .section-note {
+    display: none;
   }
 
   .wide-modal > .settings-section:first-of-type {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: baseline;
-    column-gap: 8px;
-    row-gap: 2px;
-    padding-block: 9px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-block: 7px;
   }
 
   .wide-modal > .settings-section:first-of-type h3 {
-    grid-row: 1;
+    flex: 0 0 auto;
     margin: 0;
     color: #a7b1c9;
-    font-size: 11px;
+    font-size: 10px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
   .wide-modal > .settings-section:first-of-type .section-note:first-of-type {
-    grid-row: 1;
+    min-width: 0;
+    margin: 0;
     color: #f5f7ff;
-    font-size: 12px;
+    font-size: 10.5px;
+    font-weight: 760;
+    overflow-wrap: anywhere;
   }
 
   .wide-modal > .settings-section:first-of-type .section-note:last-of-type {
-    grid-column: 1 / -1;
-    margin-top: 2px;
-    font-size: 10.5px;
+    display: none;
   }
 
   .wide-modal .settings-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 58px;
     align-items: center;
     gap: 6px;
-    margin-top: 7px;
+    margin-top: 6px;
   }
 
   .wide-modal .settings-row > input,
   .wide-modal .settings-row > select {
     min-width: 0;
+    min-height: 44px;
+    padding: 7px 9px;
+    font-size: 14px;
   }
 
   .wide-modal .settings-row > .primary-button,
   .wide-modal .settings-row > .danger-button,
   .wide-modal .settings-row > .secondary-button {
-    min-width: 72px;
-    padding-inline: 9px;
-    font-size: 12px;
+    width: 58px;
+    min-width: 58px;
+    min-height: 44px;
+    padding: 6px 4px;
+    font-size: 10.5px;
+    line-height: 1.05;
+  }
+
+  .wide-modal .settings-row > .danger-button:disabled {
+    border-color: rgba(240, 107, 107, 0.24);
+    background: rgba(240, 107, 107, 0.05);
+    color: rgba(240, 107, 107, 0.72);
+    opacity: 1;
   }
 
   .wide-modal .account-settings-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 108px 58px;
     gap: 6px;
   }
 
   .wide-modal .account-settings-row > input {
-    grid-column: 1 / -1;
+    grid-column: auto;
     width: 100%;
   }
 
   .wide-modal .account-settings-row > select {
-    width: 100%;
+    width: 108px;
     min-width: 0;
+    padding-inline: 8px 22px;
   }
 
   .wide-modal .compact-choices {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .wide-modal .compact-choices legend,
+  .wide-modal .icon-picker legend {
+    margin-bottom: 1px;
+    font-size: 9.5px;
   }
 
   .wide-modal .compact-choices .choice-card {
-    min-height: 50px;
+    min-height: 44px;
     align-items: center;
-    padding: 8px;
+    padding: 7px 8px;
+  }
+
+  .wide-modal .icon-picker {
+    display: block;
+    margin-bottom: 8px;
   }
 
   .wide-modal .icon-grid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    display: flex;
     gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 3px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
+  .wide-modal .icon-grid::-webkit-scrollbar { display: none; }
+
   .wide-modal .icon-choice {
-    min-width: 0;
+    flex: 0 0 42px;
+    width: 42px;
+    min-width: 42px;
     min-height: 42px;
     padding: 0;
-    font-size: 18px;
+    font-size: 17px;
+  }
+
+  .wide-modal .field {
+    margin-bottom: 8px;
+  }
+
+  .wide-modal .field input,
+  .wide-modal .field select {
+    min-height: 44px;
+    padding-block: 7px;
+  }
+
+  .wide-modal .category-list {
+    margin-top: 8px;
+  }
+
+  .wide-modal .category-list > summary {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
   }
 
   .wide-modal .category-settings-row {
-    grid-template-columns: 28px minmax(0, 1fr) auto auto;
+    grid-template-columns: 24px minmax(0, 1fr) 48px 52px;
     gap: 5px;
+    padding: 5px 0;
   }
 
   .wide-modal .category-settings-row > span {
@@ -339,24 +407,23 @@ body,
 
   .wide-modal .category-settings-row .secondary-button,
   .wide-modal .category-settings-row .danger-button {
+    width: auto;
     min-width: 0;
-    padding-inline: 7px;
-    font-size: 11px;
+    min-height: 38px;
+    padding-inline: 5px;
+    font-size: 10px;
   }
 
-  .wide-modal .stacked-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    margin-top: 10px;
+  .wide-modal .history-list {
+    margin-top: 4px;
   }
 
-  .wide-modal .recovery-button {
-    margin: 8px 0;
+  .wide-modal .history-row {
+    padding-block: 3px;
   }
 
-  .wide-modal > .settings-section:last-child > .danger-button {
-    margin-top: 9px;
+  .wide-modal .history-summary {
+    min-height: 40px;
   }
 
   .wide-modal .history-details {
@@ -364,7 +431,34 @@ body,
   }
 
   .wide-modal .history-snapshot pre {
-    max-height: 160px;
+    max-height: 140px;
+  }
+
+  .wide-modal .stacked-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .wide-modal .stacked-actions > * {
+    min-height: 44px;
+    padding-block: 7px;
+    font-size: 12px;
+  }
+
+  .wide-modal .recovery-button {
+    min-height: 42px;
+    margin: 7px 0;
+    font-size: 11px;
+  }
+
+  .wide-modal > .settings-section:last-child > .danger-button {
+    min-height: 42px;
+    margin-top: 7px;
+    padding: 6px 8px;
+    font-size: 11px;
+    line-height: 1.15;
   }
 }
 
@@ -395,16 +489,28 @@ body,
     font-size: 13px;
   }
 
-  .wide-modal .icon-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+  .wide-modal .account-settings-row {
+    grid-template-columns: minmax(0, 1fr) 96px 54px;
+    gap: 5px;
+  }
+
+  .wide-modal .account-settings-row > select {
+    width: 96px;
+  }
+
+  .wide-modal .settings-row {
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 5px;
+  }
+
+  .wide-modal .settings-row > .primary-button,
+  .wide-modal .settings-row > .danger-button,
+  .wide-modal .settings-row > .secondary-button {
+    width: 54px;
+    min-width: 54px;
   }
 
   .wide-modal .category-settings-row {
-    grid-template-columns: 26px minmax(0, 1fr) auto;
-  }
-
-  .wide-modal .category-settings-row .danger-button {
-    grid-column: 2 / -1;
-    justify-self: end;
+    grid-template-columns: 22px minmax(0, 1fr) 44px 48px;
   }
 }
