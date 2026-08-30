@@ -1,0 +1,1 @@
+Root-cause safeguard: the app's initial React render is no longer conditional on completion of the asynchronous release/version request. This removes the identified code path capable of leaving only the page background visible while that request is unresolved.
