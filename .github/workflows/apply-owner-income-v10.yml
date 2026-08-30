@@ -6,6 +6,7 @@ on:
     paths:
       - scripts/apply-owner-income-v10.py
       - scripts/fix-owner-income-v10.py
+      - scripts/fix-owner-income-source-audit.py
       - .github/workflows/apply-owner-income-v10.yml
 permissions:
   contents: write
@@ -25,6 +26,7 @@ jobs:
         run: |
           python scripts/apply-owner-income-v10.py
           python scripts/fix-owner-income-v10.py
+          python scripts/fix-owner-income-source-audit.py
       - name: Validate exact patched tree
         run: |
           npm ci
@@ -33,6 +35,7 @@ jobs:
         run: |
           rm scripts/apply-owner-income-v10.py
           rm scripts/fix-owner-income-v10.py
+          rm scripts/fix-owner-income-source-audit.py
           rm .github/workflows/apply-owner-income-v10.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
