@@ -14,7 +14,7 @@ await import('./apply-v28-patches.mjs');
 finance = await readFile(financePath, 'utf8');
 finance = finance.replace("import { migrateMonthScopedSetup } from './month-scope.js'; // PENNY_V28_MONTH_SCOPED", "import { getMonthAccounts, migrateMonthScopedSetup } from './month-scope.js'; // PENNY_V28_MONTH_SCOPED");
 finance = finance.replace("  const masterAccounts = Object.fromEntries((state?.accounts || []).map((account) => [account.id, account]));", "  const masterAccounts = Object.fromEntries(getMonthAccounts(state, monthKey).map((account) => [account.id, account]));");
-finance = finance.replace("      hasCurrentBalance: Boolean(bankBalance),", "      hasCurrentBalance: true, // PENNY_V29_DEFAULT_ZERO");
+finance = finance.replace("      hasCurrentBalance: Boolean(bankBalance),", "      hasCurrentBalance: Boolean(bankBalance || masterAccount), // PENNY_V29_DEFAULT_ZERO");
 await writeFile(financePath, finance);
 
 const appPath = 'src/App.jsx';
@@ -28,7 +28,7 @@ await writeFile(appPath, app);
 const selfTestPath = 'scripts/self-test.mjs';
 let selfTest = await readFile(selfTestPath, 'utf8');
 selfTest = selfTest.replace("assert.equal(merged.people.some((person) => person.id === 'p3'), true);\nassert.equal(merged.accounts.some((account) => account.id === 'a3'), true);", "assert.equal(merged.peopleByMonth['2026-06'].some((person) => person.id === 'p3'), true);\nassert.equal(merged.accountsByMonth['2026-06'].some((account) => account.id === 'a3'), true);");
-selfTest = selfTest.replace("assert.equal(july.accountFundingPlan[0].hasCurrentBalance, false, 'Missing bank balances must not be treated as confirmed zero evidence.');", "assert.equal(july.accountFundingPlan[0].hasCurrentBalance, true, 'Missing bank balances must default to zero for transfer planning.');");
+selfTest = selfTest.replace("assert.equal(july.accountFundingPlan[0].hasCurrentBalance, false, 'Missing bank balances must not be treated as confirmed zero evidence.');", "assert.equal(july.accountFundingPlan[0].hasCurrentBalance, true, 'Missing bank balances on active accounts must default to zero for transfer planning.');");
 selfTest = selfTest.replace("assert.equal(july.hasUnconfirmedBankBalances, true);", "assert.equal(july.hasUnconfirmedBankBalances, false);");
 await writeFile(selfTestPath, selfTest);
 
@@ -50,7 +50,7 @@ await writeFile(clearTestPath, clearTest);
 
 const sourceAuditPath = 'scripts/source-audit.mjs';
 let sourceAudit = await readFile(sourceAuditPath, 'utf8');
-sourceAudit = sourceAudit.replace("assert.match(files.finance, /CURRENT_STATE_VERSION = 10/);", "assert.match(files.finance, /CURRENT_STATE_VERSION = 11/);\n  assert.match(files.finance, /hasCurrentBalance: true, \/\/ PENNY_V29_DEFAULT_ZERO/, 'Missing bank-balance rows must default to confirmed zero for transfer planning.');\n  assert.match(files.app, /placeholder=\"0\\.00\"/, 'Current bank balance editor must display a zero default instead of TBC.');\n  assert.match(files.app, /If left blank, Penny treats the balance as £0\\.00\\./, 'Current bank balance helper must explain the zero default.');");
+sourceAudit = sourceAudit.replace("assert.match(files.finance, /CURRENT_STATE_VERSION = 10/);", "assert.match(files.finance, /CURRENT_STATE_VERSION = 11/);\n  assert.match(files.finance, /hasCurrentBalance: Boolean\\(bankBalance \\|\\| masterAccount\\), \/\/ PENNY_V29_DEFAULT_ZERO/, 'Missing bank-balance rows on active accounts must default to zero for transfer planning.');\n  assert.match(files.app, /placeholder=\"0\\.00\"/, 'Current bank balance editor must display a zero default instead of TBC.');\n  assert.match(files.app, /If left blank, Penny treats the balance as £0\\.00\\./, 'Current bank balance helper must explain the zero default.');");
 await writeFile(sourceAuditPath, sourceAudit);
 
 console.log('PENNY_V28_MONTH_SCOPED driver completed');
