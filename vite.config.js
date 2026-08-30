@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { recordDateLayoutPlugin } from './build/record-date-layout.js'
 
 // https://vitejs.dev
 export default defineConfig({
-  plugins: [react()],
+  plugins: [recordDateLayoutPlugin(), react()],
   base: '/penny-budget/',
   build: {
     outDir: 'dist',
