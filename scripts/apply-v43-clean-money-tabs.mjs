@@ -32,10 +32,9 @@ if (!app.includes('PENNY_V43_CLEAN_MONEY_TABS')) {
   app = app.replace(addButton, '');
 
   const addPanelStart = app.indexOf('        {canEdit && adding && (');
-  const addPanelEndMarker = '        )}\n';
-  const addPanelEnd = app.indexOf(addPanelEndMarker, addPanelStart);
-  if (addPanelStart < 0 || addPanelEnd < 0) throw new Error('v43 could not find the Savings add-account panel.');
-  app = app.slice(0, addPanelStart) + app.slice(addPanelEnd + addPanelEndMarker.length);
+  const nextSavingsHint = app.indexOf('        {canEdit && !masterSavingsAccounts.length', addPanelStart);
+  if (addPanelStart < 0 || nextSavingsHint < 0) throw new Error('v43 could not find the Savings add-account panel boundaries.');
+  app = app.slice(0, addPanelStart) + app.slice(nextSavingsHint);
 
   app = app.replace(
     '        {canEdit && !masterSavingsAccounts.length && <div className="empty savings-settings-hint">Add savings accounts in Settings first, then select them here.</div>}',
