@@ -11,6 +11,7 @@ import './transfer-plan-compact.css';
 import './backup-actions-uniform.css';
 import './category-settings-cleanup.css';
 import './transaction-uniform.css';
+import './expense-income-parity.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
