@@ -60,6 +60,17 @@ function dedupeCandidates(sourceRows, targetRows, keyFn) {
   });
 }
 
+function futureAccountSafeRow(row, accountIds) {
+  if (!row?.account || row.account === 'unassigned' || accountIds.has(row.account)) return row;
+  return {
+    ...row,
+    account: 'unassigned',
+    accountLabel: '',
+    accountOwnerId: 'unassigned',
+    accountOwnerLabel: '',
+  };
+}
+
 export function recurringBillSetup(state, targetMonthKey) {
   const sourceMonthKey = previousMonthKey(targetMonthKey);
   if (!sourceMonthKey) return {
@@ -72,15 +83,18 @@ export function recurringBillSetup(state, targetMonthKey) {
     .sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
   const targetBills = (state?.txnsByMonth?.[targetMonthKey] || [])
     .filter((transaction) => transaction.type === 'expense' && transaction.expenseClass === 'fixed');
-  const candidates = dedupeCandidates(sourceBills, targetBills, recurringBillKey)
-    .map(({ id, duplicate, row }) => ({ id, duplicate, transaction: row }));
+  const accountIds = new Set((state?.accounts || []).map((account) => account.id));
+  const futureBillKey = (row) => recurringBillKey(futureAccountSafeRow(row, accountIds));
+  const candidates = dedupeCandidates(sourceBills, targetBills, futureBillKey)
+    .map(({ id, duplicate, row }) => ({ id, duplicate, transaction: futureAccountSafeRow(row, accountIds) }));
 
   const sourceIncome = (state?.incomeByMonth?.[sourceMonthKey] || [])
     .filter((record) => recurringIncomeMode(record) !== 'manual')
     .sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
   const targetIncome = state?.incomeByMonth?.[targetMonthKey] || [];
-  const incomeCandidates = dedupeCandidates(sourceIncome, targetIncome, recurringIncomeKey)
-    .map(({ id, duplicate, row }) => ({ id, duplicate, record: row, mode: recurringIncomeMode(row) }));
+  const futureIncomeKey = (row) => recurringIncomeKey(futureAccountSafeRow(row, accountIds));
+  const incomeCandidates = dedupeCandidates(sourceIncome, targetIncome, futureIncomeKey)
+    .map(({ id, duplicate, row }) => ({ id, duplicate, record: futureAccountSafeRow(row, accountIds), mode: recurringIncomeMode(row) }));
 
   const availableCount = candidates.filter((candidate) => !candidate.duplicate).length;
   const availableIncomeCount = incomeCandidates.filter((candidate) => !candidate.duplicate).length;
@@ -111,17 +125,22 @@ export function buildRecurringBillCopies(state, targetMonthKey, selectedIds, idF
   return setup.candidates.flatMap(({ id, transaction, duplicate }) => {
     if (duplicate || !selected.has(id)) return [];
     const account = accounts[transaction.account];
-    const ownerId = account?.ownerId || transaction.accountOwnerId || 'unassigned';
+    const accountAvailable = transaction.account === 'unassigned' || Boolean(account);
+    const copiedAccountId = accountAvailable ? transaction.account : 'unassigned';
+    const ownerId = copiedAccountId === 'unassigned'
+      ? 'unassigned'
+      : account?.ownerId || transaction.accountOwnerId || 'unassigned';
     const copied = normaliseTransaction({
       ...transaction,
       id: idFactory('txn'),
       date: recurringTargetDate(transaction.date, targetMonthKey),
       paid: false,
       paidByLabel: transaction.paidBy === 'household' ? 'Joint' : people[transaction.paidBy]?.label || transaction.paidByLabel || '',
-      accountLabel: account?.label || transaction.accountLabel || transaction.account || '',
+      account: copiedAccountId,
+      accountLabel: copiedAccountId === 'unassigned' ? '' : account?.label || transaction.accountLabel || transaction.account || '',
       accountOwnerId: ownerId,
       accountOwnerLabel: ownerLabel(ownerId, people),
-      confirmationIssues: ['date', ...(transaction.confirmationIssues || []).filter((issue) => issue === 'other')],
+      confirmationIssues: ['date', ...(transaction.confirmationIssues || []).filter((issue) => issue === 'other'), ...(!accountAvailable ? ['account'] : [])],
       dateConfirmed: false,
       needsConfirmation: true,
       source: 'month_copy',
@@ -138,11 +157,15 @@ export function buildRecurringIncomeCopies(state, targetMonthKey, selectedIds, i
   return setup.incomeCandidates.flatMap(({ id, record, mode, duplicate }) => {
     if (duplicate || !selected.has(id)) return [];
     const account = accounts[record.account];
-    const ownerId = account?.ownerId || record.accountOwnerId || 'unassigned';
+    const accountAvailable = record.account === 'unassigned' || Boolean(account);
+    const copiedAccountId = accountAvailable ? record.account : 'unassigned';
+    const ownerId = copiedAccountId === 'unassigned'
+      ? 'unassigned'
+      : account?.ownerId || record.accountOwnerId || 'unassigned';
     const amountConfirmed = mode === 'fixed';
     const confirmationIssues = ['date', 'received', ...(amountConfirmed ? [] : ['amount'])];
     if (record.receivedBy === 'unassigned') confirmationIssues.push('receivedBy');
-    if (record.account === 'unassigned') confirmationIssues.push('account');
+    if (copiedAccountId === 'unassigned') confirmationIssues.push('account');
     const copied = normaliseIncomeRecord({
       ...record,
       id: idFactory('income'),
@@ -152,7 +175,8 @@ export function buildRecurringIncomeCopies(state, targetMonthKey, selectedIds, i
       incomeStatus: 'expected',
       recurrenceMode: mode,
       receivedByLabel: people[record.receivedBy]?.label || record.receivedByLabel || '',
-      accountLabel: account?.label || record.accountLabel || record.account || '',
+      account: copiedAccountId,
+      accountLabel: copiedAccountId === 'unassigned' ? '' : account?.label || record.accountLabel || record.account || '',
       accountOwnerId: ownerId,
       accountOwnerLabel: ownerLabel(ownerId, people),
       confirmationIssues,

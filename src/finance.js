@@ -24,8 +24,10 @@ export function isValidMonthKey(value) {
 export function isValidDateKey(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split('-').map(Number);
-  const parsed = new Date(year, month - 1, day);
-  return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day;
+  const parsed = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0).getDate();
+  return month >= 1 && month <= 12 && day >= 1 && day <= lastDay
+    && parsed.getFullYear() === year && parsed.getMonth() === month - 1;
 }
 
 export function localDateKey(date = new Date()) {
@@ -518,17 +520,20 @@ export function monthSummary(state, monthKey) {
   const projectedIncrease = isComplete ? 0 : savedThisMonth;
   const projectedEndSavings = isComplete ? currentSavings : roundMoney(currentSavings + savedThisMonth);
 
+  const masterAccounts = Object.fromEntries((state?.accounts || []).map((account) => [account.id, account]));
+  const activeAccountIds = new Set(Object.keys(masterAccounts));
   const plan = new Map();
   expenseTransactions.filter((transaction) => !transaction.paid).forEach((transaction) => {
     const paidBy = transaction.paidBy || 'unassigned';
-    const account = transaction.account || 'unassigned';
+    const rawAccount = transaction.account || 'unassigned';
+    const account = rawAccount === 'unassigned' || activeAccountIds.has(rawAccount) ? rawAccount : 'unassigned';
     const key = `${paidBy}::${account}`;
     const current = plan.get(key) || {
       key,
       paidBy,
       account,
       paidByLabel: transaction.paidByLabel,
-      accountLabel: transaction.accountLabel,
+      accountLabel: account === 'unassigned' ? '' : transaction.accountLabel,
       amount: 0,
       count: 0,
     };
@@ -539,11 +544,10 @@ export function monthSummary(state, monthKey) {
 
   const transferPlan = [...plan.values()].sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
   const bankBalances = bankBalanceMap(state, monthKey);
-  const masterAccounts = Object.fromEntries((state?.accounts || []).map((account) => [account.id, account]));
   const accountPlan = new Map();
   transferPlan.forEach((row) => {
     const key = row.account || 'unassigned';
-    const bankBalance = bankBalances[key];
+    const bankBalance = key === 'unassigned' ? undefined : bankBalances[key];
     const masterAccount = masterAccounts[key];
     const masterOwner = masterAccount?.ownerId || 'unassigned';
     const ownerId = masterOwner !== 'unassigned' ? masterOwner : bankBalance?.ownerId || 'unassigned';
