@@ -291,8 +291,8 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
 .icon-choice { min-height: 44px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); font-size: 20px; }
 .icon-choice.selected { border-color: var(--accent); background: rgba(96,165,250,0.16); }
 
-.modal { position: fixed; z-index: 100; inset: 0; display: grid; place-items: end center; overflow-y: auto; padding: max(14px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); background: rgba(3, 6, 12, 0.78); }
-.modal-inner { width: min(100%, 620px); max-height: calc(100dvh - 28px); overflow-y: auto; border: 1px solid var(--border); border-radius: 19px; padding: 16px; background: var(--surface); box-shadow: var(--shadow); }
+.modal { position: fixed; z-index: 100; inset: 0; display: grid; place-items: end center; overflow: hidden; overscroll-behavior: contain; padding: max(14px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); background: rgba(3, 6, 12, 0.78); }
+.modal-inner { width: min(100%, 620px); min-height: 0; max-height: calc(100vh - 28px); max-height: calc(100dvh - max(14px, env(safe-area-inset-top)) - max(14px, env(safe-area-inset-bottom))); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 19px; padding: 16px; background: var(--surface); box-shadow: var(--shadow); }
 .wide-modal { width: min(100%, 760px); }
 .modal-head { position: sticky; z-index: 2; top: -16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -16px -16px 15px; border-bottom: 1px solid var(--border); padding: 15px 16px; background: var(--surface); }
 .modal-head .section-title { margin: 0; }
@@ -320,6 +320,12 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
 
 @media (max-width: 760px) {
   .year-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .modal-inner > .actions { position: sticky; z-index: 3; bottom: -16px; margin: 16px -16px -16px; border-top: 1px solid var(--border); padding: 12px 16px 16px; background: rgba(22, 27, 39, 0.98); backdrop-filter: blur(18px); }
+  .modal-inner > .actions > button { flex: 1 1 0; }
+  .modal-inner input, .modal-inner select { min-width: 0; max-width: 100%; }
 }
 
 @media (max-width: 640px) {

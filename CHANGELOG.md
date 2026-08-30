@@ -1,3 +1,10 @@
+## 2026-08-30 — Mobile transaction editor repair
+
+- Removed the nested/double-scroll modal layout that could break the transaction editor on iPhone Safari/PWA.
+- Made the editor height safe-area aware and kept the form inside one controlled touch-scroll container.
+- Kept Save/Cancel reachable with a sticky mobile action bar and constrained form controls to the sheet width.
+- No finance calculations, transaction data, categories, account rules or historical records were changed.
+
 ## 2026-08-30 — Owner-specific accounts and regular income carry-forward
 
 - Prevented TBC same-bank accounts used by multiple payers from being treated as one funding pot.
