@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import { installMonthClearControl } from './month-clear.js';
 import { installCategorySettingsCleanup } from './category-settings-cleanup.js';
-import { installAttentionNavigation } from './attention-navigation.js';
 import './mobile-navigation.css';
 import './settings-fix.css';
 import './income-compact.css';
@@ -11,7 +10,7 @@ import './overview-compact-v12.css';
 import './transfer-plan-compact.css';
 import './backup-actions-uniform.css';
 import './category-settings-cleanup.css';
-import './attention-navigation.css';
+import './transaction-uniform.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
@@ -76,7 +75,6 @@ function renderApp() {
   );
   installMonthClearControl();
   installCategorySettingsCleanup();
-  installAttentionNavigation();
 }
 
 ensureCurrentRelease({ force: true }).then((ready) => {
