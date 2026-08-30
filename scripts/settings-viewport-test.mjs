@@ -21,7 +21,7 @@ assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(84px, 108px\)
 assert.match(css, /account-settings-row:has\(> \.danger-button:not\(:disabled\)\)/, 'A real Remove action must still get its own account-row column when available.');
 assert.match(css, /\.account-settings-row > input,[\s\S]*\.account-settings-row > select,[\s\S]*\.account-settings-row > \.primary-button,[\s\S]*\.account-settings-row > \.danger-button:not\(:disabled\) \{\s*height: 52px;\s*min-height: 52px;/s, 'Account name, owner selector and action button must use exactly the same mobile row height.');
 assert.match(css, /\.icon-picker,[\s\S]*\.icon-grid,[\s\S]*\.category-list,[\s\S]*\.category-list-body,[\s\S]*\.category-settings-row \{\s*width: 100%;\s*min-width: 0;\s*max-width: 100%;/s, 'Every category control must be width-constrained inside the Settings card.');
-assert.match(categoryJs, /textContent\?\.trim\(\) === 'Change History'/, 'Visible Change History must be removed by heading while the underlying audit log remains untouched.');
+assert.match(categoryJs, /sectionByHeading\(modal, 'Change History'\)/, 'Visible Change History must be removed by heading while the underlying audit log remains untouched.');
 assert.match(categoryJs, /document\.createElement\('select'\)/, 'Category icons must use a compact select instead of the always-visible icon grid.');
 assert.match(categoryJs, /grid\.hidden = true/, 'The original icon grid must be hidden after the compact selector is installed.');
 assert.match(categoryJs, /This only removes an unused custom category/, 'Deleting a custom category must require explicit confirmation and explain the safe scope.');
