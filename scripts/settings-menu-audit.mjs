@@ -49,7 +49,7 @@ assert.match(mobileCss, /\.wide-modal \.icon-grid \{[^}]*display: flex;[^}]*over
 assert.match(mobileCss, /\.wide-modal \.stacked-actions \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s, 'Backup actions must remain space-efficient on mobile.');
 assert.match(mobileCss, /\.wide-modal > \.settings-section:last-child > \.danger-button \{[^}]*font-size: 11px;/s, 'The erase control must remain visually secondary while still clearly destructive.');
 
-// People/category references remain protected, while bank accounts are always removable from the master choice list.
+// Active account ownership protects a person. Historical rows alone must not permanently lock master-list people/accounts.
 const referenceState = {
   ...createBlankState(),
   people: [{ id: 'person-a', label: 'Person A' }, { id: 'person-b', label: 'Person B' }],
@@ -59,25 +59,41 @@ const referenceState = {
   ],
   txnsByMonth: {
     '2026-08': [
-      { id: 'txn-a', type: 'expense', category: 'housing', paidBy: 'person-a', account: 'account-a', accountLabel: 'Account A' },
+      { id: 'txn-a', type: 'expense', category: 'housing', paidBy: 'person-a', paidByLabel: 'Person A', account: 'account-a', accountLabel: 'Account A' },
     ],
   },
   incomeByMonth: {
     '2026-08': [
-      { id: 'income-a', receivedBy: 'person-b', account: 'account-b', accountLabel: 'Account B' },
+      { id: 'income-a', receivedBy: 'person-b', receivedByLabel: 'Person B', account: 'account-b', accountLabel: 'Account B' },
     ],
   },
   bankBalancesByMonth: {
     '2026-08': [{ id: 'account-a', label: 'Account A', balance: 100 }],
   },
 };
-assert.equal(referenceInUse(referenceState, 'people', 'person-a'), true, 'A payer/account owner cannot be deleted while referenced.');
-assert.equal(referenceInUse(referenceState, 'people', 'person-b'), true, 'An income receiver/account owner cannot be deleted while referenced.');
+assert.equal(referenceInUse(referenceState, 'people', 'person-a'), true, 'A person must remain protected while they own an active account.');
+assert.equal(referenceInUse(referenceState, 'people', 'person-b'), true, 'An active account owner must remain protected even when income also references them.');
 assert.equal(referenceInUse(referenceState, 'accounts', 'account-a'), false, 'A bank must remain removable even when an open transaction/balance references it, because the record keeps its own account evidence.');
 assert.equal(referenceInUse(referenceState, 'accounts', 'account-b'), false, 'A bank used by open-month income must still offer Remove in Settings.');
 assert.equal(referenceInUse(referenceState, 'accounts', 'unused-account'), false, 'An unused account should remain removable.');
 assert.equal(categoryInUse(referenceState, 'housing'), true, 'A category used by historical records cannot be deleted.');
 assert.equal(categoryInUse(referenceState, 'unused-category'), false, 'An unused custom category should remain removable.');
+
+const noActiveAccountsState = { ...referenceState, accounts: [] };
+assert.equal(referenceInUse(noActiveAccountsState, 'people', 'person-a'), false, 'A historical payer must become removable after active accounts are removed or reassigned.');
+assert.equal(referenceInUse(noActiveAccountsState, 'people', 'person-b'), false, 'A historical income recipient must become removable after active accounts are removed or reassigned.');
+const removedPeopleState = appReducer(noActiveAccountsState, {
+  type: 'SET_REFERENCE_LIST',
+  field: 'people',
+  items: [],
+  auditAt: '2026-08-30T10:00:20.000Z',
+  auditId: 'audit-remove-people',
+  auditLabel: 'Remove household people',
+});
+assert.equal(removedPeopleState.people.length, 0, 'All household people must be removable from a clean master template once no active account owns them.');
+assert.equal(removedPeopleState.txnsByMonth['2026-08'][0].paidByLabel, 'Person A', 'Removing a person must not rewrite the saved payer evidence on historical transactions.');
+assert.equal(removedPeopleState.incomeByMonth['2026-08'][0].receivedByLabel, 'Person B', 'Removing a person must not rewrite the saved recipient evidence on historical income.');
+assert.equal(removedPeopleState.auditLog[0].id, 'audit-remove-people', 'Removing household people must remain auditable.');
 
 const completedReferenceState = {
   ...referenceState,
@@ -105,7 +121,7 @@ const mixedReferenceState = {
   ...completedReferenceState,
   txnsByMonth: {
     ...completedReferenceState.txnsByMonth,
-    '2026-09': [{ id: 'txn-sep', type: 'expense', category: 'housing', paidBy: 'person-a', account: 'account-a', accountLabel: 'Account A' }],
+    '2026-09': [{ id: 'txn-sep', type: 'expense', category: 'housing', paidBy: 'person-a', paidByLabel: 'Person A', account: 'account-a', accountLabel: 'Account A' }],
   },
 };
 assert.equal(referenceInUse(mixedReferenceState, 'accounts', 'account-a'), false, 'Open-month usage must not suppress the bank Remove option.');
@@ -147,4 +163,4 @@ assert.deepEqual(clearPennyState(storage), { ok: true, error: '' }, 'Explicit er
 assert.equal(storage.getItem(STORAGE_KEY), null, 'Explicit erase must remove the primary Penny state.');
 assert.equal(storage.getItem(ROLLBACK_STORAGE_KEY), null, 'Explicit erase must also remove stale rollback data.');
 
-console.log('Penny Settings menu audit passed: removable banks, preserved record evidence, protected people/categories, recovery, backups, audit trail, accessibility and compact mobile UX are protected');
+console.log('Penny Settings menu audit passed: removable people/accounts with preserved historical evidence, protected active ownership/categories, recovery, backups, audit trail, accessibility and compact mobile UX are protected');
