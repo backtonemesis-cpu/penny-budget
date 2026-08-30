@@ -292,6 +292,14 @@ export function categoryInUse(state, categoryId) {
   return Object.values(state.txnsByMonth).some((rows) => rows.some((transaction) => transaction.category === categoryId));
 }
 
+function referenceInOpenMonth(state, recordsByMonth, predicate) {
+  return Object.entries(recordsByMonth || {}).some(([monthKey, rows]) => (
+    state.monthMetaByMonth?.[monthKey]?.status !== 'complete'
+    && Array.isArray(rows)
+    && rows.some(predicate)
+  ));
+}
+
 export function referenceInUse(state, field, referenceId) {
   if (field === 'people') {
     return Object.values(state.txnsByMonth).some((rows) => rows.some((transaction) => transaction.paidBy === referenceId))
@@ -299,9 +307,9 @@ export function referenceInUse(state, field, referenceId) {
       || (state.accounts || []).some((account) => account.ownerId === referenceId);
   }
   if (field === 'accounts') {
-    return Object.values(state.txnsByMonth).some((rows) => rows.some((transaction) => transaction.account === referenceId))
-      || Object.values(state.incomeByMonth).some((rows) => rows.some((record) => record.account === referenceId))
-      || Object.values(state.bankBalancesByMonth || {}).some((rows) => rows.some((record) => record.id === referenceId));
+    return referenceInOpenMonth(state, state.txnsByMonth, (transaction) => transaction.account === referenceId)
+      || referenceInOpenMonth(state, state.incomeByMonth, (record) => record.account === referenceId)
+      || referenceInOpenMonth(state, state.bankBalancesByMonth, (record) => record.id === referenceId);
   }
   return false;
 }
