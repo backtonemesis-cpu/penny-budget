@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { transformRecordDateLayout } from '../build/record-date-layout.js';
 
 const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 const mobileCss = await readFile(new URL('../src/mobile-navigation.css', import.meta.url), 'utf8');
 const transferPlanCss = await readFile(new URL('../src/transfer-plan-compact.css', import.meta.url), 'utf8');
+const settingsCss = await readFile(new URL('../src/settings-fix.css', import.meta.url), 'utf8');
+const recordEditorCss = await readFile(new URL('../src/record-editor-v62.css', import.meta.url), 'utf8');
+const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const transformedApp = transformRecordDateLayout(appSource);
 
 assert.match(css, /\.modal \{[^}]*overflow: hidden;[^}]*overscroll-behavior: contain;/s, 'Modal backdrop must not become a second scroll container.');
 assert.match(css, /\.modal-inner \{[^}]*max-height: calc\(100dvh - max\(14px, env\(safe-area-inset-top\)\) - max\(14px, env\(safe-area-inset-bottom\)\)\);[^}]*overflow-y: auto;[^}]*-webkit-overflow-scrolling: touch;/s, 'Modal content must use one safe-area-aware iOS vertical scroll container.');
@@ -28,4 +33,14 @@ assert.match(transferPlanCss, /\.attention-card \.section-heading \.section-note
 assert.match(transferPlanCss, /\.attention-card \.transfer-account-row > \.money,[\s\S]*\.attention-card \.transfer-breakdown,[\s\S]*\.attention-card \.funding-balance-editor small \{\s*display: none !important;/s, 'Duplicate information below each transfer-plan balance input must stay hidden on mobile.');
 assert.match(transferPlanCss, /\.attention-card \.funding-balance-editor input \{\s*margin-bottom: 0;/s, 'The current-bank-balance input must visually end each mobile transfer account block.');
 
-console.log('Penny mobile viewport, compact header, transfer plan and modal layout regression tests passed');
+assert.doesNotMatch(settingsCss, /Record date visibility repair \(v59\)/, 'The obsolete v59 sticky Exact date workaround must stay removed.');
+assert.doesNotMatch(settingsCss, /\.modal-inner:has\(> \.field > #record-date\).*position: sticky/s, 'Record date controls must not be pinned with a CSS scroll workaround.');
+assert.match(recordEditorCss, /\.modal-inner #record-date \{[^}]*width: 100% !important;[^}]*min-width: 0 !important;[^}]*max-width: 100% !important;[^}]*box-sizing: border-box;/s, 'The iPhone date input must stay inside the same field width as other Income and Expense controls.');
+assert.match(recordEditorCss, /\.modal-head-copy \{[^}]*flex: 1 1 auto;[^}]*min-width: 0;/s, 'The sticky editor header must reserve a safe flexible track for record identity.');
+assert.match(recordEditorCss, /\.modal-context \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/s, 'Long Income or Expense identities must remain readable without colliding with Done.');
+assert.match(transformedApp, /const recordContext = existing[\s\S]*?Income[\s\S]*?Expense[\s\S]*?Transfer[\s\S]*?formatMoney/s, 'The shared record editor must build a persistent identity from record type, description and amount.');
+assert.match(transformedApp, /<SimpleModal title=\{existing \? 'Edit record' : 'Add record'\} subtitle=\{recordContext\} onClose=\{onClose\}>/, 'Income and Expense edits must pass their record identity into the sticky modal header.');
+assert.match(transformedApp, /function SimpleModal\(\{ title, subtitle = '', onClose, children, wide = false \}\)/, 'SimpleModal must accept the optional record identity without affecting other modal users.');
+assert.match(transformedApp, /\{subtitle && <div className="modal-context">\{subtitle\}<\/div>\}/, 'The record identity must stay visible in the sticky editor header while scrolling.');
+
+console.log('Penny mobile viewport, compact header, transfer plan, and shared Income/Expense editor regressions passed');
