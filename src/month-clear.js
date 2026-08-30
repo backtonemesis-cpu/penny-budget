@@ -20,6 +20,7 @@ function hasMonthData(state, monthKey) {
     || (state.incomeByMonth?.[monthKey] || []).length
     || (state.bankBalancesByMonth?.[monthKey] || []).length
     || state.budgetsByMonth?.[monthKey]
+    || state.monthMetaByMonth?.[monthKey]
   );
 }
 
@@ -42,8 +43,10 @@ function clearSelectedMonth() {
 
   const state = loaded.state;
   const label = monthLabel(monthKey);
-  if (state.monthMetaByMonth?.[monthKey]?.status === 'complete') {
-    globalThis.alert(`${label} is a completed historical month and cannot be cleared. Historical evidence must remain protected.`);
+  const completed = state.monthMetaByMonth?.[monthKey]?.status === 'complete';
+  const lockedBannerVisible = Boolean(document.querySelector('.locked-banner'));
+  if (completed && lockedBannerVisible) {
+    globalThis.alert(`${label} is a completed historical month. Unlock corrections on Overview first, then use Clear month again.`);
     return;
   }
   if (!hasMonthData(state, monthKey)) {
@@ -56,6 +59,7 @@ function clearSelectedMonth() {
     income: state.incomeByMonth?.[monthKey] || [],
     bankBalances: state.bankBalancesByMonth?.[monthKey] || [],
     budget: state.budgetsByMonth?.[monthKey] || null,
+    monthMeta: state.monthMetaByMonth?.[monthKey] || null,
   };
   const transactionCount = before.transactions.length;
   const incomeCount = before.income.length;
@@ -71,6 +75,7 @@ function clearSelectedMonth() {
     incomeByMonth: withoutKey(state.incomeByMonth, monthKey),
     bankBalancesByMonth: withoutKey(state.bankBalancesByMonth, monthKey),
     budgetsByMonth: withoutKey(state.budgetsByMonth, monthKey),
+    monthMetaByMonth: withoutKey(state.monthMetaByMonth, monthKey),
     auditLog: [{
       id: createId('audit'),
       at: new Date().toISOString(),
@@ -80,7 +85,7 @@ function clearSelectedMonth() {
       monthKey,
       label: `Cleared ${label}`,
       before,
-      after: { transactions: [], income: [], bankBalances: [], budget: null },
+      after: { transactions: [], income: [], bankBalances: [], budget: null, monthMeta: null },
     }, ...(state.auditLog || [])].slice(0, MAX_AUDIT_ENTRIES),
   };
 
@@ -96,7 +101,7 @@ function ensureClearMonthControl() {
   const overviewActive = [...document.querySelectorAll('.nav button')].some((button) => button.textContent?.trim() === 'Overview' && button.classList.contains('active'));
   const existing = document.querySelector('[data-penny-clear-month]');
   if (!overviewActive) {
-    existing?.remove();
+    document.querySelector('[data-penny-clear-month-row]')?.remove();
     return;
   }
 
@@ -105,8 +110,9 @@ function ensureClearMonthControl() {
   const target = document.querySelector('.month-setup-card') || document.querySelector('.attention-card') || document.querySelector('.metric-grid');
   if (!target) return;
 
+  const label = `Clear ${MONTH_NAMES[Number(monthKey.slice(5, 7)) - 1]}`;
   if (existing) {
-    existing.textContent = `Clear ${MONTH_NAMES[Number(monthKey.slice(5, 7)) - 1]}`;
+    if (existing.textContent !== label) existing.textContent = label;
     return;
   }
 
@@ -117,7 +123,7 @@ function ensureClearMonthControl() {
   button.type = 'button';
   button.className = 'clear-month-button';
   button.setAttribute('data-penny-clear-month', '');
-  button.textContent = `Clear ${MONTH_NAMES[Number(monthKey.slice(5, 7)) - 1]}`;
+  button.textContent = label;
   button.addEventListener('click', clearSelectedMonth);
   wrap.appendChild(button);
 
@@ -127,8 +133,10 @@ function ensureClearMonthControl() {
 
 export function installMonthClearControl() {
   ensureClearMonthControl();
+  const root = document.getElementById('root');
+  if (!root) return;
   const observer = new MutationObserver(() => ensureClearMonthControl());
-  observer.observe(document.getElementById('root'), { childList: true, subtree: true });
+  observer.observe(root, { childList: true, subtree: true });
   document.addEventListener('change', (event) => {
     if (event.target?.classList?.contains('month-input')) queueMicrotask(ensureClearMonthControl);
   });
