@@ -79,7 +79,7 @@
 - Added an Owner field to every bill-paying account using local household person, Joint or TBC references.
 - Existing accounts migrate to Owner TBC; Penny never infers ownership from transaction usage.
 - Account ownership is visible in Settings, account choices, Transactions, Bills, Savings and the Start-of-Month Transfer Plan.
-- New financial records snapshot the account owner alongside the account label so later owner changes do not rewrite how old evidence is displayed.
+- New financial records snapshot the account owner alongside the account label so later owner changes do not rewrite historical evidence.
 - Monthly bank-balance snapshots preserve ownership metadata for transfer planning.
 - Month imports may fill a TBC owner from explicit evidence but cannot overwrite an already-confirmed owner.
 - Account-owner edits are recorded in Change History.
