@@ -1,3 +1,12 @@
+## 2026-08-30 — Always-removable bank accounts
+
+- Every bank account in Settings now offers `Remove`, including accounts still referenced by current or historical records.
+- Removing a bank removes only the master account choice: existing transaction, income and month-specific bank-balance evidence keeps its saved account ID/label and is not rewritten or deleted.
+- Removed banks are no longer active transfer-plan destinations; unpaid costs that still point to a removed bank are treated as unassigned for funding planning until a current account is chosen.
+- Start New Month never carries a removed bank forward. A recurring bill or regular-income template that referred to a removed bank is previewed/copied with Account TBC for explicit reassignment.
+- Account removal remains recorded in Penny Change History, and dedicated regression coverage protects evidence preservation, transfer planning and future-month deduplication.
+- Income, expense, savings and reconciliation totals are unchanged.
+
 ## 2026-08-30 — Removable inactive bank accounts
 
 - Changed account removal so a bank used only in completed historical months can be removed from the active Accounts list and future account choices.
