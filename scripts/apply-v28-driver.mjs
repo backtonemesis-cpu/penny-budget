@@ -28,6 +28,8 @@ await writeFile(appPath, app);
 const selfTestPath = 'scripts/self-test.mjs';
 let selfTest = await readFile(selfTestPath, 'utf8');
 selfTest = selfTest.replace("assert.equal(merged.people.some((person) => person.id === 'p3'), true);\nassert.equal(merged.accounts.some((account) => account.id === 'a3'), true);", "assert.equal(merged.peopleByMonth['2026-06'].some((person) => person.id === 'p3'), true);\nassert.equal(merged.accountsByMonth['2026-06'].some((account) => account.id === 'a3'), true);");
+selfTest = selfTest.replace("assert.equal(july.accountFundingPlan[0].hasCurrentBalance, false, 'Missing bank balances must not be treated as confirmed zero evidence.');", "assert.equal(july.accountFundingPlan[0].hasCurrentBalance, true, 'Missing bank balances must default to zero for transfer planning.');");
+selfTest = selfTest.replace("assert.equal(july.hasUnconfirmedBankBalances, true);", "assert.equal(july.hasUnconfirmedBankBalances, false);");
 await writeFile(selfTestPath, selfTest);
 
 const settingsAuditPath = 'scripts/settings-menu-audit.mjs';
