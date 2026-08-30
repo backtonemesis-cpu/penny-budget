@@ -1,0 +1,38 @@
+name: Refine unified month setup
+
+on:
+  push:
+    branches: [unified-month-setup]
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: unified-month-setup
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply refinements
+        run: python scripts/refine-unified-month-setup.py
+      - name: Validate refined tree
+        run: |
+          npm ci
+          npm run check
+      - name: Commit refinements
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/refine-unified-month-setup.py .github/workflows/refine-unified-month-setup.yml
+          git add src scripts
+          git commit -m "Refine recurring month setup safeguards"
+          git push origin HEAD:unified-month-setup
