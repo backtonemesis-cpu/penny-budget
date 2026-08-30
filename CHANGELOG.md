@@ -1,3 +1,10 @@
+## 2026-08-30 — Mobile bottom navigation stability
+
+- Disabled root overscroll chaining in Penny so iPhone rubber-band gestures do not pull the bottom navigation away from the viewport.
+- Clipped horizontal overflow at the app/root level so left/right swipes cannot make the navigation drift sideways.
+- Promoted the fixed bottom navigation to its own compositor layer and removed the live backdrop blur that could jitter during Safari scrolling.
+- Kept safe-area padding, navigation size, labels and all finance/data logic unchanged.
+
 ## 2026-08-30 — Mobile transaction editor repair
 
 - Removed the nested/double-scroll modal layout that could break the transaction editor on iPhone Safari/PWA.
