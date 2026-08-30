@@ -50,7 +50,7 @@ await writeFile(clearTestPath, clearTest);
 
 const sourceAuditPath = 'scripts/source-audit.mjs';
 let sourceAudit = await readFile(sourceAuditPath, 'utf8');
-sourceAudit = sourceAudit.replace("assert.match(files.finance, /CURRENT_STATE_VERSION = 10/);", "assert.match(files.finance, /CURRENT_STATE_VERSION = 11/);\n  assert.match(files.finance, /hasCurrentBalance: Boolean\\(bankBalance \\|\\| masterAccount\\), \/\/ PENNY_V29_DEFAULT_ZERO/, 'Missing bank-balance rows on active accounts must default to zero for transfer planning.');\n  assert.match(files.app, /placeholder=\"0\\.00\"/, 'Current bank balance editor must display a zero default instead of TBC.');\n  assert.match(files.app, /If left blank, Penny treats the balance as £0\\.00\\./, 'Current bank balance helper must explain the zero default.');");
+sourceAudit = sourceAudit.replace("assert.match(files.finance, /CURRENT_STATE_VERSION = 10/);", "assert.match(files.finance, /CURRENT_STATE_VERSION = 11/);\n  assert.match(files.finance, /hasCurrentBalance: Boolean\\(bankBalance \\|\\| masterAccount\\)/, 'Missing bank-balance rows on active accounts must default to zero for transfer planning.');\n  assert.match(files.app, /placeholder=\"0\\.00\"/, 'Current bank balance editor must display a zero default instead of TBC.');\n  assert.match(files.app, /If left blank, Penny treats the balance as £0\\.00\\./, 'Current bank balance helper must explain the zero default.');");
 await writeFile(sourceAuditPath, sourceAudit);
 
 console.log('PENNY_V28_MONTH_SCOPED driver completed');
