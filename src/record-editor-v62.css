@@ -1,20 +1,36 @@
-/* v62 record editor presentation fixes: shared by Income and Expenses. */
+/* v63 record editor presentation fixes: shared by Income and Expenses. */
 .modal-inner .field:has(> #record-date),
 .modal-inner .evidence-toggle:has(input[type="checkbox"]) {
-  width: 100%;
   min-width: 0;
   max-width: 100%;
 }
 
+/*
+ * iOS date inputs keep a stubborn intrinsic inline width. Do not size this
+ * control with width:100%: let the same flex-column stretch used by Penny's
+ * other fields determine its width instead. This keeps both edges inside the
+ * editor padding and makes Income/Expense date fields visually uniform.
+ */
 .modal-inner #record-date {
   display: block;
-  width: 100% !important;
-  inline-size: 100% !important;
+  align-self: stretch;
+  width: auto !important;
+  inline-size: auto !important;
   min-width: 0 !important;
   min-inline-size: 0 !important;
-  max-width: 100% !important;
-  max-inline-size: 100% !important;
+  max-width: none !important;
+  max-inline-size: none !important;
+  margin-inline: 0;
   box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.modal-inner #record-date::-webkit-date-and-time-value,
+.modal-inner #record-date::-webkit-datetime-edit {
+  min-width: 0;
+  width: 100%;
+  text-align: center;
 }
 
 .modal-head-copy {
@@ -50,7 +66,7 @@
 
   .modal-inner #record-date {
     min-height: 44px;
-    padding-inline: 11px;
+    padding: 9px 11px;
   }
 
   .modal-context {
