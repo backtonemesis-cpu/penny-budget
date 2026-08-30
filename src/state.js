@@ -121,15 +121,24 @@ export function appReducer(state, action) {
       const mappingByPayer = new Map(action.mappings.filter((mapping) => mapping?.paidBy && mapping?.account?.id).map((mapping) => [mapping.paidBy, mapping.account]));
       if (mappingByPayer.size < 2) return state;
       const rows = state.txnsByMonth[action.monthKey] || [];
-      let changed = 0;
+      let changedExpenses = 0;
       const nextRows = rows.map((transaction) => {
         if (transaction.type !== 'expense' || transaction.account !== action.sourceAccountId) return transaction;
         const account = mappingByPayer.get(transaction.paidBy);
         if (!account) return transaction;
-        changed += 1;
+        changedExpenses += 1;
         return { ...transaction, account: account.id, accountLabel: account.label, accountOwnerId: account.ownerId, accountOwnerLabel: action.peopleLabels?.[account.ownerId] || transaction.paidByLabel || '' };
       });
-      if (!changed) return state;
+      const incomeRows = state.incomeByMonth[action.monthKey] || [];
+      let changedIncome = 0;
+      const nextIncomeRows = incomeRows.map((record) => {
+        if (record.account !== action.sourceAccountId) return record;
+        const account = mappingByPayer.get(record.receivedBy);
+        if (!account) return record;
+        changedIncome += 1;
+        return { ...record, account: account.id, accountLabel: account.label, accountOwnerId: account.ownerId, accountOwnerLabel: action.peopleLabels?.[account.ownerId] || record.receivedByLabel || '' };
+      });
+      if (!changedExpenses && !changedIncome) return state;
       const accounts = [...state.accounts];
       action.mappings.forEach((mapping) => {
         if (!accounts.some((account) => account.id === mapping.account.id)) accounts.push(mapping.account);
@@ -138,14 +147,20 @@ export function appReducer(state, action) {
       const bankBalancesByMonth = { ...(state.bankBalancesByMonth || {}) };
       if (bankRows.length) bankBalancesByMonth[action.monthKey] = bankRows;
       else delete bankBalancesByMonth[action.monthKey];
-      const next = { ...state, accounts, txnsByMonth: { ...state.txnsByMonth, [action.monthKey]: sortByDate(nextRows) }, bankBalancesByMonth };
+      const next = {
+        ...state,
+        accounts,
+        txnsByMonth: { ...state.txnsByMonth, [action.monthKey]: sortByDate(nextRows) },
+        incomeByMonth: changedIncome ? { ...state.incomeByMonth, [action.monthKey]: sortByDate(nextIncomeRows) } : state.incomeByMonth,
+        bankBalancesByMonth,
+      };
       return appendAudit(next, action, {
         action: 'split_account',
         entityType: 'account_resolution',
         monthKey: action.monthKey,
         label: `Separated ${action.sourceAccountLabel || 'account'} by owner`,
         before: { sourceAccountId: action.sourceAccountId },
-        after: { mappings: action.mappings, reassignedTransactions: changed, clearedCurrentMonthBalance: true },
+        after: { mappings: action.mappings, reassignedExpenses: changedExpenses, reassignedIncome: changedIncome, clearedCurrentMonthBalance: true },
       });
     }
     case 'COPY_RECURRING_BILLS': {

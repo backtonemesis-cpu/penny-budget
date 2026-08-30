@@ -154,6 +154,7 @@ function financeAudit() {
   assert.match(files.finance, /incomeStatus/);
   assert.match(files.finance, /hasAmbiguousFundingAccounts/);
   assert.match(files.state, /SPLIT_ACCOUNT_FOR_MONTH/);
+  assert.match(files.state, /record\.receivedBy/, 'Explicit account separation must also map selected-month income by Received By so future recurring income keeps the correct account ID.');
   assert.match(files.state, /START_NEW_MONTH/);
   assert.match(files.app, /evidenceStatusLabel/);
   assert.match(files.app, /Only completed, reconciled months can be mortgage-ready/);

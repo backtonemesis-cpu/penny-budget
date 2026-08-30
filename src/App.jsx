@@ -216,7 +216,8 @@ function App() {
     }
     const targetRows = state.incomeByMonth[targetMonthKey] || [];
     const duplicate = targetRows.find((existing) => isLikelyDuplicateIncome(existing, income));
-    if (duplicate && !globalThis.confirm(`Possible duplicate: “${income.description}” for ${formatMoney(income.amount)} already exists on that date. Save this second record anyway?`)) {
+    const incomeAmountLabel = income.amountConfirmed === false ? 'amount TBC' : formatMoney(income.amount);
+    if (duplicate && !globalThis.confirm(`Possible duplicate: “${income.description}” for ${incomeAmountLabel} already exists on that date. Save this second record anyway?`)) {
       setMessage('Duplicate save cancelled. Existing record was left unchanged.');
       return false;
     }
@@ -260,7 +261,8 @@ function App() {
       setMessage('This month is locked. Unlock corrections before deleting a record.');
       return;
     }
-    if (!globalThis.confirm(`Delete “${record.description}” for ${formatMoney(record.amount)}? The deleted record will remain in Change History.`)) return;
+    const amountLabel = record.amountConfirmed === false ? 'amount TBC' : formatMoney(record.amount);
+    if (!globalThis.confirm(`Delete “${record.description}” for ${amountLabel}? The deleted record will remain in Change History.`)) return;
     mutate({ type: 'DELETE_INCOME', monthKey: record.date.slice(0, 7), id: record.id });
   };
 
@@ -445,7 +447,7 @@ function App() {
       return;
     }
     const proposal = splitPlanDescription(plan);
-    if (!globalThis.confirm(`Separate ${plan.sourceAccount.label} into ${proposal}?\n\nThis proposal uses the existing Paid By assignments for this month only. If any bill is actually paid from the other person’s account, cancel and correct that bill first. Current bank balance for the old combined row will be cleared back to TBC.`)) return;
+    if (!globalThis.confirm(`Separate ${plan.sourceAccount.label} into ${proposal}?\n\nFor this month only, Penny proposes the split using Paid By on expenses and Received By on income. If any record actually belongs to the other person’s account, cancel and correct that record first. Historical months are not changed. The old combined current bank balance will be cleared back to TBC.`)) return;
     const peopleLabels = Object.fromEntries(state.people.map((person) => [person.id, person.label]));
     mutate({
       type: 'SPLIT_ACCOUNT_FOR_MONTH',

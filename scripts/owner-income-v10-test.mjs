@@ -27,6 +27,10 @@ const base = {
       normaliseIncomeRecord({ id:'uc', date:'2026-09-05', amount:1200, description:'Universal Credit', incomeType:'Benefits', receivedBy:'p2', account:'legacy-bank', confirmationIssues:[] }, '2026-09'),
       normaliseIncomeRecord({ id:'reward', date:'2026-09-15', amount:50, description:'One off reward', incomeType:'Reward', receivedBy:'p1', account:'legacy-bank', confirmationIssues:[] }, '2026-09'),
     ],
+    '2026-10': [
+      normaliseIncomeRecord({ id:'oct-income-p1', date:'2026-10-01', amount:100, description:'Expected source 1', incomeType:'Other income', receivedBy:'p1', account:'legacy-bank', confirmationIssues:[] }, '2026-10'),
+      normaliseIncomeRecord({ id:'oct-income-p2', date:'2026-10-02', amount:200, description:'Expected source 2', incomeType:'Other income', receivedBy:'p2', account:'legacy-bank', confirmationIssues:[] }, '2026-10'),
+    ],
   },
   bankBalancesByMonth: { '2026-10': [{ id:'legacy-bank', label:'Bank', balance:50, ownerId:'unassigned', ownerLabel:'' }] },
 };
@@ -43,6 +47,8 @@ assert.equal(splitPlan.mappings.length, 2);
 const split = appReducer(base, { type:'SPLIT_ACCOUNT_FOR_MONTH', monthKey:'2026-10', sourceAccountId:'legacy-bank', sourceAccountLabel:'Bank', mappings:splitPlan.mappings, peopleLabels:{p1:'Person 1',p2:'Person 2'}, auditAt:'2026-09-30T12:00:00Z' });
 assert.equal(split.txnsByMonth['2026-09'].every((row) => row.account === 'legacy-bank'), true, 'Historical month must not be rewritten.');
 assert.equal(new Set(split.txnsByMonth['2026-10'].map((row) => row.account)).size, 2, 'Current month must use two distinct account IDs.');
+assert.equal(new Set(split.incomeByMonth['2026-10'].map((row) => row.account)).size, 2, 'Current-month income must follow the explicitly approved Received By owner mapping.');
+assert.equal(base.incomeByMonth['2026-09'].every((row) => row.account === 'legacy-bank'), true, 'Historical income must not be rewritten by a current-month account split.');
 assert.equal(split.bankBalancesByMonth['2026-10'], undefined, 'Combined current-month balance must be cleared after split.');
 assert.equal(monthSummary(split, '2026-10').accountFundingPlan.length, 2);
 
