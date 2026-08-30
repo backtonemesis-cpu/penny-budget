@@ -1568,8 +1568,14 @@ function ReferenceSelect({ id, label, value, options, onChange }) {
 }
 
 function SettingsModal({ state, allCategories, accountOwnerOptions, recoveryRequired, rollbackAvailable, mutate, fileRef, onImport, onExport, onRestorePreviousImport, onErase, onClose }) {
+  const runningVersion = globalThis.__PENNY_RELEASE__ || new URL(globalThis.location.href).searchParams.get('v') || 'Unverified';
   return (
     <SimpleModal title="Settings" onClose={onClose} wide>
+      <section className="settings-section">
+        <h3>App Version</h3>
+        <p className="section-note"><strong>{runningVersion}</strong></p>
+        <p className="section-note">Penny checks for a newer release when it opens and whenever it returns to the foreground. This does not erase browser-stored finance data.</p>
+      </section>
       {recoveryRequired && (
         <div className="audit-warning" role="alert">
           <strong>Storage recovery required.</strong>

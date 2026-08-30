@@ -3,26 +3,56 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './mobile-navigation.css';
 
+let releaseCheckPromise = null;
+let lastReleaseCheckAt = 0;
+const RELEASE_CHECK_THROTTLE_MS = 5000;
+
 function resetHorizontalPosition() {
   document.documentElement.scrollLeft = 0;
   document.body.scrollLeft = 0;
 }
 
-async function ensureCurrentRelease() {
+async function ensureCurrentRelease({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && now - lastReleaseCheckAt < RELEASE_CHECK_THROTTLE_MS) return true;
+  if (releaseCheckPromise) return releaseCheckPromise;
+  lastReleaseCheckAt = now;
+
+  releaseCheckPromise = (async () => {
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}version.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) return true;
+      const release = await response.json();
+      const version = typeof release.version === 'string' ? release.version : '';
+      if (!version) return true;
+      globalThis.__PENNY_RELEASE__ = version;
+      const currentUrl = new URL(globalThis.location.href);
+      if (currentUrl.searchParams.get('v') === version) return true;
+      currentUrl.searchParams.set('v', version);
+      globalThis.location.replace(currentUrl.toString());
+      return false;
+    } catch {
+      const currentUrl = new URL(globalThis.location.href);
+      globalThis.__PENNY_RELEASE__ ||= currentUrl.searchParams.get('v') || '';
+      return true;
+    }
+  })();
+
   try {
-    const response = await fetch(`${import.meta.env.BASE_URL}version.json?t=${Date.now()}`, { cache: 'no-store' });
-    if (!response.ok) return true;
-    const release = await response.json();
-    const version = typeof release.version === 'string' ? release.version : '';
-    if (!version) return true;
-    const currentUrl = new URL(globalThis.location.href);
-    if (currentUrl.searchParams.get('v') === version) return true;
-    currentUrl.searchParams.set('v', version);
-    globalThis.location.replace(currentUrl.toString());
-    return false;
-  } catch {
-    return true;
+    return await releaseCheckPromise;
+  } finally {
+    releaseCheckPromise = null;
   }
+}
+
+function installReleaseChecks() {
+  const check = () => { void ensureCurrentRelease({ force: true }); };
+  const handleVisibility = () => {
+    if (document.visibilityState === 'visible') check();
+  };
+  document.addEventListener('visibilitychange', handleVisibility);
+  globalThis.addEventListener('pageshow', check);
+  globalThis.addEventListener('focus', check);
 }
 
 function renderApp() {
@@ -36,6 +66,9 @@ function renderApp() {
   );
 }
 
-ensureCurrentRelease().then((ready) => {
-  if (ready) renderApp();
+ensureCurrentRelease({ force: true }).then((ready) => {
+  if (ready) {
+    renderApp();
+    installReleaseChecks();
+  }
 });

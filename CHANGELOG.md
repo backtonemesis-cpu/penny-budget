@@ -1,3 +1,9 @@
+## 2026-08-30 — iPhone foreground update verification
+
+- Penny now checks the live release whenever the installed app returns to the foreground, not only on initial JavaScript startup.
+- Added a visible App Version section in Settings so the running release can be verified on-device.
+- Update checks keep using no-store version requests and do not clear local finance data.
+
 ## 2026-08-30 — Owner-specific accounts and regular income carry-forward
 
 - Prevented TBC same-bank accounts used by multiple payers from being treated as one funding pot.
