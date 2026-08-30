@@ -32,26 +32,45 @@
     letter-spacing: 0.11em;
   }
 
-  .clear-month-row {
+  .settings-month-data-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(96, 113, 145, 0.32);
+  }
+
+  .settings-month-data-copy {
+    min-width: 0;
     display: flex;
-    justify-content: flex-end;
-    margin: 8px 0 12px;
+    flex-direction: column;
+    gap: 2px;
   }
 
-  .month-setup-card .clear-month-row {
-    margin: 8px 0 0;
+  .settings-month-data-copy strong {
+    font-size: 13px;
+    line-height: 1.15;
   }
 
-  .clear-month-button {
-    min-height: 44px;
-    border: 1px solid rgba(248, 113, 113, 0.5);
-    border-radius: 12px;
-    padding: 8px 13px;
-    background: rgba(127, 29, 29, 0.18);
+  .settings-month-data-copy span {
+    color: #9da8bf;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .settings-clear-month-button {
+    min-height: 40px;
+    border: 1px solid rgba(248, 113, 113, 0.45);
+    border-radius: 11px;
+    padding: 7px 11px;
+    background: rgba(127, 29, 29, 0.14);
     color: #f87171;
     font: inherit;
-    font-size: 13px;
-    font-weight: 750;
-    line-height: 1;
+    font-size: 12px;
+    font-weight: 760;
+    line-height: 1.1;
+    white-space: nowrap;
   }
 }
