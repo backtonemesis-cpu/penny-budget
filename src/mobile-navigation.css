@@ -84,3 +84,20 @@ body,
   .nav { gap: 2px; padding-inline: 4px; }
   .nav button::after { font-size: 10px; }
 }
+
+/* iPhone modal gesture lock: the editor may scroll vertically, never sideways. */
+.modal {
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
+}
+
+.modal-inner {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
+}
