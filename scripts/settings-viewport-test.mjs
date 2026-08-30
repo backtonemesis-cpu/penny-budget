@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const css = await readFile(new URL('../src/settings-fix.css', import.meta.url), 'utf8');
+const incomeCss = await readFile(new URL('../src/income-compact.css', import.meta.url), 'utf8');
 const main = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8');
 
 assert.match(main, /import '\.\/settings-fix\.css';/, 'Settings repair stylesheet must load after the main mobile stylesheet.');
+assert.match(main, /import '\.\/income-compact\.css';/, 'Compact income stylesheet must load after mobile and Settings styles.');
 assert.match(css, /width: calc\(100vw - 20px\) !important;/, 'Settings sheet must be constrained to the iPhone viewport.');
 assert.match(css, /@supports \(width: 100dvw\)/, 'Settings sheet must use the dynamic viewport when supported.');
 assert.match(css, /-webkit-text-size-adjust: 100%;/, 'iOS text inflation must not be allowed to break the Settings layout.');
@@ -17,5 +19,9 @@ assert.match(css, /\.icon-picker,[\s\S]*\.icon-grid,[\s\S]*\.category-list,[\s\S
 assert.match(css, /\.icon-grid \{\s*display: grid;\s*grid-template-columns: repeat\(6, minmax\(0, 1fr\)\);[\s\S]*overflow-x: hidden;/s, 'Category icons must wrap into an in-card grid instead of extending beyond the right edge.');
 assert.match(css, /@media \(max-width: 390px\)[\s\S]*\.icon-grid \{\s*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);/s, 'Narrow iPhones must use a five-column icon grid so all category icons remain contained.');
 assert.match(css, /\.stacked-actions > \* \{[^}]*min-width: 0;[^}]*min-height: 42px;/s, 'Backup controls must stay compact and responsive.');
+assert.match(incomeCss, /section\[aria-labelledby="income-list-title"\] \.record-row \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) auto;[^}]*padding: 10px 0;/s, 'Income records must use a compact two-column mobile row instead of the spread-out generic record layout.');
+assert.match(incomeCss, /\.record-side \{\s*display: contents;/s, 'Income amount and actions must participate directly in the compact grid.');
+assert.match(incomeCss, /\.mini-actions \{[^}]*grid-column: 1 \/ -1;[^}]*grid-template-columns: minmax\(0, 1fr\) auto auto;/s, 'Income actions must share one compact row beneath the record details.');
+assert.match(incomeCss, /\.mini-actions button \{[^}]*min-height: 38px;/s, 'Income action controls must stay tap-friendly while reducing vertical space.');
 
-console.log('Penny Settings viewport regression passed: uniform account controls and contained category icons are protected on iPhone.');
+console.log('Penny mobile layout regression passed: Settings containment and compact Income rows are protected on iPhone.');
