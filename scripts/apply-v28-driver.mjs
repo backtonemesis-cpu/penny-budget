@@ -38,4 +38,12 @@ settingsAudit = settingsAudit.replace(
 );
 await writeFile(settingsAuditPath, settingsAudit);
 
+const viewportTestPath = 'scripts/settings-viewport-test.mjs';
+let viewportTest = await readFile(viewportTestPath, 'utf8');
+viewportTest = viewportTest.replace(
+  "assert.match(categoryJs, /Global setup — kept when you clear a month/, 'Settings must explicitly distinguish global setup from month-specific data.');\nassert.match(categoryJs, /A person can be removed once they no longer own an active account/, 'Household People must explain that historical rows do not permanently lock the current master list.');",
+  "assert.match(categoryJs, /Month setup — applies to the selected month only/, 'Settings must explicitly identify month-specific setup.');\nassert.match(categoryJs, /Other months keep their own household people/, 'Household People must explain that each month keeps an independent list.');",
+);
+await writeFile(viewportTestPath, viewportTest);
+
 console.log('PENNY_V28_MONTH_SCOPED driver completed');
