@@ -1,27 +1,130 @@
+/* Transfer plan: one clear hierarchy on desktop and mobile. */
+.attention-card .section-heading {
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.attention-card .section-heading > div:first-child {
+  min-width: 0;
+}
+
+.attention-card .section-heading .section-title {
+  margin-bottom: 0;
+}
+
+.attention-card .section-heading .section-note {
+  display: none;
+}
+
+.attention-card .section-heading > div:last-child {
+  flex: 0 0 auto;
+}
+
+.attention-card .transfer-account-row {
+  align-items: stretch;
+  padding: 18px 0;
+}
+
+.attention-card .transfer-account-row > .grow {
+  min-width: 0;
+  width: 100%;
+}
+
+/* The far-right amount, payer pills and helper copy repeat information already shown. */
+.attention-card .transfer-account-row > .money,
+.attention-card .transfer-breakdown,
+.attention-card .funding-balance-editor small {
+  display: none !important;
+}
+
+.attention-card .transfer-account-row .row-title {
+  margin-bottom: 10px;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+/* Account owner is already represented in the account title; keep the card visually quiet. */
+.attention-card .transfer-account-row > .grow > .muted {
+  display: none;
+}
+
+.attention-card .funding-math {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.attention-card .funding-math > span {
+  min-width: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 11px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.attention-card .funding-math > span:last-child {
+  border-color: rgba(245, 185, 66, 0.34);
+  background: rgba(245, 185, 66, 0.07);
+  font-weight: 780;
+}
+
+/* Make current balance feel like a native Penny control, not a raw browser input. */
+.attention-card .funding-balance-editor {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  width: 100%;
+  max-width: 520px;
+  margin-top: 2px;
+}
+
+.attention-card .funding-balance-editor label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 820;
+  letter-spacing: 0.075em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.attention-card .funding-balance-editor input {
+  margin-bottom: 0;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 13px;
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.attention-card .funding-balance-editor input:focus-visible {
+  border-color: var(--accent);
+  outline: 3px solid rgba(96,165,250,0.2);
+  outline-offset: 1px;
+}
+
 @media (max-width: 760px) {
-  /* Transfer-plan summary: keep the heading and total, remove repeated explanatory copy. */
   .attention-card .section-heading {
-    align-items: flex-start;
     gap: 10px;
     margin-bottom: 12px;
   }
 
-  .attention-card .section-heading > div:first-child {
-    min-width: 0;
-  }
-
   .attention-card .section-heading .section-title {
-    margin-bottom: 0;
-    font-size: clamp(28px, 8.6vw, 38px);
+    font-size: clamp(25px, 7.2vw, 32px);
     line-height: 0.98;
   }
 
-  .attention-card .section-heading .section-note {
-    display: none;
-  }
-
   .attention-card .section-heading > div:last-child {
-    flex: 0 0 auto;
     padding-top: 2px;
   }
 
@@ -36,47 +139,30 @@
     line-height: 1.05;
   }
 
-  /* Each account should end at the balance input; everything below it duplicated information above. */
   .attention-card .transfer-account-row {
-    padding: 16px 0;
-    align-items: stretch;
-  }
-
-  .attention-card .transfer-account-row > .grow {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .attention-card .transfer-account-row > .money,
-  .attention-card .transfer-breakdown,
-  .attention-card .funding-balance-editor small {
-    display: none !important;
+    padding: 14px 0;
   }
 
   .attention-card .transfer-account-row .row-title {
-    margin-bottom: 2px;
-  }
-
-  .attention-card .transfer-account-row .muted {
     margin-bottom: 8px;
-    line-height: 1.25;
+    font-size: 16px;
   }
 
   .attention-card .funding-math {
-    display: grid;
-    gap: 3px;
-    margin: 0 0 10px;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .attention-card .funding-math > span {
+    padding: 8px 10px;
   }
 
   .attention-card .funding-balance-editor {
-    margin-top: 8px;
-  }
-
-  .attention-card .funding-balance-editor label {
-    margin-bottom: 5px;
+    max-width: none;
   }
 
   .attention-card .funding-balance-editor input {
-    margin-bottom: 0;
+    min-height: 46px;
   }
 }
