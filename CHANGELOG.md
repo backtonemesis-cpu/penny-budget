@@ -1,3 +1,11 @@
+## 2026-08-30 — Settings row alignment and category containment
+
+- Made the bank-account name, owner selector and Remove/Add action use the same 52px mobile control height so each account row is visually uniform on iPhone.
+- Replaced the horizontally overflowing category icon strip with a contained responsive grid: six columns on normal iPhones and five on narrower screens.
+- Width-constrained the category picker, category list and category rows so nothing can extend beyond the right edge of the Settings card.
+- Kept account ownership, category data, finance calculations, reconciliation, storage and audit behaviour unchanged.
+- Added regression checks for uniform account-row height and category containment.
+
 ## 2026-08-30 — Always-removable bank accounts
 
 - Every bank account in Settings now offers `Remove`, including accounts still referenced by current or historical records.
