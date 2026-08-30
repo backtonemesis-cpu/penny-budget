@@ -5,7 +5,6 @@ import { installMonthClearControl } from './month-clear.js';
 import { installCategorySettingsCleanup } from './category-settings-cleanup.js';
 import { installUniformEmptyStates } from './empty-state-uniform.js';
 import { installOverviewFourCardFlow } from './overview-four-card-flow.js';
-import { installExactDateAction } from './exact-date-action.js';
 import './mobile-navigation.css';
 import './settings-fix.css';
 import './income-compact.css';
@@ -84,7 +83,6 @@ function renderApp() {
   installCategorySettingsCleanup();
   installUniformEmptyStates();
   installOverviewFourCardFlow();
-  installExactDateAction();
 }
 
 renderApp();
