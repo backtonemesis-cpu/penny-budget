@@ -4,6 +4,7 @@ import App from './App.jsx';
 import { installMonthClearControl } from './month-clear.js';
 import { installCategorySettingsCleanup } from './category-settings-cleanup.js';
 import { installUniformEmptyStates } from './empty-state-uniform.js';
+import { installOverviewFourCardFlow } from './overview-four-card-flow.js';
 import './mobile-navigation.css';
 import './settings-fix.css';
 import './income-compact.css';
@@ -15,6 +16,7 @@ import './transaction-uniform.css';
 import './expense-income-parity.css';
 import './savings-detail-parity.css';
 import './savings-account-master.css';
+import './overview-four-card-flow.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
@@ -80,6 +82,7 @@ function renderApp() {
   installMonthClearControl();
   installCategorySettingsCleanup();
   installUniformEmptyStates();
+  installOverviewFourCardFlow();
 }
 
 ensureCurrentRelease({ force: true }).then((ready) => {
