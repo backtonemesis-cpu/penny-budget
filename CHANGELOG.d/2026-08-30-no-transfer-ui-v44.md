@@ -1,0 +1,3 @@
+- Removed the Transfer tab from Add Record.
+- Removed the Transfers & excluded movements section from Transactions.
+- Restored Delete for monthly Savings snapshots; deletion affects only the selected month and does not remove the Savings Account from Settings or other months.
