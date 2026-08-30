@@ -19,10 +19,10 @@ await writeFile(financePath, finance);
 
 const appPath = 'src/App.jsx';
 let app = await readFile(appPath, 'utf8');
-app = app.replace("      auditLabel: balance == null ? `Clear ${account.label} bank balance to TBC` : `Update ${account.label} bank balance`,", "      auditLabel: balance == null ? `Reset ${account.label} bank balance to £0.00` : `Update ${account.label} bank balance`, // PENNY_V29_DEFAULT_ZERO");
-app = app.replace("The old combined current bank balance will be cleared back to TBC.", "The old combined current bank balance will reset to £0.00.");
+app = app.replace("      auditLabel: balance == null ? `Clear ${account.label} bank balance to TBC` : `Update ${account.label} bank balance`,", "      auditLabel: balance == null ? `Reset ${account.label} bank balance to zero` : `Update ${account.label} bank balance`, // PENNY_V29_DEFAULT_ZERO");
+app = app.replace("The old combined current bank balance will be cleared back to TBC.", "The old combined current bank balance will reset to zero.");
 app = app.replace('        placeholder="TBC"', '        placeholder="0.00"');
-app = app.replace("      <small>{editable ? 'Clear the field to return this balance to TBC.' : 'Assign a bill-paying account before entering a balance.'}</small>", "      <small>{editable ? 'If left blank, Penny treats the balance as £0.00.' : 'Assign a bill-paying account before entering a balance.'}</small>");
+app = app.replace("      <small>{editable ? 'Clear the field to return this balance to TBC.' : 'Assign a bill-paying account before entering a balance.'}</small>", "      <small>{editable ? 'If left blank, Penny treats the balance as zero.' : 'Assign a bill-paying account before entering a balance.'}</small>");
 await writeFile(appPath, app);
 
 const selfTestPath = 'scripts/self-test.mjs';
@@ -50,7 +50,7 @@ await writeFile(clearTestPath, clearTest);
 
 const sourceAuditPath = 'scripts/source-audit.mjs';
 let sourceAudit = await readFile(sourceAuditPath, 'utf8');
-sourceAudit = sourceAudit.replace("assert.match(files.finance, /CURRENT_STATE_VERSION = 10/);", "assert.match(files.finance, /CURRENT_STATE_VERSION = 11/);\n  assert.match(files.finance, /hasCurrentBalance: Boolean\\(bankBalance \\|\\| masterAccount\\)/, 'Missing bank-balance rows on active accounts must default to zero for transfer planning.');\n  assert.match(files.app, /placeholder=\"0\\.00\"/, 'Current bank balance editor must display a zero default instead of TBC.');\n  assert.match(files.app, /If left blank, Penny treats the balance as £0\\.00\\./, 'Current bank balance helper must explain the zero default.');");
+sourceAudit = sourceAudit.replace("assert.match(files.finance, /CURRENT_STATE_VERSION = 10/);", "assert.match(files.finance, /CURRENT_STATE_VERSION = 11/);\n  assert.match(files.finance, /hasCurrentBalance: Boolean\\(bankBalance \\|\\| masterAccount\\)/, 'Missing bank-balance rows on active accounts must default to zero for transfer planning.');\n  assert.match(files.app, /placeholder=\"0\\.00\"/, 'Current bank balance editor must display a zero default instead of TBC.');\n  assert.match(files.app, /If left blank, Penny treats the balance as zero\\./, 'Current bank balance helper must explain the zero default.');");
 await writeFile(sourceAuditPath, sourceAudit);
 
 console.log('PENNY_V28_MONTH_SCOPED driver completed');
