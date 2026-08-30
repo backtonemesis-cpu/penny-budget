@@ -1,3 +1,17 @@
+html,
+body {
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
+}
+
+html,
+body,
+#root,
+.app {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 .header { padding-top: calc(4px + env(safe-area-inset-top)); }
 .app { padding-bottom: calc(74px + env(safe-area-inset-bottom)); }
 .nav {
@@ -6,13 +20,21 @@
   right: 0;
   bottom: 0;
   left: 0;
+  width: 100%;
+  max-width: 100vw;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   border-top: 1px solid rgba(52,64,90,0.9);
   padding: 6px max(7px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-left));
-  background: rgba(22,27,39,0.97);
-  backdrop-filter: blur(18px);
+  background: #161b27;
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout paint style;
+  isolation: isolate;
+  overscroll-behavior: none;
 }
 .nav button {
   position: relative;
