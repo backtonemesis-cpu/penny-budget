@@ -1,0 +1,37 @@
+name: Apply owner-income v10
+on:
+  push:
+    branches:
+      - owner-specific-accounts-income-carryforward
+    paths:
+      - scripts/apply-owner-income-v10.py
+      - .github/workflows/apply-owner-income-v10.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply v10 patch
+        run: python scripts/apply-owner-income-v10.py
+      - name: Validate exact patched tree
+        run: |
+          npm ci
+          npm run check
+      - name: Commit validated source
+        run: |
+          rm scripts/apply-owner-income-v10.py
+          rm .github/workflows/apply-owner-income-v10.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Separate owner accounts and carry regular income forward"
+          git push
