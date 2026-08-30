@@ -44,12 +44,12 @@ assert.match(mobileCss, /Settings cleanup: dense single-row records, less explan
 assert.match(mobileCss, /\.wide-modal > \.settings-section \{[^}]*border-radius: 12px;[^}]*padding: 9px 10px;/s, 'Settings sections must remain compact card-like groups on mobile.');
 assert.match(mobileCss, /\.wide-modal > \.settings-section:not\(:first-of-type\):not\(:last-of-type\) > \.section-note \{[^}]*display: none;/s, 'Routine explanatory copy must stay suppressed so Settings remains easy to scan.');
 assert.match(mobileCss, /\.wide-modal \.account-settings-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) 108px 58px;/s, 'Each account must stay on one compact row with name, owner and status/action.');
-assert.match(mobileCss, /\.wide-modal \.settings-row > \.danger-button:disabled \{[^}]*opacity: 1;/s, 'In-use reference protection must read as compact status rather than a faded oversized disabled control.');
+assert.match(mobileCss, /\.wide-modal \.settings-row > \.danger-button:disabled \{[^}]*opacity: 1;/s, 'Protected people/categories must read as compact status rather than a faded oversized disabled control.');
 assert.match(mobileCss, /\.wide-modal \.icon-grid \{[^}]*display: flex;[^}]*overflow-x: auto;/s, 'Category icons must remain a single horizontal strip instead of a tall grid.');
 assert.match(mobileCss, /\.wide-modal \.stacked-actions \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s, 'Backup actions must remain space-efficient on mobile.');
 assert.match(mobileCss, /\.wide-modal > \.settings-section:last-child > \.danger-button \{[^}]*font-size: 11px;/s, 'The erase control must remain visually secondary while still clearly destructive.');
 
-// Reference deletion locks must cover active/open-month usage while allowing historical-only accounts to leave the active list.
+// People/category references remain protected, while bank accounts are always removable from the master choice list.
 const referenceState = {
   ...createBlankState(),
   people: [{ id: 'person-a', label: 'Person A' }, { id: 'person-b', label: 'Person B' }],
@@ -73,8 +73,8 @@ const referenceState = {
 };
 assert.equal(referenceInUse(referenceState, 'people', 'person-a'), true, 'A payer/account owner cannot be deleted while referenced.');
 assert.equal(referenceInUse(referenceState, 'people', 'person-b'), true, 'An income receiver/account owner cannot be deleted while referenced.');
-assert.equal(referenceInUse(referenceState, 'accounts', 'account-a'), true, 'An account used by an open month transaction/balance cannot be removed from the active account list.');
-assert.equal(referenceInUse(referenceState, 'accounts', 'account-b'), true, 'An account used by open-month income cannot be removed from the active account list.');
+assert.equal(referenceInUse(referenceState, 'accounts', 'account-a'), false, 'A bank must remain removable even when an open transaction/balance references it, because the record keeps its own account evidence.');
+assert.equal(referenceInUse(referenceState, 'accounts', 'account-b'), false, 'A bank used by open-month income must still offer Remove in Settings.');
 assert.equal(referenceInUse(referenceState, 'accounts', 'unused-account'), false, 'An unused account should remain removable.');
 assert.equal(categoryInUse(referenceState, 'housing'), true, 'A category used by historical records cannot be deleted.');
 assert.equal(categoryInUse(referenceState, 'unused-category'), false, 'An unused custom category should remain removable.');
@@ -85,7 +85,7 @@ const completedReferenceState = {
     '2026-08': { status: 'complete', startingSavings: 1000, startingSavingsConfirmed: true },
   },
 };
-assert.equal(referenceInUse(completedReferenceState, 'accounts', 'account-a'), false, 'A bank used only in a completed month must be removable from the active account list.');
+assert.equal(referenceInUse(completedReferenceState, 'accounts', 'account-a'), false, 'A bank used only in a completed month must be removable from the master account list.');
 assert.equal(referenceInUse(completedReferenceState, 'accounts', 'account-b'), false, 'Completed-month income must not keep an old bank permanently in Settings.');
 const accountsAfterHistoricalRemoval = completedReferenceState.accounts.filter((account) => account.id !== 'account-a');
 const removedHistoricalAccountState = appReducer(completedReferenceState, {
@@ -96,10 +96,10 @@ const removedHistoricalAccountState = appReducer(completedReferenceState, {
   auditId: 'audit-remove-historical-account',
   auditLabel: 'Remove Account A',
 });
-assert.equal(removedHistoricalAccountState.accounts.some((account) => account.id === 'account-a'), false, 'Historical-only account must leave future account choices after removal.');
-assert.equal(removedHistoricalAccountState.txnsByMonth['2026-08'][0].accountLabel, 'Account A', 'Removing an old bank must not rewrite its saved historical transaction label.');
-assert.equal(removedHistoricalAccountState.bankBalancesByMonth['2026-08'][0].label, 'Account A', 'Removing an old bank must not erase its completed-month balance evidence.');
-assert.equal(removedHistoricalAccountState.auditLog[0].id, 'audit-remove-historical-account', 'Removing a historical-only bank must remain traceable in Change History.');
+assert.equal(removedHistoricalAccountState.accounts.some((account) => account.id === 'account-a'), false, 'Removed bank must leave future account choices.');
+assert.equal(removedHistoricalAccountState.txnsByMonth['2026-08'][0].accountLabel, 'Account A', 'Removing a bank must not rewrite its saved transaction label.');
+assert.equal(removedHistoricalAccountState.bankBalancesByMonth['2026-08'][0].label, 'Account A', 'Removing a bank must not erase its month-specific balance evidence.');
+assert.equal(removedHistoricalAccountState.auditLog[0].id, 'audit-remove-historical-account', 'Removing a bank must remain traceable in Change History.');
 
 const mixedReferenceState = {
   ...completedReferenceState,
@@ -108,7 +108,7 @@ const mixedReferenceState = {
     '2026-09': [{ id: 'txn-sep', type: 'expense', category: 'housing', paidBy: 'person-a', account: 'account-a', accountLabel: 'Account A' }],
   },
 };
-assert.equal(referenceInUse(mixedReferenceState, 'accounts', 'account-a'), true, 'A bank must stay protected when it is still used by any open month, even if older months are complete.');
+assert.equal(referenceInUse(mixedReferenceState, 'accounts', 'account-a'), false, 'Open-month usage must not suppress the bank Remove option.');
 
 // Settings-originated reference changes must remain auditable.
 const changedPeople = [...referenceState.people, { id: 'person-c', label: 'Person C' }];
@@ -147,4 +147,4 @@ assert.deepEqual(clearPennyState(storage), { ok: true, error: '' }, 'Explicit er
 assert.equal(storage.getItem(STORAGE_KEY), null, 'Explicit erase must remove the primary Penny state.');
 assert.equal(storage.getItem(ROLLBACK_STORAGE_KEY), null, 'Explicit erase must also remove stale rollback data.');
 
-console.log('Penny Settings menu audit passed: active references, historical account removal, recovery, backups, audit trail, accessibility and compact mobile UX are protected');
+console.log('Penny Settings menu audit passed: removable banks, preserved record evidence, protected people/categories, recovery, backups, audit trail, accessibility and compact mobile UX are protected');
