@@ -1,0 +1,87 @@
+/* Keep mobile transaction rows visually uniform regardless of amount width. */
+@media (max-width: 640px) {
+  .compact-overview-warning {
+    display: none !important;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-row,
+  section[aria-labelledby="movements-list-title"] .record-row {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px 10px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-icon,
+  section[aria-labelledby="movements-list-title"] .record-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-main,
+  section[aria-labelledby="movements-list-title"] .record-main {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side,
+  section[aria-labelledby="movements-list-title"] .record-side {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    min-width: 0;
+    gap: 7px;
+    padding-left: 46px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .money,
+  section[aria-labelledby="movements-list-title"] .record-side > .money {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    font-size: clamp(18px, 5.2vw, 23px);
+    line-height: 1.1;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .mini-actions,
+  section[aria-labelledby="movements-list-title"] .record-side > .mini-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(56px, .7fr) minmax(64px, .8fr);
+    width: 100%;
+    gap: 6px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .mini-actions button,
+  section[aria-labelledby="movements-list-title"] .record-side > .mini-actions button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 6px 7px;
+    font-size: 10.5px;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 390px) {
+  section[aria-labelledby="expenses-list-title"] .record-side,
+  section[aria-labelledby="movements-list-title"] .record-side {
+    padding-left: 0;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .mini-actions,
+  section[aria-labelledby="movements-list-title"] .record-side > .mini-actions {
+    grid-template-columns: minmax(0, 1.25fr) 54px 62px;
+  }
+
+  section[aria-labelledby="expenses-list-title"] .record-side > .mini-actions button,
+  section[aria-labelledby="movements-list-title"] .record-side > .mini-actions button {
+    padding-inline: 5px;
+    font-size: 10px;
+  }
+}
