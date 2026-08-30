@@ -39,6 +39,8 @@ jobs:
         run: node scripts/settings-viewport-test.mjs
       - name: Run inactive account removal regression
         run: node scripts/account-removal-policy-test.mjs
+      - name: Run clear-month safety regression
+        run: node scripts/month-clear-test.mjs
       - name: Audit accessibility source
         run: node scripts/source-audit.mjs accessibility
       - name: Audit storage source
