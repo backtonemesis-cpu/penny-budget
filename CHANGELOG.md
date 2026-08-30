@@ -1,3 +1,10 @@
+## 2026-08-30 — Mobile header control separation
+
+- Rebuilt the mobile header into explicit layout tracks so the month selector, Settings button and `+ Add` button cannot overlap on iPhone.
+- Constrained the native month input to its own track and preserved a visible keyboard-focus treatment on the month control.
+- Added narrow-iPhone sizing and mobile layout regression coverage.
+- Kept the selected-month logic, finance calculations, storage, reconciliation and household data unchanged.
+
 ## 2026-08-30 — iPhone foreground update verification
 
 - Penny now checks the live release whenever the installed app returns to the foreground, not only on initial JavaScript startup.
@@ -72,7 +79,7 @@
 - Added an Owner field to every bill-paying account using local household person, Joint or TBC references.
 - Existing accounts migrate to Owner TBC; Penny never infers ownership from transaction usage.
 - Account ownership is visible in Settings, account choices, Transactions, Bills, Savings and the Start-of-Month Transfer Plan.
-- New financial records snapshot the account owner alongside the account label so later owner changes do not rewrite historical evidence.
+- New financial records snapshot the account owner alongside the account label so later owner changes do not rewrite how old evidence is displayed.
 - Monthly bank-balance snapshots preserve ownership metadata for transfer planning.
 - Month imports may fill a TBC owner from explicit evidence but cannot overwrite an already-confirmed owner.
 - Account-owner edits are recorded in Change History.
