@@ -2,6 +2,12 @@
   display: none !important;
 }
 
+/* The cash-flow disclosure is legacy Overview UI. Keep React's DOM intact so
+   month changes can reconcile safely; only remove the panel from presentation. */
+details.card.disclosure-card {
+  display: none !important;
+}
+
 .metric-grid.overview-four-card-grid {
   display: grid !important;
   grid-template-columns: 1fr !important;
