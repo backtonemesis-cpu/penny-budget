@@ -1,0 +1,59 @@
+/* v62 record editor presentation fixes: shared by Income and Expenses. */
+.modal-inner .field:has(> #record-date),
+.modal-inner .evidence-toggle:has(input[type="checkbox"]) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.modal-inner #record-date {
+  display: block;
+  width: 100% !important;
+  inline-size: 100% !important;
+  min-width: 0 !important;
+  min-inline-size: 0 !important;
+  max-width: 100% !important;
+  max-inline-size: 100% !important;
+  box-sizing: border-box;
+}
+
+.modal-head-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.modal-head-copy .section-title {
+  margin: 0;
+}
+
+.modal-context {
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-head > .secondary-button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .modal-inner .field:has(> #record-date) {
+    overflow: hidden;
+  }
+
+  .modal-inner #record-date {
+    min-height: 44px;
+    padding-inline: 11px;
+  }
+
+  .modal-context {
+    font-size: 11.5px;
+  }
+}
