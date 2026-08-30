@@ -49,6 +49,57 @@ function assertBranchOrder(modalSource, branchMarker, firstMarker, dateMarker, a
   }
 }
 
+function transformRecordEditorContext(source) {
+  const recordModalStart = source.indexOf('function RecordModal(');
+  const referenceSelectStart = source.indexOf('\nfunction ReferenceSelect(', recordModalStart);
+  if (!(recordModalStart >= 0 && referenceSelectStart > recordModalStart)) fail('Could not locate RecordModal for editor context.');
+
+  let output = source;
+  const lockedMarker = '  const lockedMode = Boolean(existing);\n';
+  const contextBlock = `  const recordContext = existing\n    ? \`${'${income ? \'Income\' : transaction?.type === \'expense\' ? \'Expense\' : \'Transfer\'}'} · ${'${transaction?.desc || income?.description || \'Untitled\'}'} · ${'${income?.amountConfirmed === false ? \'Amount TBC\' : formatMoney(Number(transaction?.amount ?? income?.amount ?? 0))}'}\`\n    : '';\n`;
+
+  if (!output.slice(recordModalStart, referenceSelectStart).includes('const recordContext = existing')) {
+    const lockedPos = output.indexOf(lockedMarker, recordModalStart);
+    if (!(lockedPos >= recordModalStart && lockedPos < referenceSelectStart)) fail('Could not find RecordModal locked-mode state.');
+    const insertAt = lockedPos + lockedMarker.length;
+    output = output.slice(0, insertAt) + contextBlock + output.slice(insertAt);
+  }
+
+  const recordModalOpen = "<SimpleModal title={existing ? 'Edit record' : 'Add record'} onClose={onClose}>";
+  const contextualRecordModalOpen = "<SimpleModal title={existing ? 'Edit record' : 'Add record'} subtitle={recordContext} onClose={onClose}>";
+  const updatedRecordStart = output.indexOf('function RecordModal(');
+  const updatedReferenceStart = output.indexOf('\nfunction ReferenceSelect(', updatedRecordStart);
+  const modalSource = output.slice(updatedRecordStart, updatedReferenceStart);
+  if (!modalSource.includes('subtitle={recordContext}')) {
+    const openPos = output.indexOf(recordModalOpen, updatedRecordStart);
+    if (!(openPos >= updatedRecordStart && openPos < updatedReferenceStart)) fail('Could not add record context to SimpleModal.');
+    output = output.slice(0, openPos) + contextualRecordModalOpen + output.slice(openPos + recordModalOpen.length);
+  }
+
+  const simpleSignature = 'function SimpleModal({ title, onClose, children, wide = false }) {';
+  const contextualSignature = "function SimpleModal({ title, subtitle = '', onClose, children, wide = false }) {";
+  if (!output.includes(contextualSignature)) {
+    if (!output.includes(simpleSignature)) fail('Could not extend SimpleModal with a subtitle.');
+    output = output.replace(simpleSignature, contextualSignature);
+  }
+
+  const headMarkup = `        <div className="modal-head">\n          <h2 className="section-title" id={titleId}>{title}</h2>\n          <button ref={closeRef} className="secondary-button" onClick={onClose}>Done</button>\n        </div>`;
+  const contextualHeadMarkup = `        <div className="modal-head">\n          <div className="modal-head-copy">\n            <h2 className="section-title" id={titleId}>{title}</h2>\n            {subtitle && <div className="modal-context">{subtitle}</div>}\n          </div>\n          <button ref={closeRef} className="secondary-button" onClick={onClose}>Done</button>\n        </div>`;
+  if (!output.includes('className="modal-context"')) {
+    if (!output.includes(headMarkup)) fail('Could not add persistent record context to the modal header.');
+    output = output.replace(headMarkup, contextualHeadMarkup);
+  }
+
+  const finalModalStart = output.indexOf('function RecordModal(');
+  const finalReferenceStart = output.indexOf('\nfunction ReferenceSelect(', finalModalStart);
+  const finalModal = output.slice(finalModalStart, finalReferenceStart);
+  if (!finalModal.includes('const recordContext = existing')) fail('Record context was not created.');
+  if (!finalModal.includes('subtitle={recordContext}')) fail('Record context was not attached to the editor header.');
+  if (!output.includes('{subtitle && <div className="modal-context">{subtitle}</div>}')) fail('SimpleModal does not render the record context.');
+
+  return output;
+}
+
 export function transformRecordDateLayout(source) {
   if (!source.includes('function RecordModal(')) return source;
 
@@ -136,12 +187,12 @@ export function transformRecordDateLayout(source) {
   const movementDate = modal.indexOf(exactDateLabel, movementStart);
   if (!(movementStart >= 0 && movementDate > movementStart)) fail('Transfer Exact date controls were lost.');
 
-  return output;
+  return transformRecordEditorContext(output);
 }
 
 export function recordDateLayoutPlugin() {
   return {
-    name: 'penny-record-date-layout-v61',
+    name: 'penny-record-editor-layout-v62',
     enforce: 'pre',
     transform(source, id) {
       if (!id.endsWith('/src/App.jsx') && !id.endsWith('\\src\\App.jsx')) return null;
