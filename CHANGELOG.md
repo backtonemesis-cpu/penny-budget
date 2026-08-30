@@ -1,3 +1,12 @@
+## 2026-08-30 — Removable inactive bank accounts
+
+- Changed account removal so a bank used only in completed historical months can be removed from the active Accounts list and future account choices.
+- Kept a conservative lock when the bank is still referenced by any open/incomplete month transaction, income record or bank-balance snapshot.
+- Removing a historical-only account does not delete or rewrite completed-month transactions, income or saved bank-balance evidence; their stored account labels remain in place.
+- Account-list removal remains recorded in Penny Change History.
+- Added regression coverage for completed-month removal, active-month protection and mixed historical/current usage.
+- No income, expense, savings, reconciliation or affordability calculations were changed.
+
 ## 2026-08-30 — Settings viewport repair
 
 - Removed the visible App Version card from Settings; release checking still runs internally and continues to protect browser-stored finance data.
