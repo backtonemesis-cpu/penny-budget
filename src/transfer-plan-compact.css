@@ -31,9 +31,10 @@
   width: 100%;
 }
 
-/* The far-right amount and payer pills repeat values already shown in the summary. */
+/* The far-right amount, payer pills and helper copy repeat information already shown. */
 .attention-card .transfer-account-row > .money,
-.attention-card .transfer-breakdown {
+.attention-card .transfer-breakdown,
+.attention-card .funding-balance-editor small {
   display: none !important;
 }
 
@@ -109,10 +110,6 @@
   border-color: var(--accent);
   outline: 3px solid rgba(96,165,250,0.2);
   outline-offset: 1px;
-}
-
-.attention-card .funding-balance-editor small {
-  display: none;
 }
 
 @media (max-width: 760px) {
