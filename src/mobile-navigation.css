@@ -140,6 +140,27 @@ body,
     width: 100%;
     min-width: 0;
     max-width: 100%;
+    padding-inline: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .month-input::-webkit-datetime-edit {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .month-input::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+
+  .month-input::-webkit-calendar-picker-indicator {
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
   }
 
   .month-input:focus-visible { outline: none; }
@@ -155,5 +176,11 @@ body,
 @media (max-width: 390px) {
   .header-row {
     grid-template-columns: max-content minmax(0, 1fr) 40px 56px;
+  }
+
+  .month-input {
+    padding-inline: 2px;
+    font-size: 15px;
+    letter-spacing: -0.02em;
   }
 }
