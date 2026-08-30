@@ -1,0 +1,38 @@
+name: Apply deduplicated Penny UI
+
+on:
+  push:
+    branches:
+      - deduplicate-navigation-overview
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply UI cleanup
+        run: python scripts/apply-deduplicated-ui.py
+      - name: Validate exact patched tree
+        run: |
+          npm ci
+          npm run check
+      - name: Commit validated source
+        run: |
+          rm scripts/apply-deduplicated-ui.py
+          rm .github/workflows/apply-deduplicated-ui.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Remove duplicate Penny views"
+          git push
