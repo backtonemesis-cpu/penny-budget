@@ -134,9 +134,11 @@ function financeAudit() {
   assert.match(files.app, /<AuditSnapshot title="Before"/);
   assert.match(files.app, /In progress — this month is planning data, not final mortgage evidence/);
   assert.match(files.app, /Start-of-Month Transfer Plan/);
-  assert.match(files.app, /enter bank balances in Savings/);
+  assert.match(files.app, /Everything needed is on this screen/);
+  assert.match(files.app, /FundingBalanceEditor/);
+  assert.doesNotMatch(files.app, /enter bank balances in Savings/);
+  assert.doesNotMatch(files.app, /Bill-Paying Bank Balances —/);
   assert.match(files.app, /summary\.accountFundingPlan/);
-  assert.match(files.app, /Bill-Paying Bank Balances/);
   assert.match(files.app, /Every bill-paying account has an explicit owner/);
   assert.match(files.app, /AccountReferenceEditor/);
   assert.match(files.app, /ownedAccountLabel/);
