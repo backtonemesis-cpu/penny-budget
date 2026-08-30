@@ -16,7 +16,11 @@ assert.match(source, /monthMetaByMonth: withoutKey/, 'Cleared completed-month st
 assert.doesNotMatch(source, /savingsByMonth: withoutKey/, 'Savings history must never be cleared with month data.');
 assert.match(source, /action: 'clear_month'/, 'Clear month must create one auditable Change History event.');
 assert.match(source, /before,/, 'The audit event must retain the pre-clear month snapshot.');
-assert.match(css, /\.attention-card > \.section-heading \.section-note \{\s*display: none;/s, 'The long transfer-plan explanation must be hidden on mobile.');
-assert.match(css, /\.clear-month-button \{[\s\S]*min-height: 44px;/, 'Clear-month action must retain a usable mobile touch target.');
+assert.match(source, /Backup and Recovery/, 'Clear Month must be located in the Settings Backup and Recovery section.');
+assert.match(source, /data-penny-clear-month-settings/, 'Settings must own the Clear Month control.');
+assert.doesNotMatch(source, /month-setup-card.*appendChild/s, 'Clear Month must not be injected into Overview month setup.');
+assert.doesNotMatch(source, /metric-grid.*insertAdjacentElement/s, 'Clear Month must not be injected beside Overview metrics.');
+assert.match(css, /\.attention-card > \.section-heading \.section-note \{\s*display: none;/s, 'The long transfer-plan explanation must remain hidden on mobile.');
+assert.match(css, /\.settings-clear-month-button \{[\s\S]*min-height: 40px;/, 'Settings Clear Month action must retain a discreet but usable touch target.');
 
-console.log('Penny clear-month regression passed: confirmed, scoped, auditable clearing with savings preservation and compact transfer header.');
+console.log('Penny clear-month regression passed: Settings-only, confirmed, scoped and auditable month clearing.');
