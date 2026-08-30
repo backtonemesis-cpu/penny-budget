@@ -113,14 +113,11 @@ function ensureClearMonthControl() {
   if (!monthKey) return;
   const label = monthLabel(monthKey);
   const buttonLabel = `Clear ${label} data`;
-  const noteLabel = `Deletes ${label} only. All other months and Penny data are kept.`;
 
   const existing = target.querySelector('[data-penny-clear-month-settings]');
   if (existing) {
     const button = existing.querySelector('[data-penny-clear-month]');
-    const note = existing.querySelector('.settings-month-data-copy span');
     if (button && button.textContent !== buttonLabel) button.textContent = buttonLabel;
-    if (note && note.textContent !== noteLabel) note.textContent = noteLabel;
     return;
   }
 
@@ -132,22 +129,14 @@ function ensureClearMonthControl() {
   wrap.className = 'settings-month-data-row';
   wrap.setAttribute('data-penny-clear-month-settings', '');
 
-  const text = document.createElement('div');
-  text.className = 'settings-month-data-copy';
-  const title = document.createElement('strong');
-  title.textContent = `Clear ${label} data`;
-  const note = document.createElement('span');
-  note.textContent = noteLabel;
-  text.append(title, note);
-
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'settings-clear-month-button';
+  button.className = 'danger-button settings-clear-month-button';
   button.setAttribute('data-penny-clear-month', '');
   button.textContent = buttonLabel;
   button.addEventListener('click', clearSelectedMonth);
 
-  wrap.append(text, button);
+  wrap.append(button);
   if (eraseButton) target.insertBefore(wrap, eraseButton);
   else target.appendChild(wrap);
 }
