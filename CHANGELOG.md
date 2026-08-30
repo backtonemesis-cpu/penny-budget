@@ -1,3 +1,11 @@
+## 2026-08-30 — Simplified navigation and removed duplicate views
+
+- Removed the duplicate Bills top-level tab; fixed bills now live only in Transactions → Expenses.
+- Added an Expense type filter in Transactions for All expenses, Fixed bills and Variable spending.
+- Removed the repeated detailed Income and Expense breakdown lists from Overview.
+- Kept Overview focused on summary figures, month setup, transfer planning and reconciliation.
+- Reduced the mobile navigation to four clear destinations: Overview, Transactions, Savings and Year.
+
 ## 2026-08-30 — Root overscroll lock
 
 - Stopped the browser document from being Penny’s vertical scroll container on iPhone.

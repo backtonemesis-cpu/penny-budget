@@ -509,7 +509,6 @@ function App() {
             summary={summary}
             month={period.month}
             year={period.year}
-            categoryMap={categoryMap}
             peopleMap={peopleMap}
             accountMap={accountMap}
             monthKey={monthKey}
@@ -540,18 +539,6 @@ function App() {
           />
         )}
 
-        {view === 'Bills' && (
-          <Bills
-            summary={summary}
-            categoryMap={categoryMap}
-            peopleMap={peopleMap}
-            accountMap={accountMap}
-            canEdit={canEditMonth}
-            onTogglePaid={togglePaid}
-            onEdit={(transaction) => openRecord({ mode: 'expense', transaction })}
-            onAdd={() => openRecord({ mode: 'expense', presetClass: 'fixed' })}
-          />
-        )}
 
         {view === 'Savings' && (
           <Savings
@@ -582,7 +569,7 @@ function App() {
       {toast && <TemporaryToast message={toast} onDismiss={() => setToast('')} />}
 
       <nav className="nav" aria-label="Primary navigation">
-        {['Overview', 'Transactions', 'Bills', 'Savings', 'Year'].map((item) => (
+        {['Overview', 'Transactions', 'Savings', 'Year'].map((item) => (
           <button
             key={item}
             className={view === item ? 'active' : ''}
@@ -674,16 +661,7 @@ function Stat({ label, value, tone = 'neutral', sub, onClick, variant = 'standar
   ) : <div className={className}>{body}</div>;
 }
 
-function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, monthKey, monthSetup, canEditMonth, onUnlockMonth, onStartNewMonth, onUpdateBankBalance, onAddIncome, onAddExpense, onSeparateAccount }) {
-  const categoryTotals = {};
-  summary.expenseTransactions.forEach((transaction) => {
-    categoryTotals[transaction.category] = (categoryTotals[transaction.category] || 0) + transaction.amount;
-  });
-  const incomeTotals = {};
-  summary.incomeRecords.forEach((record) => {
-    const key = `${record.incomeType}::${record.receivedBy}::${record.receivedByLabel || ''}`;
-    incomeTotals[key] = (incomeTotals[key] || 0) + record.amount;
-  });
+function Overview({ summary, month, year, peopleMap, accountMap, monthKey, monthSetup, canEditMonth, onUnlockMonth, onStartNewMonth, onUpdateBankBalance, onAddIncome, onAddExpense, onSeparateAccount }) {
   const sourceMonthLabel = monthSetup.sourceMonthKey
     ? `${MONTHS[Number(monthSetup.sourceMonthKey.slice(5, 7)) - 1]} ${monthSetup.sourceMonthKey.slice(0, 4)}`
     : 'the previous month';
@@ -704,7 +682,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
       {actionableIncompleteRecords > 0 && (
         <div className="audit-warning compact-overview-warning" role="note">
           <strong>{actionableIncompleteRecords} item{actionableIncompleteRecords === 1 ? '' : 's'} need attention</strong>
-          <span>Open Bills or Transactions to confirm the missing evidence.</span>
+          <span>Open Transactions to confirm the missing evidence.</span>
         </div>
       )}
 
@@ -832,35 +810,6 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
         </details>
       )}
 
-      <div className="two-column-sections">
-        <section className="card" aria-labelledby="expense-breakdown-title">
-          <h2 className="section-title" id="expense-breakdown-title">Expenses — {MONTHS[month]} {year}</h2>
-          {Object.keys(categoryTotals).length ? Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).map(([categoryId, amount]) => (
-            <div className="row" key={categoryId}>
-              <span aria-hidden="true">{categoryMap[categoryId]?.icon || '📦'}</span>
-              <div className="grow">{categoryMap[categoryId]?.label || categoryId}</div>
-              <div className="money">{formatMoney(amount)}</div>
-            </div>
-          )) : <div className="empty">No expenses recorded for this month.</div>}
-          <div className="summary-strip"><span>Fixed {formatMoney(summary.fixedExpenses)}</span><span>Variable {formatMoney(summary.variableExpenses)}</span></div>
-        </section>
-
-        <section className="card" aria-labelledby="income-breakdown-title">
-          <h2 className="section-title" id="income-breakdown-title">Income — {MONTHS[month]} {year}</h2>
-          {Object.keys(incomeTotals).length ? Object.entries(incomeTotals).sort((a, b) => b[1] - a[1]).map(([key, amount]) => {
-            const [type, receivedBy, savedLabel] = key.split('::');
-            return (
-              <div className="row" key={key}>
-                <div className="grow">
-                  <div>{type}</div>
-                  <div className="muted">{savedLabel || peopleMap[receivedBy]?.label || receivedBy}</div>
-                </div>
-                <div className="money green">{formatMoney(amount)}</div>
-              </div>
-            );
-          }) : <div className="empty">No income recorded for this month.</div>}
-        </section>
-      </div>
     </>
   );
 }
@@ -925,11 +874,13 @@ function Transactions({ summary, categoryMap, peopleMap, accountMap, canEdit, on
   const [tab, setTab] = useState('expenses');
   const [search, setSearch] = useState('');
   const [paidFilter, setPaidFilter] = useState('all');
+  const [expenseClassFilter, setExpenseClassFilter] = useState('all');
   const text = search.toLowerCase();
   const expenses = summary.expenseTransactions.filter((transaction) => {
     const matches = `${transaction.desc} ${categoryMap[transaction.category]?.label || ''} ${transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || ''} ${transaction.accountLabel || accountMap[transaction.account]?.label || ''}`.toLowerCase().includes(text);
     const paidMatches = paidFilter === 'all' || (paidFilter === 'paid' ? transaction.paid : !transaction.paid);
-    return matches && paidMatches;
+    const classMatches = expenseClassFilter === 'all' || transaction.expenseClass === expenseClassFilter;
+    return matches && paidMatches && classMatches;
   });
   const income = summary.incomeRecords.filter((record) => `${record.description} ${record.incomeType} ${record.receivedByLabel || peopleMap[record.receivedBy]?.label || ''} ${record.accountLabel || accountMap[record.account]?.label || ''}`.toLowerCase().includes(text));
   const movements = summary.transactions.filter((transaction) => transaction.type !== 'expense').filter((transaction) => `${transaction.desc} ${SPECIAL_TRANSACTION_META[transaction.type]?.label || ''}`.toLowerCase().includes(text));
@@ -948,14 +899,24 @@ function Transactions({ summary, categoryMap, peopleMap, accountMap, canEdit, on
           <input id="transaction-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Description, person or account" />
         </div>
         {tab === 'expenses' && (
-          <div className="field compact-field">
-            <label htmlFor="paid-filter">Payment status</label>
-            <select id="paid-filter" value={paidFilter} onChange={(event) => setPaidFilter(event.target.value)}>
-              <option value="all">All</option>
-              <option value="paid">Paid</option>
-              <option value="unpaid">Unpaid</option>
-            </select>
-          </div>
+          <>
+            <div className="field compact-field">
+              <label htmlFor="paid-filter">Payment status</label>
+              <select id="paid-filter" value={paidFilter} onChange={(event) => setPaidFilter(event.target.value)}>
+                <option value="all">All</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+              </select>
+            </div>
+            <div className="field compact-field">
+              <label htmlFor="expense-class-filter">Expense type</label>
+              <select id="expense-class-filter" value={expenseClassFilter} onChange={(event) => setExpenseClassFilter(event.target.value)}>
+                <option value="all">All expenses</option>
+                <option value="fixed">Fixed bills</option>
+                <option value="variable">Variable spending</option>
+              </select>
+            </div>
+          </>
         )}
       </section>
 
@@ -1060,50 +1021,6 @@ function RecordBadges({ record, compact = false }) {
   if (record.source === 'month_copy') badges.push(<span key="month-copy" className="status-pill neutral">Copied from prior month</span>);
   if (!badges.length) return null;
   return compact ? badges : <div className="pill-line">{badges}</div>;
-}
-
-function Bills({ summary, categoryMap, peopleMap, accountMap, canEdit, onTogglePaid, onEdit, onAdd }) {
-  const bills = summary.expenseTransactions
-    .filter((transaction) => transaction.expenseClass === 'fixed')
-    .sort((a, b) => Number(a.paid) - Number(b.paid) || a.date.localeCompare(b.date));
-  const stillToFund = bills.filter((bill) => !bill.paid).reduce((sum, bill) => sum + bill.amount, 0);
-  return (
-    <>
-      <div className="metric-grid two-metrics">
-        <Stat variant="compact" label="Fixed Costs" value={formatMoney(summary.fixedExpenses)} tone="amber" sub="Recorded fixed expenses" />
-        <Stat variant="compact" label="Still to Fund" value={formatMoney(stillToFund)} tone={stillToFund ? 'amber' : 'green'} sub="Unpaid fixed costs" />
-      </div>
-      <section className="card" aria-labelledby="monthly-bills-title">
-        <div className="section-heading">
-          <div>
-            <h2 className="section-title" id="monthly-bills-title">Monthly Bills</h2>
-            <p className="section-note">Responsibility, account and payment status remain visible on every fixed cost.</p>
-          </div>
-          {canEdit && <button className="primary-button" onClick={onAdd}>+ Add bill</button>}
-        </div>
-        {bills.length ? bills.map((transaction) => (
-          <div className="bill-row" key={transaction.id}>
-            <div className="record-icon" aria-hidden="true">{categoryMap[transaction.category]?.icon || '🧾'}</div>
-            <div className="grow">
-              <div className="row-title">{transaction.desc}</div>
-              <div className="muted">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy} · {ownedRecordAccountLabel(transaction, accountMap, peopleMap)}</div>
-              <div className="pill-line">
-                <span className={`status-pill ${transaction.paid ? 'success' : 'warning'}`}>{transaction.paid ? 'Paid' : 'Unpaid'}</span>
-                <RecordBadges record={transaction} compact />
-              </div>
-            </div>
-            <div className="bill-actions">
-              <div className="money">{formatMoney(transaction.amount)}</div>
-              {canEdit && <>
-                <button className="secondary-button" onClick={() => onTogglePaid(transaction)}>{transaction.paid ? 'Mark unpaid' : 'Mark paid'}</button>
-                <button className="secondary-button" onClick={() => onEdit(transaction)}>Edit</button>
-              </>}
-            </div>
-          </div>
-        )) : <div className="empty">No fixed bills recorded for this month.</div>}
-      </section>
-    </>
-  );
 }
 
 function StartNewMonthModal({ setup, targetMonthKey, peopleMap, accountMap, onConfirm, onClose }) {

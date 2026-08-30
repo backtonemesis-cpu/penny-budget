@@ -50,6 +50,12 @@ function accessibilityAudit() {
   assert.match(files.styles, /min-height:\s*44px/, 'Primary form controls must retain accessible touch targets.');
   assert.match(files.mobileNav, /font-size:\s*10\.5px/, 'Mobile navigation labels must remain legible.');
   assert.doesNotMatch(files.mobileNav, /font-size:\s*[0-8](?:\.\d+)?px/, 'Mobile navigation labels must not regress below 9px.');
+  assert.match(files.mobileNav, /grid-template-columns:\s*repeat\(4,/, 'Primary mobile navigation must remain the simplified four-destination layout.');
+  assert.doesNotMatch(files.app, /view === 'Bills'/, 'Bills must not return as a duplicate top-level destination.');
+  assert.doesNotMatch(files.app, /function Bills\(/, 'Fixed bills must use the canonical Transactions view rather than a duplicate component.');
+  assert.match(files.app, /expenseClassFilter/, 'Transactions must retain a fixed-bill/variable-spending filter after removing the duplicate Bills tab.');
+  assert.doesNotMatch(files.app, /id="expense-breakdown-title"/, 'Overview must not duplicate the detailed expense list from Transactions.');
+  assert.doesNotMatch(files.app, /id="income-breakdown-title"/, 'Overview must not duplicate the detailed income list from Transactions.');
 }
 
 function storageAudit() {
