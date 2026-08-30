@@ -2,7 +2,7 @@
 .attention-card .section-heading {
   align-items: flex-start;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .attention-card .section-heading > div:first-child {
@@ -11,6 +11,10 @@
 
 .attention-card .section-heading .section-title {
   margin-bottom: 0;
+  max-width: 18ch;
+  font-size: 20px;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
 }
 
 .attention-card .section-heading .section-note {
@@ -143,27 +147,32 @@
 
 @media (max-width: 760px) {
   .attention-card .section-heading {
-    gap: 10px;
-    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: start;
+    gap: 8px;
+    margin-bottom: 10px;
   }
 
   .attention-card .section-heading .section-title {
-    font-size: clamp(25px, 7.2vw, 32px);
-    line-height: 0.98;
+    max-width: 15ch;
+    font-size: clamp(17px, 4.8vw, 20px);
+    line-height: 1.02;
+    letter-spacing: -0.025em;
   }
 
   .attention-card .section-heading > div:last-child {
-    padding-top: 2px;
+    padding-top: 0;
   }
 
   .attention-card .section-heading > div:last-child .money {
-    font-size: clamp(24px, 7.8vw, 34px);
+    font-size: clamp(28px, 8vw, 34px);
     line-height: 1;
   }
 
   .attention-card .section-heading .mini-label {
     margin-top: 3px;
-    font-size: 11px;
+    font-size: 10.5px;
     line-height: 1.05;
   }
 
