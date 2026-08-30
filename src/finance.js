@@ -3,8 +3,8 @@ import { BASE_CATEGORIES, SPECIAL_ACCOUNTS, SPECIAL_PEOPLE } from './catalog.js'
 export const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 export const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const TRANSACTION_TYPES = new Set(['expense','internal_transfer','savings_transfer','card_repayment','refund']);
-export const CONFIRMATION_ISSUES = new Set(['date','paidBy','account','receivedBy','other']);
-export const CURRENT_STATE_VERSION = 9;
+export const CONFIRMATION_ISSUES = new Set(['date','paidBy','account','receivedBy','amount','received','other']);
+export const CURRENT_STATE_VERSION = 10;
 export const MAX_AUDIT_ENTRIES = 1000;
 
 const BASE_CATEGORY_MAP = Object.fromEntries(BASE_CATEGORIES.map((category) => [category.id, category]));
@@ -258,9 +258,14 @@ export function normaliseTransaction(transaction, customCategories = []) {
 }
 
 export function normaliseIncomeRecord(record, monthKey) {
-  if (!record || typeof record !== 'object') return null;
-  const amount = positiveNumber(record.amount);
-  if (!amount || !isValidMonthKey(monthKey)) return null;
+  if (!record || typeof record !== 'object' || !isValidMonthKey(monthKey)) return null;
+  const parsedAmount = Number.parseFloat(record.amount);
+  const incomeStatus = record.incomeStatus === 'expected' ? 'expected' : 'received';
+  const amountConfirmed = record.amountConfirmed === false
+    ? false
+    : Number.isFinite(parsedAmount) && parsedAmount > 0;
+  if (!amountConfirmed && incomeStatus !== 'expected') return null;
+  const amount = amountConfirmed ? positiveNumber(parsedAmount) : 0;
   const dateProvided = isValidDateKey(record.date);
   const date = dateProvided ? record.date : `${monthKey}-01`;
   const description = cleanText(record.description ?? record.label, '', 120);
@@ -268,6 +273,7 @@ export function normaliseIncomeRecord(record, monthKey) {
   const receivedBy = cleanText(record.receivedBy, 'unassigned', 120);
   const account = cleanText(record.account, 'unassigned', 120);
   const incomeType = cleanText(record.incomeType ?? record.type ?? record.label, 'Other income', 80);
+  const recurrenceMode = ['fixed','confirm'].includes(record.recurrenceMode) ? record.recurrenceMode : 'manual';
   const explicitIssues = Array.isArray(record.confirmationIssues);
   const issueSet = new Set(normaliseConfirmationIssues(record.confirmationIssues));
   if (!dateProvided || record.dateConfirmed === false || (!explicitIssues && record.needsConfirmation)) issueSet.add('date');
@@ -275,11 +281,18 @@ export function normaliseIncomeRecord(record, monthKey) {
   else issueSet.delete('receivedBy');
   if (account === 'unassigned') issueSet.add('account');
   else issueSet.delete('account');
+  if (!amountConfirmed) issueSet.add('amount');
+  else issueSet.delete('amount');
+  if (incomeStatus === 'expected') issueSet.add('received');
+  else issueSet.delete('received');
   const confirmationIssues = [...issueSet];
   return {
     id: cleanText(record.id, createId('income'), 160),
     date,
     amount,
+    amountConfirmed,
+    incomeStatus,
+    recurrenceMode,
     description,
     incomeType,
     receivedBy,
@@ -475,7 +488,10 @@ export function monthSummary(state, monthKey) {
   const incomeRecords = state?.incomeByMonth?.[monthKey] || [];
   const transactions = state?.txnsByMonth?.[monthKey] || [];
   const expenseTransactions = transactions.filter((transaction) => transaction.type === 'expense');
-  const income = sumMoney(incomeRecords.map((record) => record.amount));
+  const income = sumMoney(incomeRecords.filter((record) => record.amountConfirmed !== false).map((record) => record.amount));
+  const receivedIncome = sumMoney(incomeRecords.filter((record) => record.incomeStatus !== 'expected' && record.amountConfirmed !== false).map((record) => record.amount));
+  const expectedIncome = sumMoney(incomeRecords.filter((record) => record.incomeStatus === 'expected' && record.amountConfirmed !== false).map((record) => record.amount));
+  const tbcIncomeCount = incomeRecords.filter((record) => record.amountConfirmed === false).length;
   const expenses = sumMoney(expenseTransactions.map((transaction) => transaction.amount));
   const paidExpenses = sumMoney(expenseTransactions.filter((transaction) => transaction.paid).map((transaction) => transaction.amount));
   const remainingBills = sumMoney(expenseTransactions.filter((transaction) => !transaction.paid).map((transaction) => transaction.amount));
@@ -554,16 +570,23 @@ export function monthSummary(state, monthKey) {
     accountPlan.set(key, current);
   });
   const accountFundingPlan = [...accountPlan.values()]
-    .map((row) => ({
-      ...row,
-      transferNeeded: roundMoney(Math.max(0, row.amount - row.currentBalance)),
-      balanceAfterPlannedPayments: roundMoney(row.currentBalance - row.amount),
-      payers: row.payers.sort((a, b) => b.amount - a.amount || String(a.paidBy).localeCompare(String(b.paidBy))),
-    }))
+    .map((row) => {
+      const payers = row.payers.sort((a, b) => b.amount - a.amount || String(a.paidBy).localeCompare(String(b.paidBy)));
+      const distinctPayers = [...new Set(payers.map((payer) => payer.paidBy).filter((paidBy) => paidBy && !['unassigned','household'].includes(paidBy)))];
+      const ambiguousAccount = (!row.ownerId || row.ownerId === 'unassigned') && distinctPayers.length > 1;
+      return {
+        ...row,
+        payers,
+        ambiguousAccount,
+        transferNeeded: ambiguousAccount ? null : roundMoney(Math.max(0, row.amount - row.currentBalance)),
+        balanceAfterPlannedPayments: ambiguousAccount ? null : roundMoney(row.currentBalance - row.amount),
+      };
+    })
     .sort((a, b) => b.amount - a.amount || a.key.localeCompare(b.key));
-  const hasUnconfirmedBankBalances = accountFundingPlan.some((row) => !row.hasCurrentBalance);
+  const hasAmbiguousFundingAccounts = accountFundingPlan.some((row) => row.ambiguousAccount);
+  const hasUnconfirmedBankBalances = accountFundingPlan.some((row) => !row.hasCurrentBalance && !row.ambiguousAccount);
   const hasUnconfirmedAccountOwners = accountFundingPlan.some((row) => !row.ownerId || row.ownerId === 'unassigned');
-  const totalTransferNeeded = sumMoney(accountFundingPlan.map((row) => row.transferNeeded));
+  const totalTransferNeeded = hasAmbiguousFundingAccounts ? null : sumMoney(accountFundingPlan.map((row) => row.transferNeeded || 0));
   const incompleteExpenses = expenseTransactions.filter(isIncompleteExpense).length;
   const incompleteIncome = incomeRecords.filter(isIncompleteIncome).length;
   const incompleteMovements = transactions.filter(isIncompleteMovement).length;
@@ -578,6 +601,9 @@ export function monthSummary(state, monthKey) {
     transactions,
     expenseTransactions,
     income,
+    receivedIncome,
+    expectedIncome,
+    tbcIncomeCount,
     expenses,
     paidExpenses,
     remainingBills,
@@ -594,6 +620,7 @@ export function monthSummary(state, monthKey) {
     transferPlan,
     accountFundingPlan,
     hasUnconfirmedBankBalances,
+    hasAmbiguousFundingAccounts,
     hasUnconfirmedAccountOwners,
     totalTransferNeeded,
     incompleteExpenses,

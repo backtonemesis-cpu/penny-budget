@@ -1,3 +1,11 @@
+## 2026-08-30 — Owner-specific accounts and regular income carry-forward
+
+- Prevented TBC same-bank accounts used by multiple payers from being treated as one funding pot.
+- Added a reviewable selected-month account split that creates owner-specific accounts without rewriting historical months.
+- Start New Month now carries regular income templates as Expected: Child Benefit/Child Maintenance keep their expected amount; wages and variable benefits require the new month amount to be confirmed.
+- Added Expected/Received income status and Amount TBC support; completed evidence cannot be Ready while expected/TBC income remains.
+- Monthly budget settings are copied forward when present, but current bank balances and actual day-to-day spending are never copied.
+
 ## 2026-08-30 — Overview cleanup
 
 - Replaced persistent routine success cards with an auto-dismissing confirmation toast.
