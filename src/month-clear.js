@@ -97,38 +97,56 @@ function clearSelectedMonth() {
   globalThis.location.reload();
 }
 
+function backupRecoverySection() {
+  return [...document.querySelectorAll('.settings-section')].find((section) =>
+    section.querySelector('h3')?.textContent?.trim() === 'Backup and Recovery'
+  ) || null;
+}
+
 function ensureClearMonthControl() {
-  const overviewActive = [...document.querySelectorAll('.nav button')].some((button) => button.textContent?.trim() === 'Overview' && button.classList.contains('active'));
-  const existing = document.querySelector('[data-penny-clear-month]');
-  if (!overviewActive) {
-    document.querySelector('[data-penny-clear-month-row]')?.remove();
-    return;
-  }
+  // Clear Month belongs only in Settings. Remove any stale Overview injection from an older release.
+  document.querySelectorAll('[data-penny-clear-month-row]').forEach((row) => row.remove());
+
+  const target = backupRecoverySection();
+  if (!target) return;
 
   const monthKey = selectedMonthKey();
   if (!monthKey) return;
-  const target = document.querySelector('.month-setup-card') || document.querySelector('.attention-card') || document.querySelector('.metric-grid');
-  if (!target) return;
+  const label = monthLabel(monthKey);
 
-  const label = `Clear ${MONTH_NAMES[Number(monthKey.slice(5, 7)) - 1]}`;
+  const existing = target.querySelector('[data-penny-clear-month-settings]');
   if (existing) {
-    if (existing.textContent !== label) existing.textContent = label;
+    const button = existing.querySelector('[data-penny-clear-month]');
+    if (button) button.textContent = `Clear ${label}`;
     return;
   }
 
+  const eraseButton = [...target.querySelectorAll('button')].find((button) =>
+    button.textContent?.includes('Erase Penny data on this device')
+  );
+
   const wrap = document.createElement('div');
-  wrap.className = 'clear-month-row';
-  wrap.setAttribute('data-penny-clear-month-row', '');
+  wrap.className = 'settings-month-data-row';
+  wrap.setAttribute('data-penny-clear-month-settings', '');
+
+  const text = document.createElement('div');
+  text.className = 'settings-month-data-copy';
+  const title = document.createElement('strong');
+  title.textContent = 'Month data';
+  const note = document.createElement('span');
+  note.textContent = `Selected: ${label}`;
+  text.append(title, note);
+
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'clear-month-button';
+  button.className = 'settings-clear-month-button';
   button.setAttribute('data-penny-clear-month', '');
-  button.textContent = label;
+  button.textContent = `Clear ${label}`;
   button.addEventListener('click', clearSelectedMonth);
-  wrap.appendChild(button);
 
-  if (target.classList.contains('month-setup-card')) target.appendChild(wrap);
-  else target.insertAdjacentElement('afterend', wrap);
+  wrap.append(text, button);
+  if (eraseButton) target.insertBefore(wrap, eraseButton);
+  else target.appendChild(wrap);
 }
 
 export function installMonthClearControl() {
