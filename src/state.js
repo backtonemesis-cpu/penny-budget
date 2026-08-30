@@ -294,9 +294,11 @@ export function categoryInUse(state, categoryId) {
 
 export function referenceInUse(state, field, referenceId) {
   if (field === 'people') {
-    return Object.values(state.txnsByMonth).some((rows) => rows.some((transaction) => transaction.paidBy === referenceId))
-      || Object.values(state.incomeByMonth).some((rows) => rows.some((record) => record.receivedBy === referenceId))
-      || (state.accounts || []).some((account) => account.ownerId === referenceId);
+    // A household person is a current master-list choice, just like an account.
+    // Historical transactions and income retain their saved person IDs/labels, so they
+    // must not permanently prevent cleaning the template. Only an active account owner
+    // relationship must be reassigned before the person can be removed.
+    return (state.accounts || []).some((account) => account.ownerId === referenceId);
   }
   if (field === 'accounts') {
     // Account removal only removes the master choice. Existing transaction, income and

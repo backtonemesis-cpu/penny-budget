@@ -53,12 +53,11 @@ function explainHouseholdDependencies(modal) {
 
     const name = input.value.trim();
     const ownedAccounts = ownerCounts.get(name) || 0;
+    if (!ownedAccounts) return;
     const note = document.createElement('div');
     note.className = 'reference-use-note';
     note.setAttribute('data-reference-use-note', '');
-    note.textContent = ownedAccounts
-      ? `Cannot remove: owner of ${ownedAccounts} account${ownedAccounts === 1 ? '' : 's'}. Reassign ${ownedAccounts === 1 ? 'it' : 'them'} first.`
-      : 'Cannot remove: referenced by saved financial records.';
+    note.textContent = `Cannot remove: owner of ${ownedAccounts} account${ownedAccounts === 1 ? '' : 's'}. Reassign ${ownedAccounts === 1 ? 'it' : 'them'} first.`;
     row.appendChild(note);
   });
 }
@@ -66,7 +65,7 @@ function explainHouseholdDependencies(modal) {
 function clarifyGlobalSettings(modal) {
   setGlobalSetupNote(
     sectionByHeading(modal, 'Household People'),
-    'Global setup — kept when you clear a month. A person can be removed only after they no longer own an account and are not referenced by saved financial records.',
+    'Global setup — kept when you clear a month. A person can be removed once they no longer own an active account. Historical records keep the person details already saved with them.',
   );
   setGlobalSetupNote(
     sectionByHeading(modal, 'Accounts'),
