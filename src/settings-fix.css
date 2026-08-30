@@ -55,7 +55,8 @@
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    overflow: visible;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .wide-modal > .settings-section:last-child > .section-note {
@@ -88,7 +89,7 @@
     font-size: 14px;
   }
 
-  /* Account name + owner stay on one line. Remove appears only when actually usable. */
+  /* Account name, owner and action are deliberately one uniform-height row. */
   .wide-modal .account-settings-row {
     width: 100%;
     min-width: 0;
@@ -108,12 +109,21 @@
     min-width: 0 !important;
   }
 
+  .wide-modal .account-settings-row > input,
+  .wide-modal .account-settings-row > select,
+  .wide-modal .account-settings-row > .primary-button,
+  .wide-modal .account-settings-row > .danger-button:not(:disabled) {
+    height: 52px;
+    min-height: 52px;
+  }
+
   .wide-modal .account-settings-row > select {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 108px;
     padding: 7px 22px 7px 7px;
     font-size: 12px;
+    line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -126,17 +136,39 @@
     font-size: 10px;
   }
 
-  /* Keep category creation useful without another oversized block. */
+  /* Keep category creation useful and entirely inside the Settings card. */
   .wide-modal .compact-choices .choice-card {
     min-height: 42px;
     padding: 6px 7px;
   }
 
+  .wide-modal .icon-picker,
+  .wide-modal .icon-grid,
+  .wide-modal .category-list,
+  .wide-modal .category-list-body,
+  .wide-modal .category-settings-row {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .wide-modal .icon-picker {
+    overflow-x: clip;
+  }
+
+  .wide-modal .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 5px;
+    overflow-x: hidden;
+    padding-bottom: 0;
+  }
+
   .wide-modal .icon-choice {
-    flex-basis: 40px;
-    width: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding-inline: 0;
   }
 
   .wide-modal .primary-button.full-width {
@@ -148,6 +180,10 @@
   .wide-modal .category-list > summary {
     min-height: 38px;
     font-size: 11.5px;
+  }
+
+  .wide-modal .category-settings-row > * {
+    min-width: 0;
   }
 
   /* Backup actions remain obvious but no longer dominate the sheet. */
@@ -202,5 +238,9 @@
   .wide-modal .account-settings-row > .danger-button:not(:disabled) {
     width: 48px;
     min-width: 48px;
+  }
+
+  .wide-modal .icon-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
