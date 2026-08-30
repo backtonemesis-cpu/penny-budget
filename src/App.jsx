@@ -27,6 +27,7 @@ import {
 } from './finance.js';
 import { appReducer, categoryInUse, referenceInUse } from './state.js';
 import { buildRecurringBillCopies, recurringBillSelectionTotal, recurringBillSetup } from './month-setup.js';
+import { overviewActionableIncompleteCount } from './overview-status.js';
 import {
   clearPennyState,
   clearRollbackState,
@@ -61,6 +62,7 @@ function App() {
   const [view, setView] = useState('Overview');
   const [modal, setModal] = useState(null);
   const [message, setMessage] = useState(initialLoad.warning);
+  const [toast, setToast] = useState('');
   const [saveEnabled, setSaveEnabled] = useState(!initialLoad.warning);
   const [recoveryRequired, setRecoveryRequired] = useState(Boolean(initialLoad.recoveryRequired));
   const [rollbackAvailable, setRollbackAvailable] = useState(hasRollbackState(browserStorage));
@@ -83,6 +85,12 @@ function App() {
     const result = saveState(browserStorage, state);
     if (!result.ok) setMessage(result.error);
   }, [state, saveEnabled, recoveryRequired]);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timerId = globalThis.setTimeout(() => setToast(''), 3200);
+    return () => globalThis.clearTimeout(timerId);
+  }, [toast]);
 
   useEffect(() => {
     let timerId;
@@ -306,7 +314,8 @@ function App() {
         });
         if (backupPackage.mergeMonths.length === 1) setMonthValue(backupPackage.mergeMonths[0], { followCurrent: false });
         setModal(null);
-        setMessage(`${label} merged successfully. Other months were preserved.`);
+        setMessage('');
+        setToast(`${label} merged successfully. Other months were preserved.`);
         return;
       }
 
@@ -321,7 +330,8 @@ function App() {
         auditEvent: { action: 'import', entityType: 'full_restore', label: 'Replaced Penny data from backup' },
       });
       setModal(null);
-      setMessage('Backup imported successfully.');
+      setMessage('');
+      setToast('Backup imported successfully.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'That backup could not be imported.');
     }
@@ -342,7 +352,8 @@ function App() {
       clearRollbackState(browserStorage);
       setRollbackAvailable(false);
       setModal(null);
-      setMessage('Penny was restored to the state immediately before the last import.');
+      setMessage('');
+      setToast('Penny restored to the pre-import recovery copy.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The automatic recovery copy could not be restored.');
     }
@@ -391,7 +402,7 @@ function App() {
     const copies = buildRecurringBillCopies(state, monthKey, selectedIds);
     if (!copies.length) {
       setModal(null);
-      setMessage('No new recurring bills were selected. Existing bills were left unchanged.');
+      setToast('No new recurring bills were selected. Existing bills were left unchanged.');
       return;
     }
     mutate({
@@ -402,7 +413,7 @@ function App() {
       auditLabel: `Start ${MONTHS[period.month]} ${period.year} from recurring bills`,
     });
     setModal(null);
-    setMessage(`${copies.length} recurring bill${copies.length === 1 ? '' : 's'} copied into ${MONTHS[period.month]} ${period.year} as Unpaid. Exact dates remain TBC until confirmed.`);
+    setToast(`${copies.length} recurring bill${copies.length === 1 ? '' : 's'} copied into ${MONTHS[period.month]} ${period.year}.`);
   };
 
   const erasePennyData = () => {
@@ -521,6 +532,8 @@ function App() {
         )}
       </main>
 
+      {toast && <TemporaryToast message={toast} onDismiss={() => setToast('')} />}
+
       <nav className="nav" aria-label="Primary navigation">
         {['Overview', 'Transactions', 'Bills', 'Savings', 'Year'].map((item) => (
           <button
@@ -591,6 +604,15 @@ function Notice({ message, onDismiss }) {
   );
 }
 
+function TemporaryToast({ message, onDismiss }) {
+  return (
+    <div className="temporary-toast" role="status" aria-live="polite">
+      <span>{message}</span>
+      <button aria-label="Dismiss confirmation" onClick={onDismiss}>×</button>
+    </div>
+  );
+}
+
 function Stat({ label, value, tone = 'neutral', sub, onClick, variant = 'standard' }) {
   const body = (
     <>
@@ -618,6 +640,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
   const sourceMonthLabel = monthSetup.sourceMonthKey
     ? `${MONTHS[Number(monthSetup.sourceMonthKey.slice(5, 7)) - 1]} ${monthSetup.sourceMonthKey.slice(0, 4)}`
     : 'the previous month';
+  const actionableIncompleteRecords = overviewActionableIncompleteCount(summary);
 
   return (
     <>
@@ -631,14 +654,10 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
         </div>
       )}
 
-      {!summary.isComplete && summary.hasData && (
-        <div className="status-banner" role="note">In progress — this month is planning data, not final mortgage evidence until it is completed and reconciled.</div>
-      )}
-
-      {summary.incompleteRecords > 0 && (
-        <div className="audit-warning" role="note">
-          <strong>{summary.incompleteRecords} record{summary.incompleteRecords === 1 ? '' : 's'} need confirmation.</strong>
-          <span>Unconfirmed dates, payer/receiver or accounts remain visible and prevent final evidence status.</span>
+      {actionableIncompleteRecords > 0 && (
+        <div className="audit-warning compact-overview-warning" role="note">
+          <strong>{actionableIncompleteRecords} item{actionableIncompleteRecords === 1 ? '' : 's'} need attention</strong>
+          <span>Open Bills or Transactions to confirm the missing evidence.</span>
         </div>
       )}
 
@@ -656,23 +675,15 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
         </div>
       )}
 
-      {!summary.isComplete && (
-        <section className="card month-setup-card" aria-labelledby="month-setup-title">
-          <div className="section-heading month-setup-heading">
+      {!summary.isComplete && monthSetup.availableCount > 0 && (
+        <section className="card month-setup-card month-setup-compact" aria-labelledby="month-setup-title">
+          <div className="month-setup-copy">
             <div>
-              <h2 className="section-title" id="month-setup-title">Start New Month</h2>
-              <p className="section-note">Copy recurring fixed bills from {sourceMonthLabel}. Penny previews everything first, starts every copy Unpaid, and never copies income or ordinary day-to-day spending.</p>
+              <h2 className="section-title" id="month-setup-title">Set up {MONTHS[month]}</h2>
+              <p className="section-note">{monthSetup.availableCount} recurring bill{monthSetup.availableCount === 1 ? '' : 's'} available from {sourceMonthLabel}. Review before copying.</p>
             </div>
-            <button className="primary-button" disabled={!canEditMonth || monthSetup.availableCount === 0} onClick={onStartNewMonth}>
-              {monthSetup.availableCount > 0 ? 'Start New Month' : monthSetup.candidates.length ? 'Bills Already Copied' : 'No Previous Bills'}
-            </button>
+            <button className="primary-button" disabled={!canEditMonth} onClick={onStartNewMonth}>Copy Bills</button>
           </div>
-          {monthSetup.candidates.length > 0 && (
-            <div className="month-setup-summary">
-              <span>{monthSetup.availableCount} bill{monthSetup.availableCount === 1 ? '' : 's'} available to copy</span>
-              {monthSetup.duplicateCount > 0 && <span>{monthSetup.duplicateCount} already present and protected from duplication</span>}
-            </div>
-          )}
         </section>
       )}
 

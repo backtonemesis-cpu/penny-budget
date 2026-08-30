@@ -1,3 +1,11 @@
+## 2026-08-30 — Overview cleanup
+
+- Replaced persistent routine success cards with an auto-dismissing confirmation toast.
+- Removed the routine live-month "In progress" banner from Overview.
+- Date-only TBC flags created by Start New Month no longer generate a large live-month warning; the audit flags remain on the records and still count for final evidence.
+- Start New Month now appears only when recurring bills are actually available to copy and disappears after setup is complete.
+- Condensed the month setup prompt to keep Overview dashboard-first.
+
 ## 2026-08-30 — Unified month setup and funding
 
 - Moved bill-paying bank balance entry into the Overview transfer plan so the complete month-end funding workflow is on one screen.

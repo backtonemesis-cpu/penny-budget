@@ -132,7 +132,9 @@ function financeAudit() {
   assert.match(files.app, /Save this second record anyway\?/);
   assert.match(files.app, /createRollbackAfterApproval/);
   assert.match(files.app, /<AuditSnapshot title="Before"/);
-  assert.match(files.app, /In progress — this month is planning data, not final mortgage evidence/);
+  assert.doesNotMatch(files.app, /In progress — this month is planning data, not final mortgage evidence/, 'Routine live-month status must not occupy a large Overview banner.');
+  assert.match(files.app, /overviewActionableIncompleteCount/, 'Overview must filter non-actionable planning confirmations.');
+  assert.match(files.app, /TemporaryToast/, 'Routine success confirmations must use a transient toast.');
   assert.match(files.app, /Start-of-Month Transfer Plan/);
   assert.match(files.app, /Everything needed is on this screen/);
   assert.match(files.app, /FundingBalanceEditor/);
