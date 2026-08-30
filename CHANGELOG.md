@@ -1,3 +1,13 @@
+## 2026-08-30 — Settings menu cleanup
+
+- Reworked the iPhone Settings screen to reduce visual clutter and scrolling without changing any finance or evidence logic.
+- Put each household person on one compact row and each account on one compact row containing account name, owner and protected `In use` status/action.
+- Reduced routine explanatory copy, tightened section spacing and modal/header padding, and compressed the app-version strip.
+- Changed the category icon picker from a tall multi-row grid to a horizontal scroll strip while keeping category creation and management available.
+- Reduced Change History and Backup/Recovery visual weight; destructive erase remains clearly marked and still requires confirmation.
+- Strengthened the Settings regression audit so future releases must preserve the compact account rows, status treatment, category strip, backup controls and recovery safeguards.
+- Finance calculations, reconciliation, month selection, stored household data and historical evidence were not changed.
+
 ## 2026-08-30 — Settings menu full audit and mobile optimisation
 
 - Audited Settings end to end: household people, explicit account ownership, category protection, Change History, app-version reporting, backup export/import, automatic pre-import rollback, protected recovery mode and local-data erase.
@@ -30,7 +40,7 @@
 
 - Penny now checks the live release whenever the installed app returns to the foreground, not only on initial JavaScript startup.
 - Added a visible App Version section in Settings so the running release can be verified on-device.
-- Update checks keep using no-store version requests and do not clear local finance data.
+- Update checks keep using no-store version requests and do not clear browser-stored finance data.
 
 ## 2026-08-30 — Simplified navigation and removed duplicate views
 

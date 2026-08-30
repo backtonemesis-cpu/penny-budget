@@ -40,10 +40,14 @@ assert.match(appSource, /globalThis\.confirm\('Erase all data stored by Penny on
 assert.match(appSource, /role="dialog" aria-modal="true" aria-labelledby=\{titleId\}/, 'Settings must render inside an accessible modal dialog.');
 assert.match(appSource, /if \(event\.key === 'Escape'\)/, 'Modal must support Escape to close.');
 assert.match(appSource, /event\.key !== 'Tab'/, 'Modal must keep keyboard focus trapped inside the dialog.');
-assert.match(mobileCss, /Settings audit\/UX: compact, scannable cards/, 'The audited mobile Settings optimisation must remain active.');
-assert.match(mobileCss, /\.wide-modal > \.settings-section \{[^}]*border-radius: 14px;[^}]*padding: 12px;/s, 'Settings sections must remain compact card-like groups on mobile.');
-assert.match(mobileCss, /\.wide-modal \.account-settings-row \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) auto;/s, 'Account editing must use the compact audited mobile grid.');
+assert.match(mobileCss, /Settings cleanup: dense single-row records, less explanatory copy and much shorter scrolling\./, 'The cleaned mobile Settings optimisation must remain active.');
+assert.match(mobileCss, /\.wide-modal > \.settings-section \{[^}]*border-radius: 12px;[^}]*padding: 9px 10px;/s, 'Settings sections must remain compact card-like groups on mobile.');
+assert.match(mobileCss, /\.wide-modal > \.settings-section:not\(:first-of-type\):not\(:last-of-type\) > \.section-note \{[^}]*display: none;/s, 'Routine explanatory copy must stay suppressed so Settings remains easy to scan.');
+assert.match(mobileCss, /\.wide-modal \.account-settings-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) 108px 58px;/s, 'Each account must stay on one compact row with name, owner and status/action.');
+assert.match(mobileCss, /\.wide-modal \.settings-row > \.danger-button:disabled \{[^}]*opacity: 1;/s, 'In-use reference protection must read as compact status rather than a faded oversized disabled control.');
+assert.match(mobileCss, /\.wide-modal \.icon-grid \{[^}]*display: flex;[^}]*overflow-x: auto;/s, 'Category icons must remain a single horizontal strip instead of a tall grid.');
 assert.match(mobileCss, /\.wide-modal \.stacked-actions \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s, 'Backup actions must remain space-efficient on mobile.');
+assert.match(mobileCss, /\.wide-modal > \.settings-section:last-child > \.danger-button \{[^}]*font-size: 11px;/s, 'The erase control must remain visually secondary while still clearly destructive.');
 
 // Reference deletion locks must cover all audit-relevant usage paths.
 const referenceState = {
@@ -112,4 +116,4 @@ assert.deepEqual(clearPennyState(storage), { ok: true, error: '' }, 'Explicit er
 assert.equal(storage.getItem(STORAGE_KEY), null, 'Explicit erase must remove the primary Penny state.');
 assert.equal(storage.getItem(ROLLBACK_STORAGE_KEY), null, 'Explicit erase must also remove stale rollback data.');
 
-console.log('Penny Settings menu audit passed: references, recovery, backups, audit trail, accessibility and mobile UX are protected');
+console.log('Penny Settings menu audit passed: references, recovery, backups, audit trail, accessibility and compact mobile UX are protected');
