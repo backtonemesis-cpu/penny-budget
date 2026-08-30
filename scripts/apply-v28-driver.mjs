@@ -37,4 +37,9 @@ clearTest = clearTest.replace("assert.doesNotMatch(source, /savingsByMonth: with
 clearTest = clearTest.replace("assert.match(source, /Clear \\$\\{label\\} data only\\?/, 'Confirmation must explicitly state the selected-month-only scope.');", "assert.match(source, /Reset \\$\\{label\\} to a completely blank month\\?/, 'Confirmation must explicitly state the selected-month blank reset scope.');");
 await writeFile(clearTestPath, clearTest);
 
+const sourceAuditPath = 'scripts/source-audit.mjs';
+let sourceAudit = await readFile(sourceAuditPath, 'utf8');
+sourceAudit = sourceAudit.replace("assert.match(files.finance, /CURRENT_STATE_VERSION = 10/);", "assert.match(files.finance, /CURRENT_STATE_VERSION = 11/);");
+await writeFile(sourceAuditPath, sourceAudit);
+
 console.log('PENNY_V28_MONTH_SCOPED driver completed');
