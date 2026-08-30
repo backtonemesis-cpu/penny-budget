@@ -20,7 +20,6 @@ assert.match(driver, />Cancel</, 'Savings edit mode must support cancelling with
 assert.match(main, /import '\.\/savings-detail-parity\.css';/, 'Savings parity CSS must be loaded.');
 
 const sharedGeometry = [
-  'grid-template-columns: minmax(0, 1fr) auto;',
   'gap: 4px 10px;',
   'padding: 10px 0;',
   'font-size: 15px;',
@@ -39,5 +38,8 @@ for (const token of sharedGeometry) {
 
 assert.match(css, /@media \(max-width: 390px\)/, 'Savings must retain narrow-phone layout rules.');
 assert.match(css, /savings-edit-fields/, 'Savings edit mode must remain compact rather than reverting to full-width stacked forms.');
+assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(118px, 42%\);/, 'Savings heading must reserve an in-card mobile action column.');
+assert.match(css, /> \.section-heading > \.primary-button \{[\s\S]*?width: 100%;[\s\S]*?max-width: 100%;[\s\S]*?min-width: 0;/, 'Savings Add Account button must be constrained to the heading column instead of overflowing the card.');
+assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(122px, 42%\);/, 'Narrow phones must keep enough width for Add Account without escaping the card.');
 
-console.log('Savings detail and Overview navigation parity regression passed.');
+console.log('Savings detail, Overview navigation and mobile containment regression passed.');
