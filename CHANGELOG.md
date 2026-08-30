@@ -1,3 +1,10 @@
+## 2026-08-30 — Full mobile month label
+
+- Removed iPhone month-input chrome that was reserving horizontal space and clipping the year.
+- Centred the native month/year text across the full month-control width and tightened the narrow-iPhone text sizing.
+- Kept the month picker functional and preserved the separate Settings and `+ Add` controls.
+- Added regression coverage; no finance, storage, reconciliation or month-selection logic changed.
+
 ## 2026-08-30 — Mobile header control separation
 
 - Rebuilt the mobile header into explicit layout tracks so the month selector, Settings button and `+ Add` button cannot overlap on iPhone.
