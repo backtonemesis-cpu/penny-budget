@@ -1,10 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
+import { installMonthClearControl } from './month-clear.js';
 import './mobile-navigation.css';
 import './settings-fix.css';
 import './income-compact.css';
 import './transfer-plan-compact.css';
+import './overview-compact-v12.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
@@ -67,6 +69,7 @@ function renderApp() {
       <App />
     </React.StrictMode>,
   );
+  installMonthClearControl();
 }
 
 ensureCurrentRelease({ force: true }).then((ready) => {
