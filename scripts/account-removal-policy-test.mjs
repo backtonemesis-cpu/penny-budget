@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createBlankState } from '../src/finance.js';
+import { createBlankState, monthSummary } from '../src/finance.js';
 import { appReducer, referenceInUse } from '../src/state.js';
 import { buildMonthSetupCopies, recurringBillSetup } from '../src/month-setup.js';
 
@@ -104,6 +104,13 @@ assert.equal(removed.txnsByMonth['2026-08'][0].accountLabel, 'Old Bank', 'Open-m
 assert.equal(removed.bankBalancesByMonth['2026-08'][0].label, 'Old Bank', 'Open-month bank-balance evidence must not be silently deleted.');
 assert.equal(removed.auditLog[0].id, 'remove-old-bank', 'Removal must remain traceable in Change History.');
 
+const removedSummary = monthSummary(removed, '2026-08');
+assert.equal(removedSummary.transferPlan[0].account, 'unassigned', 'Removed banks must no longer remain active transfer-plan targets.');
+assert.equal(removedSummary.transferPlan[0].accountLabel, '', 'A removed bank name must not appear as the active transfer-plan destination.');
+assert.equal(removedSummary.accountFundingPlan[0].account, 'unassigned', 'Funding planning must require a current account after the old bank is removed.');
+assert.equal(removedSummary.accountFundingPlan[0].hasCurrentBalance, false, 'A saved balance for a removed bank must not be reused for an unassigned funding target.');
+assert.equal(removedSummary.totalTransferNeeded, 50, 'Removal must not change the amount of the unpaid bill; without an active account balance the full bill remains the working transfer requirement.');
+
 const futureSource = {
   ...removed,
   txnsByMonth: {
@@ -126,10 +133,15 @@ const futureSource = {
   },
 };
 const setup = recurringBillSetup(futureSource, '2026-09');
-const billId = setup.candidates.find((candidate) => !candidate.duplicate)?.id;
-const incomeId = setup.incomeCandidates.find((candidate) => !candidate.duplicate)?.id;
+const billCandidate = setup.candidates.find((candidate) => !candidate.duplicate);
+const incomeCandidate = setup.incomeCandidates.find((candidate) => !candidate.duplicate);
+const billId = billCandidate?.id;
+const incomeId = incomeCandidate?.id;
 assert.ok(billId, 'The recurring bill should remain available as a planning template.');
 assert.ok(incomeId, 'The recurring income should remain available as a planning template.');
+assert.equal(billCandidate.transaction.account, 'unassigned', 'Month-setup preview must show a removed bill account as TBC/unassigned rather than the removed bank.');
+assert.equal(billCandidate.transaction.accountLabel, '', 'Month-setup preview must not show the removed bank name as a future account.');
+assert.equal(incomeCandidate.record.account, 'unassigned', 'Month-setup preview must show removed income account as TBC/unassigned.');
 
 let sequence = 0;
 const copies = buildMonthSetupCopies(
@@ -153,4 +165,4 @@ const repeatedSetup = recurringBillSetup(afterCopy, '2026-09');
 assert.equal(repeatedSetup.candidates.find((candidate) => candidate.id === billId)?.duplicate, true, 'Removed-account templates must not be offered twice after their TBC copy already exists.');
 assert.equal(repeatedSetup.incomeCandidates.find((candidate) => candidate.id === incomeId)?.duplicate, true, 'Removed-account income templates must not be offered twice after their TBC copy already exists.');
 
-console.log('Penny always-removable account policy passed: master removal, evidence preservation and future TBC account handling are protected');
+console.log('Penny always-removable account policy passed: master removal, evidence preservation, transfer planning and future TBC account handling are protected');
