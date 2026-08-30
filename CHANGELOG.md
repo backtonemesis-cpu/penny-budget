@@ -1,3 +1,10 @@
+## 2026-08-30 — Settings menu full audit and mobile optimisation
+
+- Audited Settings end to end: household people, explicit account ownership, category protection, Change History, app-version reporting, backup export/import, automatic pre-import rollback, protected recovery mode and local-data erase.
+- Added a dedicated Settings CI audit covering reference-in-use deletion locks, audit before/after snapshots, backup round-tripping, rollback restore/cleanup, explicit erase behaviour and modal accessibility safeguards.
+- Reworked the iPhone Settings presentation into compact card-like sections with tighter spacing, a compact app-version strip, two-stage account rows, denser category controls, two-column backup actions and single-column audit snapshots.
+- Kept finance calculations, month-selection logic, reconciliation, household data and stored evidence unchanged.
+
 ## 2026-08-30 — Compact mobile header proportions
 
 - Reduced the mobile Penny wordmark, Settings width, `+ Add` width, header side padding and inter-control gaps to give the month selector substantially more room.
