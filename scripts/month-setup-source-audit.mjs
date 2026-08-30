@@ -5,7 +5,10 @@ const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const monthSetup = await readFile(new URL('../src/month-setup.js', import.meta.url), 'utf8');
 const state = await readFile(new URL('../src/state.js', import.meta.url), 'utf8');
 
-assert.match(app, /Start New Month/, 'Overview must expose a Start New Month action.');
+assert.match(app, /Set up \{MONTHS\[month\]\}/, 'Overview must expose a concise month setup action only when bills are available.');
+assert.match(app, /monthSetup\.availableCount > 0/, 'Completed month setup must disappear from Overview once there is nothing left to copy.');
+assert.doesNotMatch(app, /Bills Already Copied/, 'Overview must not retain a redundant Bills Already Copied panel after setup.');
+assert.match(app, /setToast\(`\$\{copies\.length\}/, 'Successful recurring-bill copy must use a transient confirmation.');
 assert.match(app, /StartNewMonthModal/, 'Recurring bills must be previewed before copying.');
 assert.match(app, /Copied from prior month/, 'Copied recurring bills must remain visibly identifiable after setup.');
 assert.match(app, /FundingBalanceEditor/, 'Bank-balance inputs must live in the Overview funding workflow.');
