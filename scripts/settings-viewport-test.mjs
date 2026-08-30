@@ -26,8 +26,10 @@ assert.match(categoryJs, /document\.createElement\('select'\)/, 'Category icons 
 assert.match(categoryJs, /grid\.hidden = true/, 'The original icon grid must be hidden after the compact selector is installed.');
 assert.match(categoryJs, /This only removes an unused custom category/, 'Deleting a custom category must require explicit confirmation and explain the safe scope.');
 assert.match(categoryJs, /Global setup — kept when you clear a month/, 'Settings must explicitly distinguish global setup from month-specific data.');
-assert.match(categoryJs, /Cannot remove: owner of \$\{ownedAccounts\} account/, 'Blocked household-person removal must explain account ownership rather than showing an unexplained In use state.');
-assert.match(categoryJs, /Cannot remove: referenced by saved financial records\./, 'Blocked household-person removal must explain saved-record dependencies when no account ownership remains.');
+assert.match(categoryJs, /A person can be removed once they no longer own an active account/, 'Household People must explain that historical rows do not permanently lock the current master list.');
+assert.match(categoryJs, /Historical records keep the person details already saved with them\./, 'Removing a household person must explicitly preserve historical evidence.');
+assert.match(categoryJs, /Cannot remove: owner of \$\{ownedAccounts\} account/, 'Blocked household-person removal must explain active account ownership rather than showing an unexplained In use state.');
+assert.doesNotMatch(categoryJs, /Cannot remove: referenced by saved financial records\./, 'Historical records alone must no longer be presented as a reason a person cannot be removed.');
 assert.match(categoryCss, /\.global-setup-note \{[\s\S]*background: var\(--surface-2\);[\s\S]*color: var\(--muted\);/s, 'Global setup explanation must use a compact, non-destructive Settings treatment.');
 assert.match(categoryCss, /\.reference-use-note \{[\s\S]*grid-column: 1 \/ -1;[\s\S]*font-size: 12px;/s, 'Household dependency reasons must be visible beneath the affected row without breaking layout.');
 assert.match(categoryCss, /\.category-icon-select select \{[\s\S]*min-height: 52px;[\s\S]*border-radius: 14px;/s, 'Compact icon selector must match Penny Settings controls.');
@@ -44,4 +46,4 @@ assert.match(incomeCss, /\.record-side \{\s*display: contents;/s, 'Income amount
 assert.match(incomeCss, /\.mini-actions \{[^}]*grid-column: 1 \/ -1;[^}]*grid-template-columns: minmax\(0, 1fr\) auto auto;/s, 'Income actions must share one compact row beneath the record details.');
 assert.match(incomeCss, /\.mini-actions button \{[^}]*min-height: 38px;/s, 'Income action controls must stay tap-friendly while reducing vertical space.');
 
-console.log('Penny mobile layout regression passed: Settings containment, global-reference clarity, category cleanup, uniform Backup and Recovery actions, and compact Income rows are protected.');
+console.log('Penny mobile layout regression passed: Settings containment, removable-person clarity, category cleanup, uniform Backup and Recovery actions, and compact Income rows are protected.');
