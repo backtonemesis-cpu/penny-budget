@@ -1,0 +1,122 @@
+.savings-detail-card .section-heading {
+  align-items: flex-start;
+}
+
+.savings-add-panel {
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid var(--border, #31415f);
+  border-radius: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.savings-add-panel label,
+.savings-balance-edit label {
+  font-weight: 700;
+  color: var(--muted, #aeb9d1);
+}
+
+.savings-add-panel select,
+.savings-balance-edit input {
+  width: 100%;
+  min-height: 48px;
+}
+
+.savings-detail-row {
+  align-items: start;
+}
+
+.savings-detail-row .record-main {
+  min-width: 0;
+}
+
+.savings-detail-row .record-side {
+  min-width: 0;
+}
+
+.savings-detail-row .money {
+  white-space: nowrap;
+}
+
+.savings-balance-edit {
+  margin-top: 12px;
+  display: grid;
+  gap: 7px;
+  max-width: 260px;
+}
+
+.savings-actions {
+  display: flex !important;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.savings-actions > button {
+  width: auto !important;
+  min-width: 82px;
+  min-height: 44px;
+  padding: 10px 14px;
+  grid-column: auto !important;
+}
+
+.savings-actions .danger-button {
+  width: auto !important;
+  grid-column: auto !important;
+}
+
+.savings-settings-hint {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .savings-detail-card .section-heading {
+    gap: 12px;
+  }
+
+  .savings-detail-card .section-heading > .primary-button {
+    min-width: 150px;
+    width: auto;
+    padding-inline: 16px;
+  }
+
+  .savings-detail-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    row-gap: 10px;
+  }
+
+  .savings-detail-row .record-side {
+    display: contents;
+  }
+
+  .savings-detail-row .record-side > .money {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    justify-self: end;
+  }
+
+  .savings-detail-row .record-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .savings-detail-row .savings-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .savings-actions > button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .savings-balance-edit {
+    max-width: none;
+  }
+}
