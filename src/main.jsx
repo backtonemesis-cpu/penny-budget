@@ -2,12 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import { installMonthClearControl } from './month-clear.js';
+import { installCategorySettingsCleanup } from './category-settings-cleanup.js';
 import './mobile-navigation.css';
 import './settings-fix.css';
 import './income-compact.css';
 import './overview-compact-v12.css';
 import './transfer-plan-compact.css';
 import './backup-actions-uniform.css';
+import './category-settings-cleanup.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
@@ -71,6 +73,7 @@ function renderApp() {
     </React.StrictMode>,
   );
   installMonthClearControl();
+  installCategorySettingsCleanup();
 }
 
 ensureCurrentRelease({ force: true }).then((ready) => {
