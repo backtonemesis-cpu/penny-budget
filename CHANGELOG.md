@@ -1,3 +1,12 @@
+## 2026-08-30 — Settings viewport repair
+
+- Removed the visible App Version card from Settings; release checking still runs internally and continues to protect browser-stored finance data.
+- Constrained the Settings sheet to the real iPhone viewport/dynamic viewport and disabled iOS text inflation inside the sheet so the right edge and Done button cannot be pushed off-screen.
+- Removed repetitive disabled `In use` controls from the visible layout while keeping the underlying reference-deletion protection unchanged.
+- Reworked mobile account rows to prioritise account name + owner in one safe responsive row; Remove appears only when the reference is actually removable.
+- Reduced backup/category visual weight further and kept all financial, reconciliation, storage, audit and recovery logic unchanged.
+- Added a dedicated Settings viewport regression test and CI gate for these protections.
+
 ## 2026-08-30 — Settings menu cleanup
 
 - Reworked the iPhone Settings screen to reduce visual clutter and scrolling without changing any finance or evidence logic.
