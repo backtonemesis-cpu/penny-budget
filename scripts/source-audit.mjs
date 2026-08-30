@@ -99,7 +99,8 @@ function financeAudit() {
   assert.doesNotMatch(files.finance, /currentSavings \+ income - remainingBills/, 'The superseded gross-income projection formula must not return.');
   assert.match(files.finance, /accountFundingPlan/, 'Live month transfer planning must include a bank-account grouped view.');
   assert.match(files.finance, /accountPlan/, 'Bank-account funding must be calculated separately from person-level transfer rows.');
-  assert.match(files.finance, /transferNeeded:\s*roundMoney\(Math\.max\(0, row\.amount - row\.currentBalance\)\)/, 'Account transfer planning must subtract confirmed bank balances from unpaid account costs.');
+  assert.match(files.finance, /transferNeeded:\s*ambiguousAccount \? null : roundMoney\(Math\.max\(0, row\.amount - row\.currentBalance\)\)/, 'Normal account transfer planning must subtract confirmed bank balances, while ambiguous owner-TBC accounts must remain TBC.');
+  assert.match(files.finance, /hasAmbiguousFundingAccounts/, 'Merged owner-TBC accounts used by multiple real payers must block a combined transfer total.');
   assert.match(files.finance, /hasUnconfirmedBankBalances/, 'Missing bank balances must keep transfer totals marked as unconfirmed.');
   assert.match(files.finance, /ownerId/, 'Accounts and transfer rows must carry ownership metadata.');
   assert.match(files.finance, /accountOwnerId/, 'Financial records must snapshot account-owner evidence.');
@@ -147,6 +148,13 @@ function financeAudit() {
   assert.match(files.app, /Account owner:/);
   assert.match(files.app, /preservedOrSelectedAccountOwner/);
   assert.match(files.app, /Current bank balance: TBC/);
+  assert.match(files.app, /Separate bank accounts required/);
+  assert.match(files.app, /Income status/);
+  assert.match(files.finance, /CURRENT_STATE_VERSION = 10/);
+  assert.match(files.finance, /incomeStatus/);
+  assert.match(files.finance, /hasAmbiguousFundingAccounts/);
+  assert.match(files.state, /SPLIT_ACCOUNT_FOR_MONTH/);
+  assert.match(files.state, /START_NEW_MONTH/);
   assert.match(files.app, /evidenceStatusLabel/);
   assert.match(files.app, /Only completed, reconciled months can be mortgage-ready/);
   assert.match(files.app, /!summary\.isComplete && \(/, 'Current savings-goal planning must be hidden from completed historical months.');

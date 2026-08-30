@@ -5,7 +5,7 @@ import {
   isValidMonthKey,
   positiveNumber,
 } from './finance.js';
-import { recurringBillKey } from './month-setup.js';
+import { recurringBillKey, recurringIncomeKey } from './month-setup.js';
 
 function withoutEmptyMonth(record, monthKey, nextValue) {
   const next = { ...record };
@@ -78,6 +78,75 @@ export function appReducer(state, action) {
       const nextRows = rows.map((transaction) => transaction.id === action.id ? after : transaction);
       const next = { ...state, txnsByMonth: { ...state.txnsByMonth, [action.monthKey]: nextRows } };
       return appendAudit(next, action, { action: after.paid ? 'mark_paid' : 'mark_unpaid', entityType: 'expense', entityId: action.id, monthKey: action.monthKey, label: before.desc, before, after });
+    }
+    case 'START_NEW_MONTH': {
+      if (!isValidMonthKey(action.monthKey)) return state;
+      const existingTxns = state.txnsByMonth[action.monthKey] || [];
+      const billKeys = new Set(existingTxns.filter((row) => row.type === 'expense' && row.expenseClass === 'fixed').map(recurringBillKey).filter(Boolean));
+      const copiedBills = [];
+      (action.bills || []).forEach((bill) => {
+        const key = recurringBillKey(bill);
+        if (!key || billKeys.has(key)) return;
+        billKeys.add(key);
+        copiedBills.push({ ...bill, paid: false, source: 'month_copy' });
+      });
+      const existingIncome = state.incomeByMonth[action.monthKey] || [];
+      const incomeKeys = new Set(existingIncome.map(recurringIncomeKey).filter(Boolean));
+      const copiedIncome = [];
+      (action.income || []).forEach((record) => {
+        const key = recurringIncomeKey(record);
+        if (!key || incomeKeys.has(key)) return;
+        incomeKeys.add(key);
+        copiedIncome.push({ ...record, source: 'month_copy', incomeStatus: 'expected' });
+      });
+      const sourceBudget = isValidMonthKey(action.sourceMonthKey) ? state.budgetsByMonth?.[action.sourceMonthKey] : null;
+      const copyBudget = sourceBudget && !state.budgetsByMonth?.[action.monthKey];
+      if (!copiedBills.length && !copiedIncome.length && !copyBudget) return state;
+      const next = {
+        ...state,
+        txnsByMonth: copiedBills.length ? { ...state.txnsByMonth, [action.monthKey]: sortByDate([...copiedBills, ...existingTxns]) } : state.txnsByMonth,
+        incomeByMonth: copiedIncome.length ? { ...state.incomeByMonth, [action.monthKey]: sortByDate([...copiedIncome, ...existingIncome]) } : state.incomeByMonth,
+        budgetsByMonth: copyBudget ? { ...state.budgetsByMonth, [action.monthKey]: { ...sourceBudget } } : state.budgetsByMonth,
+      };
+      return appendAudit(next, action, {
+        action: 'start_month',
+        entityType: 'monthly_setup',
+        monthKey: action.monthKey,
+        label: `Started month with ${copiedBills.length} bill${copiedBills.length === 1 ? '' : 's'} and ${copiedIncome.length} income item${copiedIncome.length === 1 ? '' : 's'}`,
+        after: { sourceMonthKey: action.sourceMonthKey || '', copiedBills, copiedIncome, copiedBudget: Boolean(copyBudget) },
+      });
+    }
+    case 'SPLIT_ACCOUNT_FOR_MONTH': {
+      if (!isValidMonthKey(action.monthKey) || !action.sourceAccountId || !Array.isArray(action.mappings) || action.mappings.length < 2) return state;
+      const mappingByPayer = new Map(action.mappings.filter((mapping) => mapping?.paidBy && mapping?.account?.id).map((mapping) => [mapping.paidBy, mapping.account]));
+      if (mappingByPayer.size < 2) return state;
+      const rows = state.txnsByMonth[action.monthKey] || [];
+      let changed = 0;
+      const nextRows = rows.map((transaction) => {
+        if (transaction.type !== 'expense' || transaction.account !== action.sourceAccountId) return transaction;
+        const account = mappingByPayer.get(transaction.paidBy);
+        if (!account) return transaction;
+        changed += 1;
+        return { ...transaction, account: account.id, accountLabel: account.label, accountOwnerId: account.ownerId, accountOwnerLabel: action.peopleLabels?.[account.ownerId] || transaction.paidByLabel || '' };
+      });
+      if (!changed) return state;
+      const accounts = [...state.accounts];
+      action.mappings.forEach((mapping) => {
+        if (!accounts.some((account) => account.id === mapping.account.id)) accounts.push(mapping.account);
+      });
+      const bankRows = (state.bankBalancesByMonth?.[action.monthKey] || []).filter((row) => row.id !== action.sourceAccountId);
+      const bankBalancesByMonth = { ...(state.bankBalancesByMonth || {}) };
+      if (bankRows.length) bankBalancesByMonth[action.monthKey] = bankRows;
+      else delete bankBalancesByMonth[action.monthKey];
+      const next = { ...state, accounts, txnsByMonth: { ...state.txnsByMonth, [action.monthKey]: sortByDate(nextRows) }, bankBalancesByMonth };
+      return appendAudit(next, action, {
+        action: 'split_account',
+        entityType: 'account_resolution',
+        monthKey: action.monthKey,
+        label: `Separated ${action.sourceAccountLabel || 'account'} by owner`,
+        before: { sourceAccountId: action.sourceAccountId },
+        after: { mappings: action.mappings, reassignedTransactions: changed, clearedCurrentMonthBalance: true },
+      });
     }
     case 'COPY_RECURRING_BILLS': {
       if (!isValidMonthKey(action.monthKey) || !Array.isArray(action.bills)) return state;

@@ -26,7 +26,8 @@ import {
   normaliseTransaction,
 } from './finance.js';
 import { appReducer, categoryInUse, referenceInUse } from './state.js';
-import { buildRecurringBillCopies, recurringBillSelectionTotal, recurringBillSetup } from './month-setup.js';
+import { buildMonthSetupCopies, recurringBillSelectionTotal, recurringBillSetup, recurringIncomeSelectionTotal } from './month-setup.js';
+import { buildMonthAccountSplitPlan, splitPlanDescription } from './account-resolution.js';
 import { overviewActionableIncompleteCount } from './overview-status.js';
 import {
   clearPennyState,
@@ -53,6 +54,8 @@ const CONFIRMATION_LABELS = {
   paidBy: 'Paid By',
   receivedBy: 'Received By',
   account: 'Account',
+  amount: 'Amount',
+  received: 'Receipt status',
   other: 'Supporting evidence',
 };
 
@@ -394,26 +397,66 @@ function App() {
     });
   };
 
-  const startNewMonth = (selectedIds) => {
+  const startNewMonth = (selection) => {
     if (!canEditMonth || summary.isComplete) {
       setMessage('Completed months cannot be started from a previous month.');
       return;
     }
-    const copies = buildRecurringBillCopies(state, monthKey, selectedIds);
-    if (!copies.length) {
+    const copies = buildMonthSetupCopies(state, monthKey, selection);
+    if (!copies.bills.length && !copies.income.length) {
       setModal(null);
-      setToast('No new recurring bills were selected. Existing bills were left unchanged.');
+      setToast('Nothing new was selected. Existing month records were left unchanged.');
       return;
     }
     mutate({
-      type: 'COPY_RECURRING_BILLS',
+      type: 'START_NEW_MONTH',
       monthKey,
       sourceMonthKey: monthSetup.sourceMonthKey,
-      bills: copies,
-      auditLabel: `Start ${MONTHS[period.month]} ${period.year} from recurring bills`,
+      bills: copies.bills,
+      income: copies.income,
+      auditLabel: `Set up ${MONTHS[period.month]} ${period.year} from recurring records`,
     });
     setModal(null);
-    setToast(`${copies.length} recurring bill${copies.length === 1 ? '' : 's'} copied into ${MONTHS[period.month]} ${period.year}.`);
+    setToast(`${copies.bills.length} bill${copies.bills.length === 1 ? '' : 's'} and ${copies.income.length} regular income item${copies.income.length === 1 ? '' : 's'} carried into ${MONTHS[period.month]}.`);
+  };
+
+  const toggleIncomeReceived = (record) => {
+    if (!canEditMonth) {
+      setMessage('This month is locked. Unlock corrections before changing income status.');
+      return;
+    }
+    if (record.incomeStatus === 'expected' && record.amountConfirmed === false) {
+      setMessage('Confirm the income amount before marking it received.');
+      return;
+    }
+    const issues = new Set(record.confirmationIssues || []);
+    const nextStatus = record.incomeStatus === 'expected' ? 'received' : 'expected';
+    if (nextStatus === 'received') issues.delete('received');
+    else issues.add('received');
+    const next = normaliseIncomeRecord({ ...record, incomeStatus: nextStatus, confirmationIssues: [...issues] }, record.date.slice(0, 7));
+    if (!next) return;
+    mutate({ type: 'UPDATE_INCOME', monthKey: record.date.slice(0, 7), record: next, auditLabel: `${nextStatus === 'received' ? 'Mark received' : 'Mark expected'}: ${record.description}` });
+  };
+
+  const separateFundingAccount = (accountId) => {
+    const plan = buildMonthAccountSplitPlan(state, monthKey, accountId);
+    if (!plan) {
+      setMessage('This account does not currently need to be separated.');
+      return;
+    }
+    const proposal = splitPlanDescription(plan);
+    if (!globalThis.confirm(`Separate ${plan.sourceAccount.label} into ${proposal}?\n\nThis proposal uses the existing Paid By assignments for this month only. If any bill is actually paid from the other person’s account, cancel and correct that bill first. Current bank balance for the old combined row will be cleared back to TBC.`)) return;
+    const peopleLabels = Object.fromEntries(state.people.map((person) => [person.id, person.label]));
+    mutate({
+      type: 'SPLIT_ACCOUNT_FOR_MONTH',
+      monthKey,
+      sourceAccountId: plan.sourceAccount.id,
+      sourceAccountLabel: plan.sourceAccount.label,
+      mappings: plan.mappings,
+      peopleLabels,
+      auditLabel: `Separate ${plan.sourceAccount.label} accounts for ${MONTHS[period.month]} ${period.year}`,
+    });
+    setToast(`${plan.sourceAccount.label} separated into owner-specific accounts. Enter fresh bank balances for each one.`);
   };
 
   const erasePennyData = () => {
@@ -475,6 +518,7 @@ function App() {
             onUpdateBankBalance={updateTransferBankBalance}
             onAddIncome={() => openRecord({ mode: 'income' })}
             onAddExpense={() => openRecord({ mode: 'expense' })}
+            onSeparateAccount={separateFundingAccount}
           />
         )}
 
@@ -488,6 +532,7 @@ function App() {
             onTogglePaid={togglePaid}
             onEditTransaction={(transaction) => openRecord({ mode: transaction.type === 'expense' ? 'expense' : 'movement', transaction })}
             onEditIncome={(record) => openRecord({ mode: 'income', income: record })}
+            onToggleIncomeReceived={toggleIncomeReceived}
             onDeleteTransaction={deleteTransaction}
             onDeleteIncome={deleteIncome}
           />
@@ -627,7 +672,7 @@ function Stat({ label, value, tone = 'neutral', sub, onClick, variant = 'standar
   ) : <div className={className}>{body}</div>;
 }
 
-function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, monthKey, monthSetup, canEditMonth, onUnlockMonth, onStartNewMonth, onUpdateBankBalance, onAddIncome, onAddExpense }) {
+function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, monthKey, monthSetup, canEditMonth, onUnlockMonth, onStartNewMonth, onUpdateBankBalance, onAddIncome, onAddExpense, onSeparateAccount }) {
   const categoryTotals = {};
   summary.expenseTransactions.forEach((transaction) => {
     categoryTotals[transaction.category] = (categoryTotals[transaction.category] || 0) + transaction.amount;
@@ -675,14 +720,14 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
         </div>
       )}
 
-      {!summary.isComplete && monthSetup.availableCount > 0 && (
+      {!summary.isComplete && monthSetup.totalAvailableCount > 0 && (
         <section className="card month-setup-card month-setup-compact" aria-labelledby="month-setup-title">
           <div className="month-setup-copy">
             <div>
               <h2 className="section-title" id="month-setup-title">Set up {MONTHS[month]}</h2>
-              <p className="section-note">{monthSetup.availableCount} recurring bill{monthSetup.availableCount === 1 ? '' : 's'} available from {sourceMonthLabel}. Review before copying.</p>
+              <p className="section-note">{monthSetup.availableCount} bill{monthSetup.availableCount === 1 ? '' : 's'} and {monthSetup.availableIncomeCount} regular income item{monthSetup.availableIncomeCount === 1 ? '' : 's'} available from {sourceMonthLabel}.</p>
             </div>
-            <button className="primary-button" disabled={!canEditMonth} onClick={onStartNewMonth}>Copy Bills</button>
+            <button className="primary-button" disabled={!canEditMonth} onClick={onStartNewMonth}>Set Up Month</button>
           </div>
         </section>
       )}
@@ -705,7 +750,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
       </div>
 
       <div className="metric-grid">
-        <Stat variant="compact" label="Income" value={formatMoney(summary.income)} tone="green" sub="This month" onClick={canEditMonth ? onAddIncome : undefined} />
+        <Stat variant="compact" label="Income" value={formatMoney(summary.income)} tone="green" sub={summary.tbcIncomeCount ? `${summary.tbcIncomeCount} amount${summary.tbcIncomeCount === 1 ? '' : 's'} TBC` : summary.expectedIncome > 0 ? 'Received + expected' : 'This month'} onClick={canEditMonth ? onAddIncome : undefined} />
         <Stat variant="compact" label="Expenses" value={formatMoney(summary.expenses)} tone="amber" sub="This month" onClick={canEditMonth ? onAddExpense : undefined} />
         <Stat variant="compact" label="Net Saving" value={formatMoney(summary.savedThisMonth)} tone={summary.savedThisMonth >= 0 ? 'green' : 'red'} sub="Income − expenses" />
       </div>
@@ -718,7 +763,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
               <p className="section-note">Use this at month-end: enter each current bank balance below, then move only the calculated shortfall from savings. Everything needed is on this screen.</p>
             </div>
             <div>
-              <div className={`money strong ${summary.hasUnconfirmedBankBalances ? 'amber' : summary.totalTransferNeeded > 0 ? 'amber' : 'green'}`}>{summary.hasUnconfirmedBankBalances ? 'TBC' : formatMoney(summary.totalTransferNeeded)}</div>
+              <div className={`money strong ${(summary.hasUnconfirmedBankBalances || summary.hasAmbiguousFundingAccounts) ? 'amber' : summary.totalTransferNeeded > 0 ? 'amber' : 'green'}`}>{(summary.hasUnconfirmedBankBalances || summary.hasAmbiguousFundingAccounts) ? 'TBC' : formatMoney(summary.totalTransferNeeded)}</div>
               <div className="mini-label right-align">Transfer needed</div>
             </div>
           </div>
@@ -730,15 +775,23 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
                 <div className="muted">Account owner: {fundingOwnerLabel(row, peopleMap)} · {row.count} unpaid item{row.count === 1 ? '' : 's'} to cover</div>
                 <div className="funding-math">
                   <span>Planned costs: {formatMoney(row.amount)}</span>
-                  <span>{row.hasCurrentBalance ? `Current bank balance: ${formatMoney(row.currentBalance)}` : 'Current bank balance: TBC'}</span>
-                  <span className={row.transferNeeded > 0 ? 'amber' : 'green'}>Transfer needed: {row.hasCurrentBalance ? formatMoney(row.transferNeeded) : 'TBC'}</span>
+                  <span>{row.ambiguousAccount ? 'Current bank balance: TBC — separate accounts first' : row.hasCurrentBalance ? `Current bank balance: ${formatMoney(row.currentBalance)}` : 'Current bank balance: TBC'}</span>
+                  <span className={!row.ambiguousAccount && row.transferNeeded > 0 ? 'amber' : 'green'}>Transfer needed: {row.ambiguousAccount ? 'TBC' : row.hasCurrentBalance ? formatMoney(row.transferNeeded) : 'TBC'}</span>
                 </div>
-                <FundingBalanceEditor
-                  row={row}
-                  monthKey={monthKey}
-                  canEdit={canEditMonth}
-                  onCommit={(value) => onUpdateBankBalance(row.account, value)}
-                />
+                {row.ambiguousAccount ? (
+                  <div className="account-resolution-inline">
+                    <strong>Separate bank accounts required</strong>
+                    <span>This TBC account is being used by more than one payer. Do not enter one combined balance.</span>
+                    <button className="secondary-button" onClick={() => onSeparateAccount(row.account)}>Separate accounts</button>
+                  </div>
+                ) : (
+                  <FundingBalanceEditor
+                    row={row}
+                    monthKey={monthKey}
+                    canEdit={canEditMonth}
+                    onCommit={(value) => onUpdateBankBalance(row.account, value)}
+                  />
+                )}
                 <div className="transfer-breakdown">
                   {row.payers.map((payer) => (
                     <span key={`${row.key}-${payer.paidBy}`}>
@@ -747,7 +800,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
                   ))}
                 </div>
               </div>
-              <div className="money">{row.hasCurrentBalance ? formatMoney(row.transferNeeded) : 'TBC'}</div>
+              <div className="money">{row.ambiguousAccount ? 'TBC' : row.hasCurrentBalance ? formatMoney(row.transferNeeded) : 'TBC'}</div>
             </div>
           )) : <div className="status-banner success" role="status">All recorded expenses are marked paid. No transfer is currently required.</div>}
         </section>
@@ -866,7 +919,7 @@ function EvidenceTbcRow({ label, emphasis = false }) {
   );
 }
 
-function Transactions({ summary, categoryMap, peopleMap, accountMap, canEdit, onTogglePaid, onEditTransaction, onEditIncome, onDeleteTransaction, onDeleteIncome }) {
+function Transactions({ summary, categoryMap, peopleMap, accountMap, canEdit, onTogglePaid, onEditTransaction, onEditIncome, onToggleIncomeReceived, onDeleteTransaction, onDeleteIncome }) {
   const [tab, setTab] = useState('expenses');
   const [search, setSearch] = useState('');
   const [paidFilter, setPaidFilter] = useState('all');
@@ -932,11 +985,12 @@ function Transactions({ summary, categoryMap, peopleMap, accountMap, canEdit, on
                 <div className="record-title">{record.description}</div>
                 <div className="record-meta">{recordDateLabel(record)} · {record.incomeType}</div>
                 <div className="record-meta">Received by {record.receivedByLabel || peopleMap[record.receivedBy]?.label || record.receivedBy} · {ownedRecordAccountLabel(record, accountMap, peopleMap)}</div>
-                <RecordBadges record={record} />
+                <div className="pill-line"><span className={`status-pill ${record.incomeStatus === 'expected' ? 'warning' : 'success'}`}>{record.incomeStatus === 'expected' ? 'Expected' : 'Received'}</span><RecordBadges record={record} compact /></div>
               </div>
               <div className="record-side">
-                <div className="money green">{formatMoney(record.amount)}</div>
+                <div className="money green">{record.amountConfirmed === false ? 'TBC' : formatMoney(record.amount)}</div>
                 {canEdit && <div className="mini-actions">
+                  <button className="secondary-button" onClick={() => onToggleIncomeReceived(record)}>{record.incomeStatus === 'expected' ? 'Mark received' : 'Mark expected'}</button>
                   <button className="secondary-button" onClick={() => onEditIncome(record)}>Edit</button>
                   <button className="danger-button" onClick={() => onDeleteIncome(record)}>Delete</button>
                 </div>}
@@ -1051,47 +1105,44 @@ function Bills({ summary, categoryMap, peopleMap, accountMap, canEdit, onToggleP
 }
 
 function StartNewMonthModal({ setup, targetMonthKey, peopleMap, accountMap, onConfirm, onClose }) {
-  const [selected, setSelected] = useState(() => new Set(setup.candidates.filter((candidate) => !candidate.duplicate).map((candidate) => candidate.id)));
+  const [selectedBills, setSelectedBills] = useState(() => new Set(setup.candidates.filter((candidate) => !candidate.duplicate).map((candidate) => candidate.id)));
+  const [selectedIncome, setSelectedIncome] = useState(() => new Set(setup.incomeCandidates.filter((candidate) => !candidate.duplicate).map((candidate) => candidate.id)));
   const targetLabel = `${MONTHS[Number(targetMonthKey.slice(5, 7)) - 1]} ${targetMonthKey.slice(0, 4)}`;
-  const sourceLabel = setup.sourceMonthKey
-    ? `${MONTHS[Number(setup.sourceMonthKey.slice(5, 7)) - 1]} ${setup.sourceMonthKey.slice(0, 4)}`
-    : 'the previous month';
-  const selectedIds = [...selected];
-  const total = recurringBillSelectionTotal(setup, selectedIds);
-  const toggle = (id) => setSelected((current) => {
+  const sourceLabel = setup.sourceMonthKey ? `${MONTHS[Number(setup.sourceMonthKey.slice(5, 7)) - 1]} ${setup.sourceMonthKey.slice(0, 4)}` : 'the previous month';
+  const toggle = (setter, id) => setter((current) => {
     const next = new Set(current);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
+  const billTotal = recurringBillSelectionTotal(setup, [...selectedBills]);
+  const fixedIncomeTotal = recurringIncomeSelectionTotal(setup, [...selectedIncome]);
+  const selectedCount = selectedBills.size + selectedIncome.size;
 
   return (
-    <SimpleModal title={`Start ${targetLabel}`} onClose={onClose} wide>
-      <p className="section-note">Review fixed bills from {sourceLabel}. Selected bills are copied as <strong>Unpaid planning records</strong>. Their exact dates remain TBC until you confirm evidence. Income, variable spending and transfers are never copied.</p>
-      {setup.candidates.length ? (
-        <div className="month-setup-list">
-          {setup.candidates.map(({ id, transaction, duplicate }) => (
-            <label className={`month-setup-row ${duplicate ? 'is-duplicate' : ''}`} key={id}>
-              <input type="checkbox" disabled={duplicate} checked={!duplicate && selected.has(id)} onChange={() => toggle(id)} />
-              <div className="grow">
-                <div className="row-title">{transaction.desc}</div>
-                <div className="muted">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy || 'Payer TBC'} · {ownedRecordAccountLabel(transaction, accountMap, peopleMap)}</div>
-                <div className="muted">Previous record: {recordDateLabel(transaction)} · New exact date will be TBC</div>
-              </div>
-              <div className="month-setup-row-end">
-                <span className="money">{formatMoney(transaction.amount)}</span>
-                {duplicate && <span className="status-pill neutral">Already exists</span>}
-              </div>
-            </label>
-          ))}
-        </div>
-      ) : <div className="empty">No fixed bills were found in {sourceLabel}. Nothing will be copied.</div>}
-      <div className="total-line"><span>Selected recurring bills</span><span>{selected.size}</span></div>
-      <div className="total-line"><span>Planned total</span><span className="money">{formatMoney(total)}</span></div>
-      <div className="actions">
-        <button className="secondary-button" onClick={onClose}>Cancel</button>
-        <button className="primary-button" disabled={selected.size === 0} onClick={() => onConfirm(selectedIds)}>Copy Selected Bills</button>
-      </div>
+    <SimpleModal title={`Set up ${targetLabel}`} onClose={onClose} wide>
+      <p className="section-note">Carry forward planning records from {sourceLabel}. Bills start Unpaid. Regular income starts Expected. Child Benefit and Child Maintenance keep the previous amount; pay and variable benefits carry forward with Amount TBC until confirmed. Actual day-to-day spending, transfers and bank balances are never copied.</p>
+      <h3>Recurring bills</h3>
+      {setup.candidates.length ? <div className="month-setup-list">{setup.candidates.map(({ id, transaction, duplicate }) => (
+        <label className={`month-setup-row ${duplicate ? 'is-duplicate' : ''}`} key={`bill-${id}`}>
+          <input type="checkbox" disabled={duplicate} checked={!duplicate && selectedBills.has(id)} onChange={() => toggle(setSelectedBills, id)} />
+          <div className="grow"><div className="row-title">{transaction.desc}</div><div className="muted">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy || 'Payer TBC'} · {ownedRecordAccountLabel(transaction, accountMap, peopleMap)}</div><div className="muted">New bill starts Unpaid · exact date TBC</div></div>
+          <div className="month-setup-row-end"><span className="money">{formatMoney(transaction.amount)}</span>{duplicate && <span className="status-pill neutral">Already exists</span>}</div>
+        </label>
+      ))}</div> : <div className="empty">No recurring bills available.</div>}
+
+      <h3>Regular income</h3>
+      {setup.incomeCandidates.length ? <div className="month-setup-list">{setup.incomeCandidates.map(({ id, record, duplicate, mode }) => (
+        <label className={`month-setup-row ${duplicate ? 'is-duplicate' : ''}`} key={`income-${id}`}>
+          <input type="checkbox" disabled={duplicate} checked={!duplicate && selectedIncome.has(id)} onChange={() => toggle(setSelectedIncome, id)} />
+          <div className="grow"><div className="row-title">{record.description}</div><div className="muted">{record.receivedByLabel || peopleMap[record.receivedBy]?.label || record.receivedBy || 'Recipient TBC'} · {ownedRecordAccountLabel(record, accountMap, peopleMap)}</div><div className="muted">{mode === 'fixed' ? 'Expected amount carried forward' : 'Amount must be confirmed for the new month'} · starts Expected</div></div>
+          <div className="month-setup-row-end"><span className="money">{mode === 'fixed' ? formatMoney(record.amount) : 'TBC'}</span>{duplicate && <span className="status-pill neutral">Already exists</span>}</div>
+        </label>
+      ))}</div> : <div className="empty">No regular income templates available.</div>}
+
+      <div className="total-line"><span>Selected records</span><span>{selectedCount}</span></div>
+      <div className="total-line"><span>Recurring bills</span><span className="money">{formatMoney(billTotal)}</span></div>
+      <div className="total-line"><span>Fixed expected income</span><span className="money green">{formatMoney(fixedIncomeTotal)}</span></div>
+      <div className="actions"><button className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={selectedCount === 0} onClick={() => onConfirm({ billIds: [...selectedBills], incomeIds: [...selectedIncome] })}>Set Up Month</button></div>
     </SimpleModal>
   );
 }
@@ -1259,7 +1310,7 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
   const initialDateConfirmed = existing ? !existingIssues.includes('date') : monthKey === currentLocalPeriod().key;
   const [mode, setMode] = useState(initialMode || 'expense');
   const [description, setDescription] = useState(transaction?.desc || income?.description || '');
-  const [amount, setAmount] = useState(transaction?.amount || income?.amount || '');
+  const [amount, setAmount] = useState(income?.amountConfirmed === false ? '' : transaction?.amount || income?.amount || '');
   const [dateConfirmed, setDateConfirmed] = useState(initialDateConfirmed);
   const [date, setDate] = useState(initialDateConfirmed ? (existing?.date || localDateKey()) : '');
   const [category, setCategory] = useState(transaction?.category || '');
@@ -1270,6 +1321,7 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
   const [account, setAccount] = useState(transaction?.account || income?.account || 'unassigned');
   const [receivedBy, setReceivedBy] = useState(income?.receivedBy || 'unassigned');
   const [incomeType, setIncomeType] = useState(income?.incomeType || '');
+  const [incomeStatus, setIncomeStatus] = useState(income?.incomeStatus || 'received');
   const [movementType, setMovementType] = useState(transaction?.type && transaction.type !== 'expense' ? transaction.type : 'internal_transfer');
   const [formError, setFormError] = useState('');
 
@@ -1279,7 +1331,8 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
       setFormError('Description is required.');
       return;
     }
-    if (!(Number(amount) > 0)) {
+    const hasPositiveAmount = Number(amount) > 0;
+    if (!hasPositiveAmount && !(mode === 'income' && incomeStatus === 'expected')) {
       setFormError('Enter an amount greater than zero.');
       return;
     }
@@ -1295,10 +1348,13 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
         setFormError('Income type is required.');
         return;
       }
+      const amountConfirmed = hasPositiveAmount;
       const issues = buildConfirmationIssues(existingIssues, {
         dateConfirmed,
         receivedBy,
         account,
+        amountConfirmed,
+        incomeStatus,
         kind: 'income',
       });
       onSaveIncome({
@@ -1306,7 +1362,10 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
         record: {
           id: income?.id || createId('income'),
           date: effectiveDate,
-          amount,
+          amount: amountConfirmed ? amount : 0,
+          amountConfirmed,
+          incomeStatus,
+          recurrenceMode: income?.recurrenceMode || 'manual',
           description,
           incomeType,
           receivedBy,
@@ -1470,6 +1529,17 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
             <ReferenceSelect id="income-received-by" label="Received By" value={receivedBy} options={peopleOptions} onChange={setReceivedBy} />
             <ReferenceSelect id="income-account" label="Account" value={account} options={accountOptions} onChange={setAccount} />
           </div>
+          <fieldset className="choice-group">
+            <legend>Income status</legend>
+            <label className={incomeStatus === 'expected' ? 'choice-card selected' : 'choice-card'}>
+              <input type="radio" name="income-status" checked={incomeStatus === 'expected'} onChange={() => setIncomeStatus('expected')} />
+              <span><strong>Expected</strong><small>Planning income; completed months cannot be Ready until receipt is confirmed.</small></span>
+            </label>
+            <label className={incomeStatus === 'received' ? 'choice-card selected' : 'choice-card'}>
+              <input type="radio" name="income-status" checked={incomeStatus === 'received'} onChange={() => setIncomeStatus('received')} />
+              <span><strong>Received</strong><small>Money has actually arrived; amount is required.</small></span>
+            </label>
+          </fieldset>
         </>
       )}
 
@@ -1862,11 +1932,13 @@ function confirmationSummary(issues = []) {
   return labels.length === 1 ? `${labels[0]} TBC` : `${labels.length} fields TBC`;
 }
 
-function buildConfirmationIssues(existingIssues, { dateConfirmed, paidBy, receivedBy, account, kind }) {
+function buildConfirmationIssues(existingIssues, { dateConfirmed, paidBy, receivedBy, account, amountConfirmed = true, incomeStatus = 'received', kind }) {
   const issues = new Set((existingIssues || []).filter((issue) => issue === 'other'));
   if (!dateConfirmed) issues.add('date');
   if (kind === 'expense' && paidBy === 'unassigned') issues.add('paidBy');
   if (kind === 'income' && receivedBy === 'unassigned') issues.add('receivedBy');
+  if (kind === 'income' && !amountConfirmed) issues.add('amount');
+  if (kind === 'income' && incomeStatus === 'expected') issues.add('received');
   if ((kind === 'expense' || kind === 'income' || kind === 'movement') && account === 'unassigned') issues.add('account');
   return [...issues];
 }

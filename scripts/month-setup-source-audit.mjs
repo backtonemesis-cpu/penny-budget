@@ -6,9 +6,9 @@ const monthSetup = await readFile(new URL('../src/month-setup.js', import.meta.u
 const state = await readFile(new URL('../src/state.js', import.meta.url), 'utf8');
 
 assert.match(app, /Set up \{MONTHS\[month\]\}/, 'Overview must expose a concise month setup action only when bills are available.');
-assert.match(app, /monthSetup\.availableCount > 0/, 'Completed month setup must disappear from Overview once there is nothing left to copy.');
+assert.match(app, /monthSetup\.totalAvailableCount > 0/, 'Month setup must disappear from Overview once no recurring bills or regular income remain to copy.');
 assert.doesNotMatch(app, /Bills Already Copied/, 'Overview must not retain a redundant Bills Already Copied panel after setup.');
-assert.match(app, /setToast\(`\$\{copies\.length\}/, 'Successful recurring-bill copy must use a transient confirmation.');
+assert.match(app, /setToast\(`\$\{copies\.bills\.length\}/, 'Successful month setup must use a transient confirmation.');
 assert.match(app, /StartNewMonthModal/, 'Recurring bills must be previewed before copying.');
 assert.match(app, /Copied from prior month/, 'Copied recurring bills must remain visibly identifiable after setup.');
 assert.match(app, /FundingBalanceEditor/, 'Bank-balance inputs must live in the Overview funding workflow.');
@@ -18,7 +18,9 @@ assert.match(monthSetup, /expenseClass === 'fixed'/, 'Only fixed expenses may be
 assert.match(monthSetup, /paid: false/, 'Copied bills must start unpaid.');
 assert.match(monthSetup, /dateConfirmed: false/, 'Copied dates must remain unconfirmed evidence.');
 assert.match(monthSetup, /source: 'month_copy'/, 'Copied bills must be identifiable as month-copy planning records.');
-assert.match(state, /case 'COPY_RECURRING_BILLS'/, 'Recurring bill copy must be handled atomically by the reducer.');
+assert.match(state, /case 'START_NEW_MONTH'/, 'Bills and regular income must be copied atomically by the reducer.');
 assert.match(state, /recurringBillKey/, 'Reducer-level duplicate protection must guard repeated month setup.');
 
+assert.match(monthSetup, /recurringIncomeMode/);
+assert.match(monthSetup, /incomeStatus: 'expected'/);
 console.log('Penny unified month setup source audit passed');
