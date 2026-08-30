@@ -1,3 +1,10 @@
+## 2026-08-30 — Mobile header control separation
+
+- Rebuilt the mobile header into explicit layout tracks so the month selector, Settings button and `+ Add` button cannot overlap on iPhone.
+- Constrained the native month input to its own track and preserved a visible keyboard-focus treatment on the month control.
+- Added narrow-iPhone sizing and mobile layout regression coverage.
+- Kept the selected-month logic, finance calculations, storage, reconciliation and household data unchanged.
+
 ## 2026-08-30 — iPhone foreground update verification
 
 - Penny now checks the live release whenever the installed app returns to the foreground, not only on initial JavaScript startup.

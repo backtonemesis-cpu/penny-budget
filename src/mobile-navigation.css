@@ -112,3 +112,48 @@ body,
   overscroll-behavior-x: none;
   touch-action: pan-y pinch-zoom;
 }
+
+/* Mobile header: keep month, Settings and Add in separate tracks on iPhone. */
+@media (max-width: 760px) {
+  .header-row {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) 44px 64px;
+    align-items: center;
+    column-gap: 9px;
+  }
+
+  .month-control {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .month-control:focus-within {
+    outline: 3px solid rgba(96, 165, 250, 0.58);
+    outline-offset: 2px;
+  }
+
+  .month-input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .month-input:focus-visible { outline: none; }
+  .icon-button,
+  .add-button {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    margin: 0;
+  }
+}
+
+@media (max-width: 390px) {
+  .header-row {
+    grid-template-columns: max-content minmax(0, 1fr) 40px 56px;
+  }
+}

@@ -43,6 +43,8 @@ jobs:
         run: node scripts/source-audit.mjs currency
       - name: Audit finance source
         run: node scripts/source-audit.mjs finance
+      - name: Run mobile layout regression tests
+        run: node scripts/modal-layout-test.mjs
       - name: Build production app
         run: npm run build
 
