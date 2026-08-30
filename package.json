@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "node scripts/apply-v28-driver.mjs && node scripts/apply-v32-expense-navigation.mjs && node scripts/apply-v35-expense-detail.mjs",
     "dev": "vite",
-    "test": "node scripts/self-test.mjs && node scripts/final-audit-test.mjs && node scripts/month-setup-test.mjs && node scripts/overview-status-test.mjs && node scripts/month-setup-source-audit.mjs && node scripts/owner-income-v10-test.mjs && node scripts/modal-layout-test.mjs && node scripts/update-refresh-test.mjs && node scripts/source-audit.mjs && node scripts/transaction-uniform-test.mjs && node scripts/expense-detail-parity-test.mjs",
+    "test": "node scripts/self-test.mjs && node scripts/final-audit-test.mjs && node scripts/month-setup-test.mjs && node scripts/overview-status-test.mjs && node scripts/month-setup-source-audit.mjs && node scripts/owner-income-v10-test.mjs && node scripts/modal-layout-test.mjs && node scripts/update-refresh-test.mjs && node scripts/source-audit.mjs && node scripts/transaction-uniform-test.mjs && node scripts/expense-detail-parity-test.mjs && node scripts/expense-income-visual-parity-test.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=moderate",
     "audit:all": "node scripts/dependency-audit.mjs",
     "build": "vite build",
