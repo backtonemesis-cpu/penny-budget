@@ -20,6 +20,11 @@ function normaliseEmptySavings(root = document) {
   const savingsSection = root.querySelector('section[aria-labelledby="savings-accounts-title"]');
   if (!savingsSection) return;
 
+  const heading = savingsSection.querySelector('#savings-accounts-title');
+  const headingBlock = heading?.parentElement;
+  const subtitle = headingBlock?.querySelector('.section-note');
+  if (subtitle) subtitle.hidden = true;
+
   const empty = [...savingsSection.querySelectorAll('.empty')]
     .find((node) => /No savings (snapshot has been )?recorded/i.test(node.textContent || ''));
   const total = savingsSection.querySelector(':scope > .total-line');
