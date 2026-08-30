@@ -8,7 +8,9 @@ assert.match(css, /\.modal \{[^}]*overflow: hidden;[^}]*overscroll-behavior: con
 assert.match(css, /\.modal-inner \{[^}]*max-height: calc\(100dvh - max\(14px, env\(safe-area-inset-top\)\) - max\(14px, env\(safe-area-inset-bottom\)\)\);[^}]*overflow-y: auto;[^}]*-webkit-overflow-scrolling: touch;/s, 'Modal content must use one safe-area-aware iOS vertical scroll container.');
 assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.modal-inner > \.actions \{[^}]*position: sticky;[^}]*bottom: -16px;/, 'Mobile editor actions must remain reachable while the form scrolls.');
 assert.doesNotMatch(css, /\.modal \{[^}]*overflow-y: auto;/s, 'Modal backdrop must never regain independent vertical scrolling.');
+assert.match(mobileCss, /html,\s*body,\s*#root \{[^}]*height: 100%;[^}]*overflow: hidden;[^}]*overscroll-behavior: none;/s, 'The browser document must be viewport-locked so iPhone root rubber-band scrolling cannot occur.');
+assert.match(mobileCss, /\.app \{[^}]*height: 100dvh;[^}]*overflow-y: auto;[^}]*overscroll-behavior: none;[^}]*-webkit-overflow-scrolling: touch;/s, 'Penny itself must be the single page-level vertical scroll container.');
 assert.match(mobileCss, /\.modal \{[^}]*overflow-x: clip;[^}]*overscroll-behavior-x: none;[^}]*touch-action: pan-y pinch-zoom;/s, 'Modal backdrop must reject horizontal panning on mobile.');
 assert.match(mobileCss, /\.modal-inner \{[^}]*max-width: 100%;[^}]*overflow-x: hidden;[^}]*overscroll-behavior-x: none;[^}]*touch-action: pan-y pinch-zoom;/s, 'The iPhone editor scroll container must be locked to vertical scrolling only.');
 
-console.log('Penny mobile modal layout regression tests passed');
+console.log('Penny mobile viewport and modal layout regression tests passed');
