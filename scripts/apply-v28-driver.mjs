@@ -22,8 +22,6 @@ finance = finance.replace(
 );
 await writeFile(financePath, finance);
 
-// Legacy self-test expected month merges to mutate the old global reference lists.
-// v28 deliberately keeps setup month-scoped, so assert the imported references on the imported month instead.
 const selfTestPath = 'scripts/self-test.mjs';
 let selfTest = await readFile(selfTestPath, 'utf8');
 selfTest = selfTest.replace(
@@ -31,5 +29,13 @@ selfTest = selfTest.replace(
   "assert.equal(merged.peopleByMonth['2026-06'].some((person) => person.id === 'p3'), true);\nassert.equal(merged.accountsByMonth['2026-06'].some((account) => account.id === 'a3'), true);",
 );
 await writeFile(selfTestPath, selfTest);
+
+const settingsAuditPath = 'scripts/settings-menu-audit.mjs';
+let settingsAudit = await readFile(settingsAuditPath, 'utf8');
+settingsAudit = settingsAudit.replace(
+  "/disabled=\\{recoveryRequired\\}[^>]*onClick=\\{onExport\\}/s",
+  "/disabled=\\{recoveryRequired\\}[^>]*onClick=\\{\\(\\) => onExport\\(/s",
+);
+await writeFile(settingsAuditPath, settingsAudit);
 
 console.log('PENNY_V28_MONTH_SCOPED driver completed');
