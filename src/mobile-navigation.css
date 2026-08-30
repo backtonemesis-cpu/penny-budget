@@ -113,13 +113,21 @@ body,
   touch-action: pan-y pinch-zoom;
 }
 
-/* Mobile header: keep month, Settings and Add in separate tracks on iPhone. */
+/* Mobile header: prioritise the month while keeping all controls distinct. */
 @media (max-width: 760px) {
   .header-row {
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr) 44px 64px;
+    grid-template-columns: max-content minmax(0, 1fr) 40px 54px;
     align-items: center;
-    column-gap: 9px;
+    column-gap: 6px;
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+
+  .brand {
+    font-size: 26px;
+    line-height: 1;
+    letter-spacing: -0.055em;
   }
 
   .month-control {
@@ -164,6 +172,7 @@ body,
   }
 
   .month-input:focus-visible { outline: none; }
+
   .icon-button,
   .add-button {
     position: relative;
@@ -171,16 +180,48 @@ body,
     min-width: 0;
     margin: 0;
   }
+
+  .icon-button {
+    width: 40px;
+    padding: 0;
+    font-family: "Times New Roman", Georgia, serif;
+    font-size: 16px;
+    font-variant-emoji: text;
+    line-height: 1;
+  }
+
+  .add-button {
+    width: 54px;
+    padding-inline: 4px;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+  }
 }
 
 @media (max-width: 390px) {
   .header-row {
-    grid-template-columns: max-content minmax(0, 1fr) 40px 56px;
+    grid-template-columns: max-content minmax(0, 1fr) 38px 52px;
+    column-gap: 5px;
+  }
+
+  .brand {
+    font-size: 24px;
   }
 
   .month-input {
     padding-inline: 2px;
     font-size: 15px;
     letter-spacing: -0.02em;
+  }
+
+  .icon-button {
+    width: 38px;
+    font-size: 15px;
+  }
+
+  .add-button {
+    width: 52px;
+    padding-inline: 3px;
+    font-size: 13px;
   }
 }
