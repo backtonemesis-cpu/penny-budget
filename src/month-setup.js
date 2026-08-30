@@ -62,7 +62,13 @@ function dedupeCandidates(sourceRows, targetRows, keyFn) {
 
 function futureAccountSafeRow(row, accountIds) {
   if (!row?.account || row.account === 'unassigned' || accountIds.has(row.account)) return row;
-  return { ...row, account: 'unassigned' };
+  return {
+    ...row,
+    account: 'unassigned',
+    accountLabel: '',
+    accountOwnerId: 'unassigned',
+    accountOwnerLabel: '',
+  };
 }
 
 export function recurringBillSetup(state, targetMonthKey) {
@@ -80,7 +86,7 @@ export function recurringBillSetup(state, targetMonthKey) {
   const accountIds = new Set((state?.accounts || []).map((account) => account.id));
   const futureBillKey = (row) => recurringBillKey(futureAccountSafeRow(row, accountIds));
   const candidates = dedupeCandidates(sourceBills, targetBills, futureBillKey)
-    .map(({ id, duplicate, row }) => ({ id, duplicate, transaction: row }));
+    .map(({ id, duplicate, row }) => ({ id, duplicate, transaction: futureAccountSafeRow(row, accountIds) }));
 
   const sourceIncome = (state?.incomeByMonth?.[sourceMonthKey] || [])
     .filter((record) => recurringIncomeMode(record) !== 'manual')
@@ -88,7 +94,7 @@ export function recurringBillSetup(state, targetMonthKey) {
   const targetIncome = state?.incomeByMonth?.[targetMonthKey] || [];
   const futureIncomeKey = (row) => recurringIncomeKey(futureAccountSafeRow(row, accountIds));
   const incomeCandidates = dedupeCandidates(sourceIncome, targetIncome, futureIncomeKey)
-    .map(({ id, duplicate, row }) => ({ id, duplicate, record: row, mode: recurringIncomeMode(row) }));
+    .map(({ id, duplicate, row }) => ({ id, duplicate, record: futureAccountSafeRow(row, accountIds), mode: recurringIncomeMode(row) }));
 
   const availableCount = candidates.filter((candidate) => !candidate.duplicate).length;
   const availableIncomeCount = incomeCandidates.filter((candidate) => !candidate.duplicate).length;
