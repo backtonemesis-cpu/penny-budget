@@ -5,7 +5,6 @@ import { installMonthClearControl } from './month-clear.js';
 import { installCategorySettingsCleanup } from './category-settings-cleanup.js';
 import { installUniformEmptyStates } from './empty-state-uniform.js';
 import { installOverviewFourCardFlow } from './overview-four-card-flow.js';
-import { installCashFlowCalculatorRemoval } from './remove-cash-flow-calculator.js';
 import './mobile-navigation.css';
 import './settings-fix.css';
 import './income-compact.css';
@@ -84,12 +83,8 @@ function renderApp() {
   installCategorySettingsCleanup();
   installUniformEmptyStates();
   installOverviewFourCardFlow();
-  installCashFlowCalculatorRemoval();
 }
 
-// Render immediately so a slow or stalled release check can never leave the app
-// on an empty background. Version checking remains active in the background and
-// will reload only when a newer deployed release is detected.
 renderApp();
 installReleaseChecks();
 void ensureCurrentRelease({ force: true });
