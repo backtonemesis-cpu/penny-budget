@@ -5,10 +5,79 @@ function settingsModal() {
   return document.querySelector('.wide-modal');
 }
 
+function sectionByHeading(modal, label) {
+  const heading = [...modal.querySelectorAll('.settings-section > h3')].find((item) => item.textContent?.trim() === label);
+  return heading?.closest('.settings-section') || null;
+}
+
 function hideVisibleChangeHistory(modal) {
-  const heading = [...modal.querySelectorAll('.settings-section > h3')].find((item) => item.textContent?.trim() === 'Change History');
-  const section = heading?.closest('.settings-section');
+  const section = sectionByHeading(modal, 'Change History');
   if (section && !section.hidden) section.hidden = true;
+}
+
+function setGlobalSetupNote(section, text) {
+  if (!section) return;
+  let note = section.querySelector('[data-global-setup-note]');
+  if (!note) {
+    note = document.createElement('p');
+    note.className = 'section-note global-setup-note';
+    note.setAttribute('data-global-setup-note', '');
+    const heading = section.querySelector(':scope > h3');
+    heading?.insertAdjacentElement('afterend', note);
+  }
+  if (note.textContent !== text) note.textContent = text;
+}
+
+function accountOwnerCounts(modal) {
+  const counts = new Map();
+  const section = sectionByHeading(modal, 'Accounts');
+  section?.querySelectorAll('.account-settings-row select').forEach((select) => {
+    const label = select.selectedOptions?.[0]?.textContent?.trim();
+    if (!label || label === 'TBC' || label === 'Joint') return;
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return counts;
+}
+
+function explainHouseholdDependencies(modal) {
+  const section = sectionByHeading(modal, 'Household People');
+  if (!section) return;
+  const ownerCounts = accountOwnerCounts(modal);
+
+  section.querySelectorAll('.settings-row').forEach((row) => {
+    if (row.querySelector('.primary-button')) return;
+    const input = row.querySelector('input');
+    const blockedButton = row.querySelector('.danger-button:disabled');
+    row.querySelector('[data-reference-use-note]')?.remove();
+    if (!input || !blockedButton) return;
+
+    const name = input.value.trim();
+    const ownedAccounts = ownerCounts.get(name) || 0;
+    const note = document.createElement('div');
+    note.className = 'reference-use-note';
+    note.setAttribute('data-reference-use-note', '');
+    note.textContent = ownedAccounts
+      ? `Cannot remove: owner of ${ownedAccounts} account${ownedAccounts === 1 ? '' : 's'}. Reassign ${ownedAccounts === 1 ? 'it' : 'them'} first.`
+      : 'Cannot remove: referenced by saved financial records.';
+    row.appendChild(note);
+  });
+}
+
+function clarifyGlobalSettings(modal) {
+  setGlobalSetupNote(
+    sectionByHeading(modal, 'Household People'),
+    'Global setup — kept when you clear a month. A person can be removed only after they no longer own an account and are not referenced by saved financial records.',
+  );
+  setGlobalSetupNote(
+    sectionByHeading(modal, 'Accounts'),
+    'Global setup — kept when you clear a month. Removing an account removes it from future choices; historical records keep their saved account evidence.',
+  );
+  const categorySection = [...modal.querySelectorAll('.settings-section')].find((section) => section.querySelector(':scope > h3')?.textContent?.trim() === 'Categories');
+  setGlobalSetupNote(
+    categorySection,
+    'Global setup — kept when you clear a month. Hide built-in categories you do not want to use; unused custom categories can be deleted.',
+  );
+  explainHouseholdDependencies(modal);
 }
 
 function syncIconSelect(fieldset) {
@@ -48,6 +117,7 @@ function enhanceCategorySettings() {
   const modal = settingsModal();
   if (!modal) return;
   hideVisibleChangeHistory(modal);
+  clarifyGlobalSettings(modal);
   modal.querySelectorAll('fieldset.icon-picker').forEach(syncIconSelect);
 }
 
