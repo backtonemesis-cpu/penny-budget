@@ -20,7 +20,9 @@ assert.match(source, /Backup and Recovery/, 'Clear Month must be located in the 
 assert.match(source, /data-penny-clear-month-settings/, 'Settings must own the Clear Month control.');
 assert.doesNotMatch(source, /month-setup-card.*appendChild/s, 'Clear Month must not be injected into Overview month setup.');
 assert.doesNotMatch(source, /metric-grid.*insertAdjacentElement/s, 'Clear Month must not be injected beside Overview metrics.');
+assert.match(source, /button\.textContent !== buttonLabel/, 'Settings Clear Month must not rewrite identical text on every MutationObserver callback.');
+assert.match(source, /requestAnimationFrame/, 'Settings Clear Month observer updates must be coalesced so UI input cannot be starved.');
 assert.match(css, /\.attention-card > \.section-heading \.section-note \{\s*display: none;/s, 'The long transfer-plan explanation must remain hidden on mobile.');
 assert.match(css, /\.settings-clear-month-button \{[\s\S]*min-height: 40px;/, 'Settings Clear Month action must retain a discreet but usable touch target.');
 
-console.log('Penny clear-month regression passed: Settings-only, confirmed, scoped and auditable month clearing.');
+console.log('Penny clear-month regression passed: Settings-only, confirmed, scoped, auditable and interaction-safe.');
