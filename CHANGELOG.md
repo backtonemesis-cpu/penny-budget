@@ -1,3 +1,11 @@
+## 2026-08-30 — Root overscroll lock
+
+- Stopped the browser document from being Penny’s vertical scroll container on iPhone.
+- Locked `html`, `body` and `#root` to the viewport and made `.app` the single page-level vertical scroll container.
+- Kept native momentum scrolling inside Penny while suppressing top/bottom scroll chaining and rubber-band overscroll outside the app.
+- Preserved modal scrolling, safe-area spacing, fixed bottom navigation and all finance/data logic.
+- Extended the mobile layout regression test to require the root lock and single app scroll container.
+
 ## 2026-08-30 — Mobile editor horizontal gesture lock
 
 - Locked the modal scroll container to vertical movement on iPhone so the transaction editor cannot be dragged left or right.
