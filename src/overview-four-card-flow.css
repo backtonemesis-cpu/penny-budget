@@ -17,6 +17,7 @@
   grid-template-columns: minmax(0, 1fr) auto !important;
   grid-template-rows: auto !important;
   align-items: center !important;
+  column-gap: 20px !important;
   text-align: left !important;
 }
 
@@ -24,6 +25,8 @@
   grid-column: 1;
   grid-row: 1;
   white-space: nowrap !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 
 .metric-grid.overview-four-card-grid > .stat .value {
@@ -46,10 +49,11 @@
   .metric-grid.overview-four-card-grid > .stat {
     min-height: 0 !important;
     padding: 26px 24px !important;
+    column-gap: 16px !important;
   }
 
   .metric-grid.overview-four-card-grid > .stat .label {
-    font-size: clamp(13px, 3.6vw, 16px) !important;
-    letter-spacing: 0.12em !important;
+    font-size: clamp(14px, 3.8vw, 17px) !important;
+    letter-spacing: normal !important;
   }
 }
