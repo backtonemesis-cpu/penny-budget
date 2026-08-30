@@ -1,0 +1,57 @@
+@media (max-width: 760px) {
+  .attention-card > .section-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: start;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .attention-card > .section-heading .section-title {
+    margin: 0;
+    max-width: 11ch;
+    font-size: clamp(25px, 7.2vw, 32px);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+  }
+
+  .attention-card > .section-heading .section-note {
+    display: none;
+  }
+
+  .attention-card > .section-heading .money.strong {
+    font-size: clamp(24px, 7vw, 31px);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .attention-card > .section-heading .mini-label {
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.05;
+    letter-spacing: 0.11em;
+  }
+
+  .clear-month-row {
+    display: flex;
+    justify-content: flex-end;
+    margin: 8px 0 12px;
+  }
+
+  .month-setup-card .clear-month-row {
+    margin: 8px 0 0;
+  }
+
+  .clear-month-button {
+    min-height: 44px;
+    border: 1px solid rgba(248, 113, 113, 0.5);
+    border-radius: 12px;
+    padding: 8px 13px;
+    background: rgba(127, 29, 29, 0.18);
+    color: #f87171;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1;
+  }
+}
