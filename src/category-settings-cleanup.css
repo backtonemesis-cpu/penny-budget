@@ -1,0 +1,66 @@
+/* Category Settings cleanup: keep category controls compact and clear. */
+.wide-modal .icon-picker .category-icon-select {
+  width: 100%;
+}
+
+.wide-modal .icon-picker .category-icon-select select {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 750;
+  padding: 10px 14px;
+}
+
+.wide-modal .icon-picker .icon-grid[hidden] {
+  display: none !important;
+}
+
+.wide-modal .category-list > summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  font-weight: 800;
+}
+
+.wide-modal .category-list-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.wide-modal .category-settings-row {
+  grid-template-columns: 42px minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.wide-modal .category-settings-row > span[aria-hidden='true'] {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.wide-modal .category-settings-row .secondary-button,
+.wide-modal .category-settings-row .danger-button {
+  min-height: 42px;
+  padding: 8px 12px;
+}
+
+@media (max-width: 520px) {
+  .wide-modal .category-settings-row {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+
+  .wide-modal .category-settings-row .danger-button {
+    grid-column: 2 / -1;
+    width: 100%;
+  }
+}
