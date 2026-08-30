@@ -7,6 +7,7 @@ import { installUniformEmptyStates } from './empty-state-uniform.js';
 import { installOverviewFourCardFlow } from './overview-four-card-flow.js';
 import './mobile-navigation.css';
 import './settings-fix.css';
+import './record-editor-v62.css';
 import './income-compact.css';
 import './overview-compact-v12.css';
 import './transfer-plan-compact.css';
