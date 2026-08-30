@@ -7,6 +7,7 @@ import './settings-fix.css';
 import './income-compact.css';
 import './overview-compact-v12.css';
 import './transfer-plan-compact.css';
+import './backup-actions-uniform.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
