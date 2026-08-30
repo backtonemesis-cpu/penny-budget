@@ -33,6 +33,8 @@ jobs:
         run: node scripts/self-test.mjs
       - name: Run final evidence and recovery tests
         run: node scripts/final-audit-test.mjs
+      - name: Run Settings menu audit
+        run: node scripts/settings-menu-audit.mjs
       - name: Audit accessibility source
         run: node scripts/source-audit.mjs accessibility
       - name: Audit storage source
