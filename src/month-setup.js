@@ -36,18 +36,19 @@ export function recurringBillSetup(state, targetMonthKey) {
   const sourceBills = (state?.txnsByMonth?.[sourceMonthKey] || [])
     .filter((transaction) => transaction.type === 'expense' && transaction.expenseClass === 'fixed')
     .sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
-  const existingKeys = new Set(
+  const protectedKeys = new Set(
     (state?.txnsByMonth?.[targetMonthKey] || [])
       .filter((transaction) => transaction.type === 'expense' && transaction.expenseClass === 'fixed')
       .map(recurringBillKey)
       .filter(Boolean),
   );
 
-  const candidates = sourceBills.map((transaction) => ({
-    id: transaction.id,
-    transaction,
-    duplicate: existingKeys.has(recurringBillKey(transaction)),
-  }));
+  const candidates = sourceBills.map((transaction) => {
+    const key = recurringBillKey(transaction);
+    const duplicate = !key || protectedKeys.has(key);
+    if (key) protectedKeys.add(key);
+    return { id: transaction.id, transaction, duplicate };
+  });
 
   return {
     sourceMonthKey,
