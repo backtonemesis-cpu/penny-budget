@@ -65,7 +65,7 @@ function clearSelectedMonth() {
   const incomeCount = before.income.length;
 
   const confirmed = globalThis.confirm(
-    `Clear ${label}?\n\nThis will remove ${transactionCount} transaction${transactionCount === 1 ? '' : 's'}, ${incomeCount} income item${incomeCount === 1 ? '' : 's'}, current bank-balance entries and month-specific budget/setup data for ${label}.\n\nOther months, accounts, categories and savings history will not be changed. This action will be recorded in Change History.`
+    `Clear ${label} data only?\n\nThis will remove ${transactionCount} transaction${transactionCount === 1 ? '' : 's'}, ${incomeCount} income item${incomeCount === 1 ? '' : 's'}, current bank-balance entries and month-specific budget/setup data for ${label} only.\n\nAll other months, accounts, categories and savings history will be kept. This action will be recorded in Change History.`
   );
   if (!confirmed) return;
 
@@ -112,14 +112,14 @@ function ensureClearMonthControl() {
   const monthKey = selectedMonthKey();
   if (!monthKey) return;
   const label = monthLabel(monthKey);
-  const buttonLabel = `Clear ${label}`;
+  const buttonLabel = `Clear ${label} data`;
+  const noteLabel = `Deletes ${label} only. All other months and Penny data are kept.`;
 
   const existing = target.querySelector('[data-penny-clear-month-settings]');
   if (existing) {
     const button = existing.querySelector('[data-penny-clear-month]');
     const note = existing.querySelector('.settings-month-data-copy span');
     if (button && button.textContent !== buttonLabel) button.textContent = buttonLabel;
-    const noteLabel = `Selected: ${label}`;
     if (note && note.textContent !== noteLabel) note.textContent = noteLabel;
     return;
   }
@@ -135,9 +135,9 @@ function ensureClearMonthControl() {
   const text = document.createElement('div');
   text.className = 'settings-month-data-copy';
   const title = document.createElement('strong');
-  title.textContent = 'Month data';
+  title.textContent = `Clear ${label} data`;
   const note = document.createElement('span');
-  note.textContent = `Selected: ${label}`;
+  note.textContent = noteLabel;
   text.append(title, note);
 
   const button = document.createElement('button');

@@ -22,7 +22,10 @@ assert.doesNotMatch(source, /month-setup-card.*appendChild/s, 'Clear Month must 
 assert.doesNotMatch(source, /metric-grid.*insertAdjacentElement/s, 'Clear Month must not be injected beside Overview metrics.');
 assert.match(source, /button\.textContent !== buttonLabel/, 'Settings Clear Month must not rewrite identical text on every MutationObserver callback.');
 assert.match(source, /requestAnimationFrame/, 'Settings Clear Month observer updates must be coalesced so UI input cannot be starved.');
+assert.match(source, /Deletes \$\{label\} only\. All other months and Penny data are kept\./, 'Settings must explain that Clear Month affects only the selected month.');
+assert.match(source, /Clear \$\{label\} data only\?/, 'Confirmation must explicitly state the selected-month-only scope.');
 assert.match(css, /\.attention-card > \.section-heading \.section-note \{\s*display: none;/s, 'The long transfer-plan explanation must remain hidden on mobile.');
-assert.match(css, /\.settings-clear-month-button \{[\s\S]*min-height: 40px;/, 'Settings Clear Month action must retain a discreet but usable touch target.');
+assert.match(css, /\.settings-clear-month-button \{[\s\S]*width: 100%;[\s\S]*min-height: 52px;/, 'Clear Month must be a full-width, prominent Settings action on desktop.');
+assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.settings-clear-month-button \{[\s\S]*min-height: 50px;/, 'Clear Month must retain a substantial mobile touch target.');
 
-console.log('Penny clear-month regression passed: Settings-only, confirmed, scoped, auditable and interaction-safe.');
+console.log('Penny clear-month regression passed: Settings-only, confirmed, scoped, auditable, interaction-safe and clearly presented.');
