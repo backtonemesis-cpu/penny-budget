@@ -4,6 +4,7 @@ import App from './App.jsx';
 import './mobile-navigation.css';
 import './settings-fix.css';
 import './income-compact.css';
+import './transfer-plan-compact.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
