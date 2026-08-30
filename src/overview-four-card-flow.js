@@ -23,11 +23,11 @@ function applyOverviewFourCardFlow() {
   const monthName = Number.isInteger(monthNumber)
     ? new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(2000, monthNumber - 1, 1))
     : '';
-  const monthPrefix = monthName ? `${monthName.toUpperCase()} ` : '';
+  const monthPrefix = monthName ? `${monthName} ` : '';
 
-  setText(metricCards[0], '.label', `${monthPrefix}INCOME`);
-  setText(metricCards[1], '.label', `${monthPrefix}EXPENSES`);
-  setText(metricCards[2], '.label', `${monthPrefix}SAVINGS`);
+  setText(metricCards[0], '.label', `${monthPrefix}income`);
+  setText(metricCards[1], '.label', `${monthPrefix}expenses`);
+  setText(metricCards[2], '.label', `${monthPrefix}savings`);
 
   let totalCard = metricGrid.querySelector('.overview-total-savings');
   if (!totalCard) {
@@ -38,7 +38,7 @@ function applyOverviewFourCardFlow() {
   }
 
   const projectedValue = heroCards[1].querySelector('.value')?.textContent || '£0.00';
-  setText(totalCard, '.label', 'TOTAL SAVINGS');
+  setText(totalCard, '.label', 'Total savings');
   setText(totalCard, '.value', projectedValue);
 
   heroGrid.classList.add('overview-legacy-savings-hidden');
