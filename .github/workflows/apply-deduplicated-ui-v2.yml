@@ -22,7 +22,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Apply UI cleanup
-        run: python scripts/apply-deduplicated-ui-v2.py
+        run: |
+          python scripts/apply-deduplicated-ui-v2.py
+          python scripts/fix-deduplicated-ui-v2.py
       - name: Validate exact patched tree
         run: |
           npm ci
@@ -30,6 +32,7 @@ jobs:
       - name: Commit validated source
         run: |
           rm scripts/apply-deduplicated-ui-v2.py
+          rm scripts/fix-deduplicated-ui-v2.py
           rm .github/workflows/apply-deduplicated-ui-v2.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
