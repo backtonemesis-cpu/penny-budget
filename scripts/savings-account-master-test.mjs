@@ -48,10 +48,12 @@ assert.equal(monthSummary(removedMaster, '2026-09').currentSavings, 19687.47, 'm
 const app = await readFile('src/App.jsx', 'utf8');
 assert.match(app, /<h3>Savings Accounts<\/h3>/, 'Settings must expose a Savings Accounts master list');
 assert.match(app, /field="savingsAccounts"/, 'Savings Settings must use the reusable reference editor');
-assert.match(app, /id="savings-account-select"/, 'monthly Savings must select from the master savings accounts');
+assert.match(app, /displayedSavingsAccounts/, 'monthly Savings must display the reusable Settings savings-account list');
+assert.doesNotMatch(app, /id="savings-account-select"/, 'monthly Savings must not ask the user to add/select savings accounts again');
+assert.doesNotMatch(app, />\+ Add Account<\/button>/, 'Savings account creation must live in Settings, not the monthly Savings tab');
 assert.match(app, /PENNY_V40_SAVINGS_EDITOR/, 'compact balance-only savings editor must be installed');
 assert.doesNotMatch(app, /saving-label-\$\{account\.id\}/, 'monthly savings editing must not ask the user to retype the account name');
-assert.match(app, /onSavingsDetails=\{\(\) => setView\('Savings'\)\}/, 'Overview Savings must route directly to Savings');
+assert.match(app, /setTransactionTab\('savings'\); setView\('Transactions'\)/, 'Overview Savings must route directly to the Savings sub-tab in Transactions');
 assert.match(app, /onClick=\{onSavingsDetails\}/, 'Savings Snapshot card must be actionable');
 assert.match(app, /action\.type === 'SET_REFERENCE_LIST' && \['people', 'accounts'\]\.includes\(action\.field\)/, 'only people/accounts may be redirected into month-scoped Settings; savings accounts must remain global');
 assert.match(app, /!summary\.isComplete && \(/, 'Savings Goal planning must remain hidden for completed historical months');
