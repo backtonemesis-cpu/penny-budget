@@ -7,8 +7,18 @@ function setText(root, selector, text) {
   if (node && node.textContent !== text) node.textContent = text;
 }
 
+function removeCashFlowCalculator() {
+  const calculator = [...document.querySelectorAll('main details')].find((details) => {
+    const summary = details.querySelector(':scope > summary');
+    return summary?.textContent?.trim().toLowerCase() === 'cash-flow calculation';
+  });
+  if (calculator) calculator.remove();
+}
+
 function applyOverviewFourCardFlow() {
   if (!overviewIsActive()) return;
+
+  removeCashFlowCalculator();
 
   const heroGrid = document.querySelector('main .hero-grid');
   const metricGrid = document.querySelector('main .metric-grid');
