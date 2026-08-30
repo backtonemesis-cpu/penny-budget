@@ -53,6 +53,8 @@ assert.match(app, /PENNY_V40_SAVINGS_EDITOR/, 'compact balance-only savings edit
 assert.doesNotMatch(app, /saving-label-\$\{account\.id\}/, 'monthly savings editing must not ask the user to retype the account name');
 assert.match(app, /onSavingsDetails=\{\(\) => setView\('Savings'\)\}/, 'Overview Savings must route directly to Savings');
 assert.match(app, /onClick=\{onSavingsDetails\}/, 'Savings Snapshot card must be actionable');
+assert.match(app, /action\.type === 'SET_REFERENCE_LIST' && \['people', 'accounts'\]\.includes\(action\.field\)/, 'only people/accounts may be redirected into month-scoped Settings; savings accounts must remain global');
+assert.match(app, /!summary\.isComplete && \(/, 'Savings Goal planning must remain hidden for completed historical months');
 
 const storage = await readFile('src/storage.js', 'utf8');
 assert.match(storage, /savingsAccounts: mergeById\(current\.savingsAccounts, incoming\.savingsAccounts\)/, 'month import must merge reusable savings-account references safely');
