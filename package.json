@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node scripts/self-test.mjs && node scripts/final-audit-test.mjs && node scripts/month-setup-test.mjs && node scripts/overview-status-test.mjs && node scripts/month-setup-source-audit.mjs && node scripts/owner-income-v10-test.mjs && node scripts/modal-layout-test.mjs && node scripts/source-audit.mjs",
+    "test": "node scripts/self-test.mjs && node scripts/final-audit-test.mjs && node scripts/month-setup-test.mjs && node scripts/overview-status-test.mjs && node scripts/month-setup-source-audit.mjs && node scripts/owner-income-v10-test.mjs && node scripts/modal-layout-test.mjs && node scripts/update-refresh-test.mjs && node scripts/source-audit.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=moderate",
     "audit:all": "node scripts/dependency-audit.mjs",
     "build": "vite build",
