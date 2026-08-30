@@ -33,8 +33,8 @@ await writeFile(selfTestPath, selfTest);
 const settingsAuditPath = 'scripts/settings-menu-audit.mjs';
 let settingsAudit = await readFile(settingsAuditPath, 'utf8');
 settingsAudit = settingsAudit.replace(
-  "/disabled=\\{recoveryRequired\\}[^>]*onClick=\\{onExport\\}/s",
-  "/disabled=\\{recoveryRequired\\}[^>]*onClick=\\{\\(\\) => onExport\\(/s",
+  "assert.match(appSource, /disabled=\\{recoveryRequired\\}[^>]*onClick=\\{onExport\\}/s, 'Normal backup export must remain disabled during protected recovery.');",
+  "assert.match(appSource, /disabled=\\{recoveryRequired \\|\\| \\(exportScope === 'choose'/, 'Scoped backup export must remain disabled during protected recovery.');",
 );
 await writeFile(settingsAuditPath, settingsAudit);
 
