@@ -2,22 +2,22 @@
 .attention-card .section-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: start;
-  gap: 4px 12px;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: 10px 18px;
+  margin-bottom: 14px;
 }
 
 .attention-card .section-heading > div:first-child {
-  grid-column: 1 / -1;
+  grid-column: 1;
   min-width: 0;
 }
 
 .attention-card .section-heading .section-title {
   margin-bottom: 0;
   max-width: none;
-  font-size: 19px;
+  font-size: 17px;
   line-height: 1.1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   white-space: nowrap;
 }
 
@@ -31,15 +31,25 @@
   flex: 0 0 auto;
 }
 
+.attention-card .section-heading > div:last-child .money {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.attention-card .section-heading .mini-label {
+  margin-top: 3px;
+}
+
 .attention-card .transfer-account-row {
   align-items: stretch;
-  padding: 18px 0;
+  padding: 16px 0;
 }
 
 .attention-card .transfer-account-row > .grow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-rows: auto auto;
+  gap: 9px 12px;
   min-width: 0;
   width: 100%;
 }
@@ -53,6 +63,7 @@
 
 .attention-card .transfer-account-row .row-title {
   grid-column: 1 / -1;
+  grid-row: 1;
   margin-bottom: 2px;
   font-size: 17px;
   line-height: 1.2;
@@ -76,10 +87,10 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 54px;
+  min-height: 58px;
   border: 1px solid var(--border-soft);
   border-radius: 11px;
-  padding: 10px 12px;
+  padding: 11px 14px;
   background: var(--surface-2);
   font-variant-numeric: tabular-nums;
 }
@@ -91,29 +102,32 @@
 
 .attention-card .funding-math > span:first-child {
   grid-column: 1;
+  grid-row: 2;
 }
 
 .attention-card .funding-math > span:last-child {
   grid-column: 3;
+  grid-row: 2;
   border-color: rgba(245, 185, 66, 0.34);
   background: rgba(245, 185, 66, 0.07);
   font-weight: 780;
 }
 
-/* Current balance is now the middle summary card itself, not a second box below it. */
+/* Current balance is the middle summary card itself. */
 .attention-card .funding-balance-editor {
   grid-column: 2;
+  grid-row: 2;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   min-width: 0;
-  min-height: 54px;
+  min-height: 58px;
   max-width: none;
   margin: 0;
   border: 1px solid var(--border-soft);
   border-radius: 11px;
-  padding: 10px 12px;
+  padding: 11px 14px;
   background: var(--surface-2);
 }
 
@@ -154,8 +168,13 @@
 @media (max-width: 760px) {
   .attention-card .section-heading {
     grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: start;
     gap: 3px 8px;
     margin-bottom: 9px;
+  }
+
+  .attention-card .section-heading > div:first-child {
+    grid-column: 1 / -1;
   }
 
   .attention-card .section-heading .section-title {
@@ -166,6 +185,7 @@
   }
 
   .attention-card .section-heading > div:last-child {
+    grid-column: 2;
     padding-top: 0;
   }
 
@@ -186,10 +206,12 @@
 
   .attention-card .transfer-account-row > .grow {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
     gap: 8px;
   }
 
   .attention-card .transfer-account-row .row-title {
+    grid-row: auto;
     margin-bottom: 2px;
     font-size: 16px;
   }
