@@ -26,6 +26,7 @@ import {
   normaliseTransaction,
 } from './finance.js';
 import { appReducer, categoryInUse, referenceInUse } from './state.js';
+import { buildRecurringBillCopies, recurringBillSelectionTotal, recurringBillSetup } from './month-setup.js';
 import {
   clearPennyState,
   clearRollbackState,
@@ -112,6 +113,7 @@ function App() {
 
   const monthKey = period.key;
   const summary = useMemo(() => monthSummary(state, monthKey), [state, monthKey]);
+  const monthSetup = useMemo(() => recurringBillSetup(state, monthKey), [state, monthKey]);
   const annual = useMemo(() => annualSummary(state, period.year), [state, period.year]);
   const allCategories = useMemo(() => [...BASE_CATEGORIES, ...state.customCats], [state.customCats]);
   const visibleCategories = allCategories.filter((category) => !state.hiddenCats.includes(category.id));
@@ -346,6 +348,63 @@ function App() {
     }
   };
 
+  const updateTransferBankBalance = (accountId, balance) => {
+    if (!canEditMonth) {
+      setMessage('This month is locked. Unlock corrections before changing bank balances.');
+      return;
+    }
+    const account = state.accounts.find((item) => item.id === accountId);
+    if (!account) {
+      setMessage('Assign a real bill-paying account before entering its current balance.');
+      return;
+    }
+    const rows = state.bankBalancesByMonth?.[monthKey] || [];
+    const existing = rows.find((row) => row.id === accountId);
+    let nextRows;
+    if (balance == null) {
+      nextRows = rows.filter((row) => row.id !== accountId);
+    } else {
+      const nextRow = {
+        id: account.id,
+        label: account.label,
+        balance,
+        ownerId: account.ownerId || 'unassigned',
+        ownerLabel: accountOwnerLabel(account, peopleMap),
+      };
+      nextRows = existing
+        ? rows.map((row) => row.id === accountId ? nextRow : row)
+        : [...rows, nextRow];
+    }
+    mutate({
+      type: 'SET_BANK_BALANCES',
+      monthKey,
+      items: nextRows,
+      auditLabel: balance == null ? `Clear ${account.label} bank balance to TBC` : `Update ${account.label} bank balance`,
+    });
+  };
+
+  const startNewMonth = (selectedIds) => {
+    if (!canEditMonth || summary.isComplete) {
+      setMessage('Completed months cannot be started from a previous month.');
+      return;
+    }
+    const copies = buildRecurringBillCopies(state, monthKey, selectedIds);
+    if (!copies.length) {
+      setModal(null);
+      setMessage('No new recurring bills were selected. Existing bills were left unchanged.');
+      return;
+    }
+    mutate({
+      type: 'COPY_RECURRING_BILLS',
+      monthKey,
+      sourceMonthKey: monthSetup.sourceMonthKey,
+      bills: copies,
+      auditLabel: `Start ${MONTHS[period.month]} ${period.year} from recurring bills`,
+    });
+    setModal(null);
+    setMessage(`${copies.length} recurring bill${copies.length === 1 ? '' : 's'} copied into ${MONTHS[period.month]} ${period.year} as Unpaid. Exact dates remain TBC until confirmed.`);
+  };
+
   const erasePennyData = () => {
     if (!globalThis.confirm('Erase all data stored by Penny on this device? This cannot be undone without a separate exported backup.')) return;
     const result = clearPennyState(browserStorage);
@@ -397,8 +456,12 @@ function App() {
             categoryMap={categoryMap}
             peopleMap={peopleMap}
             accountMap={accountMap}
+            monthKey={monthKey}
+            monthSetup={monthSetup}
             canEditMonth={canEditMonth}
             onUnlockMonth={unlockMonth}
+            onStartNewMonth={() => setModal({ kind: 'month-setup' })}
+            onUpdateBankBalance={updateTransferBankBalance}
             onAddIncome={() => openRecord({ mode: 'income' })}
             onAddExpense={() => openRecord({ mode: 'expense' })}
           />
@@ -440,7 +503,6 @@ function App() {
             month={period.month}
             year={period.year}
             canEdit={canEditMonth}
-            peopleMap={peopleMap}
             mutate={mutate}
           />
         )}
@@ -489,6 +551,17 @@ function App() {
         />
       )}
 
+      {modal?.kind === 'month-setup' && (
+        <StartNewMonthModal
+          setup={monthSetup}
+          targetMonthKey={monthKey}
+          peopleMap={peopleMap}
+          accountMap={accountMap}
+          onConfirm={startNewMonth}
+          onClose={() => setModal(null)}
+        />
+      )}
+
       {modal?.kind === 'settings' && (
         <SettingsModal
           state={state}
@@ -532,7 +605,7 @@ function Stat({ label, value, tone = 'neutral', sub, onClick, variant = 'standar
   ) : <div className={className}>{body}</div>;
 }
 
-function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, canEditMonth, onUnlockMonth, onAddIncome, onAddExpense }) {
+function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, monthKey, monthSetup, canEditMonth, onUnlockMonth, onStartNewMonth, onUpdateBankBalance, onAddIncome, onAddExpense }) {
   const categoryTotals = {};
   summary.expenseTransactions.forEach((transaction) => {
     categoryTotals[transaction.category] = (categoryTotals[transaction.category] || 0) + transaction.amount;
@@ -542,6 +615,9 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
     const key = `${record.incomeType}::${record.receivedBy}::${record.receivedByLabel || ''}`;
     incomeTotals[key] = (incomeTotals[key] || 0) + record.amount;
   });
+  const sourceMonthLabel = monthSetup.sourceMonthKey
+    ? `${MONTHS[Number(monthSetup.sourceMonthKey.slice(5, 7)) - 1]} ${monthSetup.sourceMonthKey.slice(0, 4)}`
+    : 'the previous month';
 
   return (
     <>
@@ -580,6 +656,26 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
         </div>
       )}
 
+      {!summary.isComplete && (
+        <section className="card month-setup-card" aria-labelledby="month-setup-title">
+          <div className="section-heading month-setup-heading">
+            <div>
+              <h2 className="section-title" id="month-setup-title">Start New Month</h2>
+              <p className="section-note">Copy recurring fixed bills from {sourceMonthLabel}. Penny previews everything first, starts every copy Unpaid, and never copies income or ordinary day-to-day spending.</p>
+            </div>
+            <button className="primary-button" disabled={!canEditMonth || monthSetup.candidates.length === 0} onClick={onStartNewMonth}>
+              {monthSetup.candidates.length ? 'Start New Month' : 'No Previous Bills'}
+            </button>
+          </div>
+          {monthSetup.candidates.length > 0 && (
+            <div className="month-setup-summary">
+              <span>{monthSetup.availableCount} bill{monthSetup.availableCount === 1 ? '' : 's'} available to copy</span>
+              {monthSetup.duplicateCount > 0 && <span>{monthSetup.duplicateCount} already present and protected from duplication</span>}
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="hero-grid">
         <Stat
           variant="hero"
@@ -608,7 +704,7 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
           <div className="section-heading">
             <div>
               <h2 className="section-title" id="remaining-bills-title">Start-of-Month Transfer Plan</h2>
-              <p className="section-note">Use this at month-end: select the month you are preparing, enter bank balances in Savings, then move only the shortfall from savings.</p>
+              <p className="section-note">Use this at month-end: enter each current bank balance below, then move only the calculated shortfall from savings. Everything needed is on this screen.</p>
             </div>
             <div>
               <div className={`money strong ${summary.hasUnconfirmedBankBalances ? 'amber' : summary.totalTransferNeeded > 0 ? 'amber' : 'green'}`}>{summary.hasUnconfirmedBankBalances ? 'TBC' : formatMoney(summary.totalTransferNeeded)}</div>
@@ -626,6 +722,12 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
                   <span>{row.hasCurrentBalance ? `Current bank balance: ${formatMoney(row.currentBalance)}` : 'Current bank balance: TBC'}</span>
                   <span className={row.transferNeeded > 0 ? 'amber' : 'green'}>Transfer needed: {row.hasCurrentBalance ? formatMoney(row.transferNeeded) : 'TBC'}</span>
                 </div>
+                <FundingBalanceEditor
+                  row={row}
+                  monthKey={monthKey}
+                  canEdit={canEditMonth}
+                  onCommit={(value) => onUpdateBankBalance(row.account, value)}
+                />
                 <div className="transfer-breakdown">
                   {row.payers.map((payer) => (
                     <span key={`${row.key}-${payer.paidBy}`}>
@@ -694,6 +796,44 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, ca
         </section>
       </div>
     </>
+  );
+}
+
+function FundingBalanceEditor({ row, monthKey, canEdit, onCommit }) {
+  const [draft, setDraft] = useState(row.hasCurrentBalance ? String(row.currentBalance) : '');
+  useEffect(() => setDraft(row.hasCurrentBalance ? String(row.currentBalance) : ''), [row.hasCurrentBalance, row.currentBalance]);
+  const editable = canEdit && row.account && row.account !== 'unassigned';
+  const commit = () => {
+    if (!editable) return;
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      if (row.hasCurrentBalance) onCommit(null);
+      return;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setDraft(row.hasCurrentBalance ? String(row.currentBalance) : '');
+      return;
+    }
+    if (!row.hasCurrentBalance || parsed !== row.currentBalance) onCommit(parsed);
+  };
+  return (
+    <div className="funding-balance-editor">
+      <label htmlFor={`funding-balance-${monthKey}-${row.account}`}>Current bank balance</label>
+      <input
+        id={`funding-balance-${monthKey}-${row.account}`}
+        disabled={!editable}
+        type="number"
+        inputMode="decimal"
+        min="0"
+        step="0.01"
+        value={draft}
+        placeholder="TBC"
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+      />
+      <small>{editable ? 'Clear the field to return this balance to TBC.' : 'Assign a bill-paying account before entering a balance.'}</small>
+    </div>
   );
 }
 
@@ -898,11 +1038,55 @@ function Bills({ summary, categoryMap, peopleMap, accountMap, canEdit, onToggleP
   );
 }
 
-function Savings({ state, summary, monthKey, month, year, canEdit, peopleMap, mutate }) {
+function StartNewMonthModal({ setup, targetMonthKey, peopleMap, accountMap, onConfirm, onClose }) {
+  const [selected, setSelected] = useState(() => new Set(setup.candidates.filter((candidate) => !candidate.duplicate).map((candidate) => candidate.id)));
+  const targetLabel = `${MONTHS[Number(targetMonthKey.slice(5, 7)) - 1]} ${targetMonthKey.slice(0, 4)}`;
+  const sourceLabel = setup.sourceMonthKey
+    ? `${MONTHS[Number(setup.sourceMonthKey.slice(5, 7)) - 1]} ${setup.sourceMonthKey.slice(0, 4)}`
+    : 'the previous month';
+  const selectedIds = [...selected];
+  const total = recurringBillSelectionTotal(setup, selectedIds);
+  const toggle = (id) => setSelected((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+
+  return (
+    <SimpleModal title={`Start ${targetLabel}`} onClose={onClose} wide>
+      <p className="section-note">Review fixed bills from {sourceLabel}. Selected bills are copied as <strong>Unpaid planning records</strong>. Their exact dates remain TBC until you confirm evidence. Income, variable spending and transfers are never copied.</p>
+      {setup.candidates.length ? (
+        <div className="month-setup-list">
+          {setup.candidates.map(({ id, transaction, duplicate }) => (
+            <label className={`month-setup-row ${duplicate ? 'is-duplicate' : ''}`} key={id}>
+              <input type="checkbox" disabled={duplicate} checked={!duplicate && selected.has(id)} onChange={() => toggle(id)} />
+              <div className="grow">
+                <div className="row-title">{transaction.desc}</div>
+                <div className="muted">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy || 'Payer TBC'} · {ownedRecordAccountLabel(transaction, accountMap, peopleMap)}</div>
+                <div className="muted">Previous record: {recordDateLabel(transaction)} · New exact date will be TBC</div>
+              </div>
+              <div className="month-setup-row-end">
+                <span className="money">{formatMoney(transaction.amount)}</span>
+                {duplicate && <span className="status-pill neutral">Already exists</span>}
+              </div>
+            </label>
+          ))}
+        </div>
+      ) : <div className="empty">No fixed bills were found in {sourceLabel}. Nothing will be copied.</div>}
+      <div className="total-line"><span>Selected recurring bills</span><span>{selected.size}</span></div>
+      <div className="total-line"><span>Planned total</span><span className="money">{formatMoney(total)}</span></div>
+      <div className="actions">
+        <button className="secondary-button" onClick={onClose}>Cancel</button>
+        <button className="primary-button" disabled={selected.size === 0} onClick={() => onConfirm(selectedIds)}>Copy Selected Bills</button>
+      </div>
+    </SimpleModal>
+  );
+}
+
+function Savings({ state, summary, monthKey, month, year, canEdit, mutate }) {
   const savingsAccounts = state.savingsByMonth?.[monthKey] || [];
-  const bankBalances = state.bankBalancesByMonth?.[monthKey] || [];
   const setAccounts = (items, label = 'Update savings snapshot') => mutate({ type: 'SET_SAVINGS_ACCOUNTS', monthKey, items, auditLabel: label });
-  const setBankBalances = (items, label = 'Update bill-paying bank balances') => mutate({ type: 'SET_BANK_BALANCES', monthKey, items, auditLabel: label });
   const addAccount = () => setAccounts([...savingsAccounts, { id: createId('saving'), label: 'New savings account', balance: 0 }], 'Add savings account');
   const removeAccount = (id) => {
     const account = savingsAccounts.find((item) => item.id === id);
@@ -910,15 +1094,6 @@ function Savings({ state, summary, monthKey, month, year, canEdit, peopleMap, mu
     setAccounts(savingsAccounts.filter((item) => item.id !== id), `Remove ${account?.label || 'savings account'}`);
   };
   const updateAccount = (id, patch) => setAccounts(savingsAccounts.map((account) => account.id === id ? { ...account, ...patch } : account), 'Update savings account');
-  const bankBalanceMap = Object.fromEntries(bankBalances.map((account) => [account.id, account]));
-  const updateBankBalance = (account, balance) => {
-    const existing = bankBalanceMap[account.id];
-    const nextRow = { id: account.id, label: account.label, balance: Math.max(0, Number(balance) || 0), ownerId: account.ownerId || 'unassigned', ownerLabel: accountOwnerLabel(account, peopleMap) };
-    const next = existing
-      ? bankBalances.map((row) => row.id === account.id ? nextRow : row)
-      : [...bankBalances, nextRow];
-    setBankBalances(next, `Update ${account.label} bank balance`);
-  };
   const goalRemaining = state.savingsGoal > 0 ? Math.max(state.savingsGoal - summary.currentSavings, 0) : null;
   const months = goalRemaining && state.savingsContrib > 0 ? Math.ceil(goalRemaining / state.savingsContrib) : null;
 
@@ -945,27 +1120,6 @@ function Savings({ state, summary, monthKey, month, year, canEdit, peopleMap, mu
         <div className="total-line"><span>{summary.isComplete ? 'Closing Savings' : 'Savings Snapshot'}</span><span className="money green">{formatMoney(summary.currentSavings)}</span></div>
       </section>
 
-      {!summary.isComplete && (
-        <section className="card" aria-labelledby="bank-balances-title">
-          <div className="section-heading">
-            <div>
-              <h2 className="section-title" id="bank-balances-title">Bill-Paying Bank Balances — {MONTHS[month]} {year}</h2>
-              <p className="section-note">Enter the money already sitting in each spending account before you top it up from savings. These balances only calculate the transfer shortfall.</p>
-            </div>
-          </div>
-          {state.accounts.length ? state.accounts.map((account) => (
-            <BankBalanceEditor
-              key={account.id}
-              account={account}
-              balance={bankBalanceMap[account.id]?.balance}
-              peopleMap={peopleMap}
-              canEdit={canEdit}
-              onCommit={(value) => updateBankBalance(account, value)}
-            />
-          )) : <div className="empty">Add bill-paying accounts in Settings before entering bank balances.</div>}
-          <div className="total-line"><span>Transfer Needed</span><span className={`money ${summary.hasUnconfirmedBankBalances ? 'amber' : summary.totalTransferNeeded > 0 ? 'amber' : 'green'}`}>{summary.hasUnconfirmedBankBalances ? 'TBC' : formatMoney(summary.totalTransferNeeded)}</span></div>
-        </section>
-      )}
 
       {!summary.isComplete && (
         <section className="card" aria-labelledby="savings-goal-title">
@@ -979,28 +1133,6 @@ function Savings({ state, summary, monthKey, month, year, canEdit, peopleMap, mu
         </section>
       )}
     </>
-  );
-}
-
-function BankBalanceEditor({ account, balance, peopleMap, canEdit, onCommit }) {
-  const [draft, setDraft] = useState(balance == null ? '' : String(balance));
-  useEffect(() => setDraft(balance == null ? '' : String(balance)), [balance]);
-  const commit = () => {
-    if (!canEdit) return;
-    const next = Math.max(0, Number(draft) || 0);
-    if (balance == null || next !== balance) onCommit(next);
-  };
-  return (
-    <div className="bank-balance-row">
-      <div className="grow">
-        <div className="row-title">{ownedAccountLabel(account, peopleMap)}</div>
-        <div className="muted">Current balance before savings top-up</div>
-      </div>
-      <div className="field amount-field compact-field">
-        <label htmlFor={`bank-balance-${account.id}`}>Bank balance</label>
-        <input id={`bank-balance-${account.id}`} disabled={!canEdit} type="number" inputMode="decimal" min="0" step="0.01" value={draft} placeholder="TBC" onChange={(event) => setDraft(event.target.value)} onBlur={commit} />
-      </div>
-    </div>
   );
 }
 

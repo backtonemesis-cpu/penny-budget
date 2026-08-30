@@ -1,3 +1,11 @@
+## 2026-08-30 — Unified month setup and funding
+
+- Moved bill-paying bank balance entry into the Overview transfer plan so the complete month-end funding workflow is on one screen.
+- Added Start New Month preview/copy for recurring fixed bills from the previous month.
+- Copied bills always start Unpaid and Exact date TBC; income, variable spending and transfers are never copied.
+- Added reducer-level duplicate protection and one audit-history event for each month setup.
+- Clearing a bank-balance input returns it to TBC instead of silently confirming zero.
+
 # Penny Change Log
 
 ## 29 August 2026 — Explicit bank-account ownership

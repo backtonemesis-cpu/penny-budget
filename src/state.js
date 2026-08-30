@@ -5,6 +5,7 @@ import {
   isValidMonthKey,
   positiveNumber,
 } from './finance.js';
+import { recurringBillKey } from './month-setup.js';
 
 function withoutEmptyMonth(record, monthKey, nextValue) {
   const next = { ...record };
@@ -77,6 +78,37 @@ export function appReducer(state, action) {
       const nextRows = rows.map((transaction) => transaction.id === action.id ? after : transaction);
       const next = { ...state, txnsByMonth: { ...state.txnsByMonth, [action.monthKey]: nextRows } };
       return appendAudit(next, action, { action: after.paid ? 'mark_paid' : 'mark_unpaid', entityType: 'expense', entityId: action.id, monthKey: action.monthKey, label: before.desc, before, after });
+    }
+    case 'COPY_RECURRING_BILLS': {
+      if (!isValidMonthKey(action.monthKey) || !Array.isArray(action.bills)) return state;
+      const existingRows = state.txnsByMonth[action.monthKey] || [];
+      const existingKeys = new Set(
+        existingRows
+          .filter((transaction) => transaction.type === 'expense' && transaction.expenseClass === 'fixed')
+          .map(recurringBillKey)
+          .filter(Boolean),
+      );
+      const copiedBills = [];
+      action.bills.forEach((bill) => {
+        if (!bill || bill.type !== 'expense' || bill.expenseClass !== 'fixed') return;
+        const key = recurringBillKey(bill);
+        if (!key || existingKeys.has(key)) return;
+        existingKeys.add(key);
+        copiedBills.push({ ...bill, paid: false, source: 'month_copy' });
+      });
+      if (!copiedBills.length) return state;
+      const nextRows = sortByDate([...copiedBills, ...existingRows]);
+      const next = { ...state, txnsByMonth: { ...state.txnsByMonth, [action.monthKey]: nextRows } };
+      return appendAudit(next, action, {
+        action: 'copy_bills',
+        entityType: 'monthly_setup',
+        monthKey: action.monthKey,
+        label: `Copied ${copiedBills.length} recurring bill${copiedBills.length === 1 ? '' : 's'}`,
+        after: {
+          sourceMonthKey: isValidMonthKey(action.sourceMonthKey) ? action.sourceMonthKey : '',
+          copiedBills,
+        },
+      });
     }
     case 'ADD_INCOME': {
       if (!isValidMonthKey(action.monthKey) || !action.record) return state;

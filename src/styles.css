@@ -351,3 +351,26 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
   .account-settings-row .primary-button,
   .account-settings-row .danger-button { flex: 1 1 100%; }
 }
+
+
+/* Unified month setup and account funding */
+.month-setup-card { border-style: solid; }
+.month-setup-heading { align-items: center; }
+.month-setup-summary { display: flex; gap: 8px 16px; flex-wrap: wrap; margin-top: 10px; color: var(--muted); font-size: 0.86rem; }
+.month-setup-list { display: grid; gap: 8px; margin: 16px 0; }
+.month-setup-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); cursor: pointer; }
+.month-setup-row.is-duplicate { opacity: 0.65; cursor: default; }
+.month-setup-row > input { margin-top: 4px; min-width: 18px; min-height: 18px; }
+.month-setup-row-end { display: grid; justify-items: end; gap: 6px; }
+.funding-balance-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, 150px); gap: 6px 10px; align-items: center; margin-top: 10px; max-width: 390px; }
+.funding-balance-editor label { font-size: 0.78rem; color: var(--muted); }
+.funding-balance-editor input { width: 100%; }
+.funding-balance-editor small { grid-column: 1 / -1; color: var(--muted); }
+@media (max-width: 620px) {
+  .month-setup-heading { align-items: stretch; }
+  .month-setup-heading .primary-button { width: 100%; }
+  .month-setup-row { align-items: flex-start; }
+  .month-setup-row-end { min-width: 88px; }
+  .funding-balance-editor { grid-template-columns: 1fr; max-width: none; }
+  .funding-balance-editor small { grid-column: auto; }
+}
