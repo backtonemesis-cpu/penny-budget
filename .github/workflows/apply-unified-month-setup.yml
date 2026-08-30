@@ -1,0 +1,38 @@
+name: Apply unified month setup patch
+
+on:
+  push:
+    branches: [unified-month-setup]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: unified-month-setup
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply patch
+        run: python scripts/apply-unified-month-setup.py
+      - name: Validate exact patched tree
+        run: |
+          npm ci
+          npm run check
+      - name: Commit patched source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/apply-unified-month-setup.py .github/workflows/apply-unified-month-setup.yml
+          git add src scripts package.json public CHANGELOG.md
+          git commit -m "Unify month setup and transfer planning"
+          git push origin HEAD:unified-month-setup
