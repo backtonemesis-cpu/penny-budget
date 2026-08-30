@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import { installMonthClearControl } from './month-clear.js';
 import { installCategorySettingsCleanup } from './category-settings-cleanup.js';
+import { installUniformEmptyStates } from './empty-state-uniform.js';
 import './mobile-navigation.css';
 import './settings-fix.css';
 import './income-compact.css';
@@ -78,6 +79,7 @@ function renderApp() {
   );
   installMonthClearControl();
   installCategorySettingsCleanup();
+  installUniformEmptyStates();
 }
 
 ensureCurrentRelease({ force: true }).then((ready) => {
