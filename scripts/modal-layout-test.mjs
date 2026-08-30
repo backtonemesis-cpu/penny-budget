@@ -35,7 +35,9 @@ assert.match(transferPlanCss, /\.attention-card \.funding-balance-editor input \
 
 assert.doesNotMatch(settingsCss, /Record date visibility repair \(v59\)/, 'The obsolete v59 sticky Exact date workaround must stay removed.');
 assert.doesNotMatch(settingsCss, /\.modal-inner:has\(> \.field > #record-date\).*position: sticky/s, 'Record date controls must not be pinned with a CSS scroll workaround.');
-assert.match(recordEditorCss, /\.modal-inner #record-date \{[^}]*width: 100% !important;[^}]*min-width: 0 !important;[^}]*max-width: 100% !important;[^}]*box-sizing: border-box;/s, 'The iPhone date input must stay inside the same field width as other Income and Expense controls.');
+assert.match(recordEditorCss, /\.modal-inner #record-date \{[^}]*align-self: stretch;[^}]*width: auto !important;[^}]*inline-size: auto !important;[^}]*min-width: 0 !important;[^}]*-webkit-appearance: none;[^}]*appearance: none;/s, 'The iPhone date input must use the same available-width stretch behavior as other Income and Expense controls.');
+assert.doesNotMatch(recordEditorCss, /\.modal-inner #record-date \{[^}]*width: 100% !important;/s, 'The iPhone date input must not use percentage sizing that can overflow its editor field.');
+assert.match(recordEditorCss, /#record-date::-webkit-date-and-time-value,[\s\S]*#record-date::-webkit-datetime-edit \{[^}]*width: 100%;[^}]*text-align: center;/s, 'The iOS date text must remain centered inside the constrained control.');
 assert.match(recordEditorCss, /\.modal-head-copy \{[^}]*flex: 1 1 auto;[^}]*min-width: 0;/s, 'The sticky editor header must reserve a safe flexible track for record identity.');
 assert.match(recordEditorCss, /\.modal-context \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/s, 'Long Income or Expense identities must remain readable without colliding with Done.');
 assert.match(transformedApp, /const recordContext = existing[\s\S]*?Income[\s\S]*?Expense[\s\S]*?Transfer[\s\S]*?formatMoney/s, 'The shared record editor must build a persistent identity from record type, description and amount.');
