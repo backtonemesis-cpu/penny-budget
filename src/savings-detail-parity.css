@@ -6,9 +6,11 @@
 
   section[aria-labelledby="savings-accounts-title"] > .section-heading {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(118px, 42%);
     gap: 8px 10px;
     margin-bottom: 8px;
+    width: 100%;
+    min-width: 0;
   }
 
   section[aria-labelledby="savings-accounts-title"] .section-title {
@@ -25,10 +27,15 @@
 
   section[aria-labelledby="savings-accounts-title"] > .section-heading > .primary-button {
     align-self: start;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 36px;
-    padding: 5px 12px;
+    box-sizing: border-box;
+    padding: 5px 9px;
     font-size: 10px;
     line-height: 1.1;
+    white-space: nowrap;
   }
 
   section[aria-labelledby="savings-accounts-title"] .savings-detail-row {
@@ -131,7 +138,7 @@
 
 @media (max-width: 390px) {
   section[aria-labelledby="savings-accounts-title"] > .section-heading {
-    grid-template-columns: minmax(0, 1fr) 104px;
+    grid-template-columns: minmax(0, 1fr) minmax(122px, 42%);
   }
 
   section[aria-labelledby="savings-accounts-title"] .section-title {
