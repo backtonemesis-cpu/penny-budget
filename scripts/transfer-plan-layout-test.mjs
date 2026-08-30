@@ -4,6 +4,10 @@ import { readFile } from 'node:fs/promises';
 const css = await readFile(new URL('../src/transfer-plan-compact.css', import.meta.url), 'utf8');
 
 assert.match(css, /\.attention-card \.section-heading \.section-note \{\s*display: none;/s, 'Transfer-plan explanatory copy must remain hidden.');
+assert.match(css, /\.attention-card \.section-heading \.section-title \{[\s\S]*font-size: 20px;[\s\S]*line-height: 1\.05;/s, 'Desktop transfer-plan title must remain compact.');
+assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.attention-card \.section-heading \{[\s\S]*grid-template-columns: minmax\(0, 1fr\) max-content;[\s\S]*margin-bottom: 10px;/s, 'Mobile transfer-plan header must use a compact title-and-total grid.');
+assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.attention-card \.section-heading \.section-title \{[\s\S]*font-size: clamp\(17px, 4\.8vw, 20px\);[\s\S]*line-height: 1\.02;/s, 'Mobile title must not dominate the transfer total.');
+assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.attention-card \.section-heading > div:last-child \.money \{[\s\S]*font-size: clamp\(28px, 8vw, 34px\);/s, 'Transfer-needed total must remain visually prominent on mobile.');
 assert.match(css, /\.attention-card \.transfer-account-row > \.money,[\s\S]*\.attention-card \.transfer-breakdown,[\s\S]*\.attention-card \.funding-balance-editor small \{\s*display: none !important;/s, 'Duplicate transfer amount, payer pills and helper copy must stay hidden.');
 assert.match(css, /\.attention-card \.transfer-account-row > \.grow > \.muted \{\s*display: none;/s, 'Duplicate account-owner text must stay hidden.');
 assert.match(css, /\.attention-card \.transfer-account-row > \.grow \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/s, 'Desktop transfer summary must use three uniform columns.');
