@@ -663,8 +663,8 @@ function Overview({ summary, month, year, categoryMap, peopleMap, accountMap, mo
               <h2 className="section-title" id="month-setup-title">Start New Month</h2>
               <p className="section-note">Copy recurring fixed bills from {sourceMonthLabel}. Penny previews everything first, starts every copy Unpaid, and never copies income or ordinary day-to-day spending.</p>
             </div>
-            <button className="primary-button" disabled={!canEditMonth || monthSetup.candidates.length === 0} onClick={onStartNewMonth}>
-              {monthSetup.candidates.length ? 'Start New Month' : 'No Previous Bills'}
+            <button className="primary-button" disabled={!canEditMonth || monthSetup.availableCount === 0} onClick={onStartNewMonth}>
+              {monthSetup.availableCount > 0 ? 'Start New Month' : monthSetup.candidates.length ? 'Bills Already Copied' : 'No Previous Bills'}
             </button>
           </div>
           {monthSetup.candidates.length > 0 && (
@@ -990,6 +990,7 @@ function RecordBadges({ record, compact = false }) {
   const badges = [];
   if (record.needsConfirmation) badges.push(<span key="confirm" className="status-pill warning">{confirmationSummary(record.confirmationIssues)}</span>);
   if (record.source === 'import') badges.push(<span key="source" className="status-pill neutral">Imported</span>);
+  if (record.source === 'month_copy') badges.push(<span key="month-copy" className="status-pill neutral">Copied from prior month</span>);
   if (!badges.length) return null;
   return compact ? badges : <div className="pill-line">{badges}</div>;
 }
@@ -1275,7 +1276,8 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
       setFormError('Enter the confirmed date, or mark the exact date as not confirmed.');
       return;
     }
-    const effectiveDate = dateConfirmed ? date : `${monthKey}-01`;
+    const existingMonthDate = existing?.date?.slice(0, 7) === monthKey ? existing.date : '';
+    const effectiveDate = dateConfirmed ? date : (existingMonthDate || `${monthKey}-01`);
 
     if (mode === 'income') {
       if (!incomeType.trim()) {

@@ -38,6 +38,20 @@ assert.equal(setup.candidates.find((candidate) => candidate.id === 'rent-aug').d
 assert.equal(setup.candidates.find((candidate) => candidate.id === 'tax-aug').duplicate, false);
 assert.equal(recurringBillKey(setup.candidates.find((candidate) => candidate.id === 'rent-aug').transaction), recurringBillKey(state.txnsByMonth['2026-09'][0]));
 
+const sourceDuplicateState = {
+  ...state,
+  txnsByMonth: {
+    ...state.txnsByMonth,
+    '2026-08': [
+      ...state.txnsByMonth['2026-08'],
+      normaliseTransaction({ id: 'tax-aug-duplicate', type: 'expense', date: '2026-08-06', amount: 155, desc: 'Council tax', category: 'council_tax', expenseClass: 'fixed', paid: true, paidBy: 'p2', account: 'a2', confirmationIssues: [] }),
+    ],
+    '2026-09': [state.txnsByMonth['2026-09'][0]],
+  },
+};
+const sourceDuplicateSetup = recurringBillSetup(sourceDuplicateState, '2026-09');
+assert.equal(sourceDuplicateSetup.candidates.filter((candidate) => candidate.transaction.desc === 'Council tax' && !candidate.duplicate).length, 1, 'Equivalent recurring bills duplicated within the source month must only be offered once.');
+
 let counter = 0;
 const copies = buildRecurringBillCopies(state, '2026-09', setup.candidates.map((candidate) => candidate.id), () => `copied-${++counter}`);
 assert.equal(copies.length, 1, 'Duplicate target bills must never be copied a second time.');
