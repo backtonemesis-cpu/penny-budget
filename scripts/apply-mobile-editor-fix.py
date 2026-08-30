@@ -30,11 +30,12 @@ version = '2026-08-30-mobile-editor-v1'
 Path('public/version.json').write_text('{\n  "version": "' + version + '"\n}\n')
 manifest_path = Path('public/manifest.webmanifest')
 manifest = manifest_path.read_text()
-import re
-manifest, count = re.subn(r'/penny-budget/\\?v=[^"\\s]+', '/penny-budget/?v=' + version, manifest, count=1)
-if count != 1:
+marker = '"start_url": "/penny-budget/?v='
+if marker not in manifest:
     raise SystemExit('Manifest versioned start_url was not found')
-manifest_path.write_text(manifest)
+prefix, rest = manifest.split(marker, 1)
+_, suffix = rest.split('"', 1)
+manifest_path.write_text(prefix + marker + version + '"' + suffix)
 
 changelog_path = Path('CHANGELOG.md')
 changelog = changelog_path.read_text()
