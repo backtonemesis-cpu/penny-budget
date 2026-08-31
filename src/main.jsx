@@ -18,6 +18,7 @@ import './expense-income-parity.css';
 import './savings-detail-parity.css';
 import './savings-account-master.css';
 import './overview-four-card-flow.css';
+import './transfer-plan-tab.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
