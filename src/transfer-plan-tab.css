@@ -69,14 +69,14 @@
   min-height: 120px;
 }
 
-/* Use the fourth mobile-nav slot for Transfer Plan. Loaded after mobile-navigation.css. */
+/* Use the fourth mobile-nav slot for the Transfer Plan workflow. The visible tab label is shortened to match the other primary tabs. */
 .nav button:nth-child(4) {
   display: flex !important;
   --nav-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h13'/%3E%3Cpath d='m14 4 3 3-3 3'/%3E%3Cpath d='M20 17H7'/%3E%3Cpath d='m10 14-3 3 3 3'/%3E%3C/g%3E%3C/svg%3E") !important;
 }
 
 .nav button:nth-child(4)::after {
-  content: "Transfer Plan" !important;
+  content: "Transfers" !important;
 }
 
 @media (max-width: 760px) {
@@ -97,10 +97,6 @@
   .transfer-plan-overview-chevron {
     font-size: 24px;
   }
-
-  .nav button:nth-child(4)::after {
-    font-size: 9.8px;
-  }
 }
 
 @media (max-width: 390px) {
@@ -110,10 +106,5 @@
 
   .transfer-plan-overview-value .money {
     font-size: 18px;
-  }
-
-  .nav button:nth-child(4)::after {
-    font-size: 9.2px;
-    letter-spacing: -0.04em;
   }
 }
