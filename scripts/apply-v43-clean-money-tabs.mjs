@@ -38,7 +38,7 @@ if (!app.includes('PENNY_V43_CLEAN_MONEY_TABS')) {
 
   app = app.replace(
     '        {canEdit && !masterSavingsAccounts.length && <div className="empty savings-settings-hint">Add savings accounts in Settings first, then select them here.</div>}',
-    '        {canEdit && !masterSavingsAccounts.length && <div className="empty savings-settings-hint">Add savings accounts in Settings first.</div>}',
+    '        {canEdit && !displayedSavingsAccounts.length && <div className="empty savings-settings-hint">Add savings accounts in Settings first.</div>}',
   );
   app = app.replace('        {savingsAccounts.length ? savingsAccounts.map((account) => (', '        {displayedSavingsAccounts.length ? displayedSavingsAccounts.map((account) => (');
 
