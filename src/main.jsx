@@ -31,6 +31,7 @@ import './mobile-month-selector-v73.css';
 import './mobile-month-label-v74.css';
 import './desktop-month-picker-v75.css';
 import './assignment-row-compact-v89.css';
+import './add-hub-v92.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
