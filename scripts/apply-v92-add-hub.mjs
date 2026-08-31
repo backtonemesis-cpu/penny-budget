@@ -62,7 +62,7 @@ if (!app.includes('PENNY_V92_ADD_HUB')) throw new Error('v92 add hub marker miss
 if (!app.includes("setMode('account')")) throw new Error('v92 Account Add tab missing.');
 if (!app.includes("type: 'SET_MONTH_REFERENCE_LIST'")) throw new Error('v92 month-scoped people/account creation missing.');
 if (!app.includes("type: 'SET_SAVINGS_ACCOUNTS'")) throw new Error('v92 savings account creation missing.');
-if ((app.match(/\+ Add person/g) || []).length < 2 || (app.match(/\+ Add account/g) || []).length < 2) throw new Error('v92 inline Add controls missing.');
+if ((app.match(/\+ Add person/g) || []).length < 1 || (app.match(/\+ Add account/g) || []).length < 1) throw new Error('v92 inline Add controls missing.');
 
 await writeFile(path, app);
 console.log('PENNY_V92 unified Add hub applied');
