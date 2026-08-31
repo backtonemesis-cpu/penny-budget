@@ -8,10 +8,13 @@ if (!app.includes('PENNY_V45_CLEAN_SLATE')) {
   if (!app.includes(transferTab)) throw new Error('v45 could not find the remaining Transfer tab in Add record.');
   app = app.replace(transferTab, '');
 
+  // Remove only the Transfer-specific movement-type panel. Description, Amount,
+  // Exact date and evidence controls immediately after it are shared by Income
+  // and Expense and must remain in the form.
   const movementPanelStart = app.indexOf("      {mode === 'movement' && (\n        <div className=\"field\">");
-  const expensePanelStart = app.indexOf("      {mode === 'expense' && (", movementPanelStart);
-  if (movementPanelStart < 0 || expensePanelStart < 0) throw new Error('v45 could not isolate the Transfer-only form panel.');
-  app = app.slice(0, movementPanelStart) + app.slice(expensePanelStart);
+  const sharedFieldsStart = app.indexOf("      <div className=\"form-grid\">\n        <div className=\"field\">\n          <label htmlFor=\"record-description\">Description</label>", movementPanelStart);
+  if (movementPanelStart < 0 || sharedFieldsStart < 0) throw new Error('v45 could not isolate the Transfer-only form panel without the shared record fields.');
+  app = app.slice(0, movementPanelStart) + app.slice(sharedFieldsStart);
 
   const movementAccount = `      {mode === 'movement' && <ReferenceSelect id="movement-account" label="Account / card" value={account} options={accountOptions} onChange={setAccount} />}\n\n`;
   if (!app.includes(movementAccount)) throw new Error('v45 could not find the Transfer account field.');
@@ -25,6 +28,7 @@ if (!app.includes('PENNY_V45_CLEAN_SLATE')) {
 if (app.includes("onClick={() => setMode('movement')}>Transfer</button>")) throw new Error('v45 failed: Transfer tab is still visible in Add record.');
 if (app.includes('id="movement-type"')) throw new Error('v45 failed: Transfer-only movement form is still rendered.');
 if (app.includes('id="movement-account"')) throw new Error('v45 failed: Transfer account field is still rendered.');
+if (!app.includes('id="record-description"') || !app.includes('id="record-amount"')) throw new Error('v45 failed: shared Description/Amount fields were removed from Income or Expense entry.');
 if (!app.includes('const displayedSavingsAccounts = savingsAccounts; // PENNY_V45_CLEAN_SLATE')) throw new Error('v45 failed: fresh months can still inherit Savings rows from Settings.');
 
 await writeFile(path, app);
