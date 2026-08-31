@@ -65,8 +65,8 @@ function transformRecordEditorContext(source) {
     output = output.slice(0, insertAt) + contextBlock + output.slice(insertAt);
   }
 
-  const recordModalOpen = "<SimpleModal title={existing ? 'Edit record' : 'Add record'} onClose={onClose}>";
-  const contextualRecordModalOpen = "<SimpleModal title={existing ? 'Edit record' : 'Add record'} subtitle={recordContext} onClose={onClose}>";
+  const recordModalOpen = "<SimpleModal title={existing ? 'Edit record' : 'Add record'} onClose={onClose} initialFocusId={{ paidBy: 'record-paid-by', receivedBy: 'income-received-by', account: mode === 'income' ? 'income-account' : 'record-account' }[focusField]}>";
+  const contextualRecordModalOpen = "<SimpleModal title={existing ? 'Edit record' : 'Add record'} subtitle={recordContext} onClose={onClose} initialFocusId={{ paidBy: 'record-paid-by', receivedBy: 'income-received-by', account: mode === 'income' ? 'income-account' : 'record-account' }[focusField]}>";
   const updatedRecordStart = output.indexOf('function RecordModal(');
   const updatedReferenceStart = output.indexOf('\nfunction ReferenceSelect(', updatedRecordStart);
   const modalSource = output.slice(updatedRecordStart, updatedReferenceStart);
@@ -76,8 +76,8 @@ function transformRecordEditorContext(source) {
     output = output.slice(0, openPos) + contextualRecordModalOpen + output.slice(openPos + recordModalOpen.length);
   }
 
-  const simpleSignature = 'function SimpleModal({ title, onClose, children, wide = false }) {';
-  const contextualSignature = "function SimpleModal({ title, subtitle = '', onClose, children, wide = false }) {";
+  const simpleSignature = 'function SimpleModal({ title, onClose, children, wide = false, initialFocusId }) {';
+  const contextualSignature = "function SimpleModal({ title, subtitle = '', onClose, children, wide = false, initialFocusId }) {";
   if (!output.includes(contextualSignature)) {
     if (!output.includes(simpleSignature)) fail('Could not extend SimpleModal with a subtitle.');
     output = output.replace(simpleSignature, contextualSignature);
@@ -203,3 +203,4 @@ export function recordDateLayoutPlugin() {
     },
   };
 }
+

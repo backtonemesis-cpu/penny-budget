@@ -531,8 +531,8 @@ function App() {
             accountMap={accountMap}
             canEdit={canEditMonth}
             onTogglePaid={togglePaid}
-            onEditTransaction={(transaction) => openRecord({ mode: transaction.type === 'expense' ? 'expense' : 'movement', transaction })}
-            onEditIncome={(record) => openRecord({ mode: 'income', income: record })}
+            onEditTransaction={(transaction, focusField) => openRecord({ mode: transaction.type === 'expense' ? 'expense' : 'movement', transaction, focusField })}
+            onEditIncome={(record, focusField) => openRecord({ mode: 'income', income: record, focusField })}
             onToggleIncomeReceived={toggleIncomeReceived}
             onDeleteTransaction={deleteTransaction}
             onDeleteIncome={deleteIncome}
@@ -591,6 +591,7 @@ function App() {
           categories={visibleCategories}
           peopleOptions={peopleOptions}
           accountOptions={accountOptions}
+          focusField={modal.focusField}
           onClose={() => setModal(null)}
           onSaveTransaction={saveTransactionRecord}
           onSaveIncome={saveIncomeRecord}
@@ -947,7 +948,7 @@ function Transactions({ summary, categoryMap, peopleMap, accountMap, canEdit, on
               <div className="record-main">
                 <div className="record-title">{record.description}</div>
                 <div className="record-meta">{recordDateLabel(record)} · {record.incomeType}</div>
-                <div className="record-meta">Received by {record.receivedByLabel || peopleMap[record.receivedBy]?.label || record.receivedBy} · {ownedRecordAccountLabel(record, accountMap, peopleMap)}</div>
+                <div className="record-meta assignment-line">Received by <AssignmentValue value={record.receivedByLabel || peopleMap[record.receivedBy]?.label || record.receivedBy} unassigned={!record.receivedBy || record.receivedBy === 'unassigned'} fieldLabel="Received By" canEdit={canEdit} onAssign={() => onEditIncome(record, 'receivedBy')} /> <span aria-hidden="true">·</span> <AssignmentValue value={ownedRecordAccountLabel(record, accountMap, peopleMap)} unassigned={!record.account || record.account === 'unassigned'} fieldLabel="Account" canEdit={canEdit} onAssign={() => onEditIncome(record, 'account')} /></div>
                 <div className="pill-line"><span className={`status-pill ${record.incomeStatus === 'expected' ? 'warning' : 'success'}`}>{record.incomeStatus === 'expected' ? 'Expected' : 'Received'}</span><RecordBadges record={record} compact /></div>
               </div>
               <div className="record-side">
@@ -996,7 +997,7 @@ function ExpenseRow({ transaction, categoryMap, peopleMap, accountMap, canEdit, 
       <div className="record-main">
         <div className="record-title">{transaction.desc}</div>
         <div className="record-meta">{recordDateLabel(transaction)} · {categoryMap[transaction.category]?.label || transaction.category} · {transaction.expenseClass === 'fixed' ? 'Fixed' : 'Variable'}</div>
-        <div className="record-meta">{transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy} · {ownedRecordAccountLabel(transaction, accountMap, peopleMap)}</div>
+        <div className="record-meta assignment-line"><AssignmentValue value={transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || transaction.paidBy} unassigned={!transaction.paidBy || transaction.paidBy === 'unassigned'} fieldLabel="Paid By" canEdit={canEdit} onAssign={() => onEdit(transaction, 'paidBy')} /> <span aria-hidden="true">·</span> <AssignmentValue value={ownedRecordAccountLabel(transaction, accountMap, peopleMap)} unassigned={!transaction.account || transaction.account === 'unassigned'} fieldLabel="Account" canEdit={canEdit} onAssign={() => onEdit(transaction, 'account')} /></div>
         <div className="pill-line">
           <span className={`status-pill ${transaction.paid ? 'success' : 'warning'}`}>{transaction.paid ? 'Paid' : 'Unpaid'}</span>
           <RecordBadges record={transaction} compact />
@@ -1012,6 +1013,11 @@ function ExpenseRow({ transaction, categoryMap, peopleMap, accountMap, canEdit, 
       </div>
     </div>
   );
+}
+
+function AssignmentValue({ value, unassigned, fieldLabel, canEdit, onAssign }) {
+  if (!unassigned) return <span>{value}</span>;
+  return <button type="button" className="assignment-warning" disabled={!canEdit} aria-label={`Assign ${fieldLabel}`} onClick={onAssign}>Unassigned</button>;
 }
 
 function RecordBadges({ record, compact = false }) {
@@ -1222,7 +1228,7 @@ function Year({ annual, year, categoryMap, onSelectMonth }) {
   );
 }
 
-function RecordModal({ monthKey, initialMode, presetClass, transaction, income, categories, peopleOptions, accountOptions, onClose, onSaveTransaction, onSaveIncome, onOpenSettings }) {
+function RecordModal({ monthKey, initialMode, presetClass, transaction, income, categories, peopleOptions, accountOptions, focusField, onClose, onSaveTransaction, onSaveIncome, onOpenSettings }) {
   const existing = transaction || income;
   const lockedMode = Boolean(existing);
   const existingIssues = existing?.confirmationIssues || [];
@@ -1337,7 +1343,7 @@ function RecordModal({ monthKey, initialMode, presetClass, transaction, income, 
   };
 
   return (
-    <SimpleModal title={existing ? 'Edit record' : 'Add record'} onClose={onClose}>
+    <SimpleModal title={existing ? 'Edit record' : 'Add record'} onClose={onClose} initialFocusId={{ paidBy: 'record-paid-by', receivedBy: 'income-received-by', account: mode === 'income' ? 'income-account' : 'record-account' }[focusField]}>
       {!lockedMode && (
         <div className="tabs record-tabs" role="tablist" aria-label="Record type">
           <button role="tab" aria-selected={mode === 'expense'} className={mode === 'expense' ? 'active' : ''} onClick={() => setMode('expense')}>Expense</button>
@@ -1791,7 +1797,7 @@ function CategoryManager({ categories, state, mutate }) {
   );
 }
 
-function SimpleModal({ title, onClose, children, wide = false }) {
+function SimpleModal({ title, onClose, children, wide = false, initialFocusId }) {
   const titleId = `modal-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
@@ -1799,7 +1805,8 @@ function SimpleModal({ title, onClose, children, wide = false }) {
     const previousOverflow = document.body.style.overflow;
     const previouslyFocused = document.activeElement;
     document.body.style.overflow = 'hidden';
-    closeRef.current?.focus();
+    const initialFocus = initialFocusId ? dialogRef.current?.querySelector(`#${initialFocusId}`) : null;
+    (initialFocus || closeRef.current)?.focus();
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -1825,7 +1832,7 @@ function SimpleModal({ title, onClose, children, wide = false }) {
       document.removeEventListener('keydown', handleKeyDown);
       if (previouslyFocused && typeof previouslyFocused.focus === 'function' && document.contains(previouslyFocused)) previouslyFocused.focus();
     };
-  }, [onClose]);
+  }, [initialFocusId, onClose]);
   return (
     <div className="modal" role="presentation">
       <div ref={dialogRef} className={`modal-inner ${wide ? 'wide-modal' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
@@ -1955,3 +1962,4 @@ function formatAuditTime(value) {
 }
 
 export default App;
+
