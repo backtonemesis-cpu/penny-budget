@@ -44,9 +44,9 @@ assert.match(app, /Debit \/ current account[\s\S]*Credit card[\s\S]*Savings acco
 assert.match(app, /type: 'SET_MONTH_REFERENCE_LIST'[\s\S]*field: 'people'/, 'Inline person creation must be month-scoped');
 assert.match(app, /type: 'SET_MONTH_REFERENCE_LIST'[\s\S]*field: 'accounts'/, 'Inline debit/card creation must be month-scoped');
 assert.match(app, /type: 'SET_SAVINGS_ACCOUNTS'/, 'Savings creation must use the monthly savings snapshot');
-assert.ok((app.match(/\+ Add person/g) || []).length >= 2, 'Income/expense/account setup must expose Add person');
-assert.ok((app.match(/\+ Add account/g) || []).length >= 2, 'Income and expense must expose Add account');
-assert.match(app, /\{renderQuickSetup\(\)\}/, 'Income/expense forms must render inline setup controls');
+assert.ok((app.match(/\+ Add person/g) || []).length >= 1, 'Shared quick setup must expose Add person');
+assert.ok((app.match(/\+ Add account/g) || []).length >= 1, 'Shared quick setup must expose Add account');
+assert.ok((app.match(/\{renderQuickSetup\(\)\}/g) || []).length >= 2, 'Income and Expense must both render the shared quick setup controls');
 assert.match(app, /Advanced account management in Settings/, 'Settings must remain available as an administrative fallback');
 
 const main = await readFile('src/main.jsx', 'utf8');
