@@ -127,7 +127,7 @@ function financeAudit() {
   assert.match(files.finance, /isLikelyDuplicateIncome/);
   assert.match(files.finance, /paidByLabel/);
   assert.match(files.finance, /receivedByLabel/);
-  assert.match(files.state, /balance:\s*positiveNumber\(item\?\.balance\)/, 'Savings snapshots must be normalised to pennies before storage and audit logging.');
+  assert.match(files.state, /balance:\s*signedNumber\(item\?\.balance\)/, 'Real account balances must be normalised to pennies while preserving legitimate negative balances before storage and audit logging.');
   assert.match(files.state, /auditLog/);
   assert.match(files.state, /before:\s*event\.before \?\? null/, 'Change History must store the event before-state.');
   assert.match(files.state, /action:\s*'delete'.*before \}\);/s, 'Delete actions must pass the deleted record into Change History.');
