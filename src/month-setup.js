@@ -66,35 +66,11 @@ function futureAccountSafeRow(row, accountIds) {
   return {
     ...row,
     account: 'unassigned',
-    accountLabel: '',
-    accountOwnerId: 'unassigned',
-    accountOwnerLabel: '',
-  };
-}
-
-function futureExpenseAccountSafeRow(row, state) {
-  const accountIds = new Set((state?.accounts || []).map((account) => account.id));
-  if (!row?.account || row.account === 'unassigned' || accountIds.has(row.account)) return row;
-
-  const resolved = resolveOwnedExpenseAccount(row, {
-    accounts: state?.accounts || [],
-    people: state?.people || [],
-    previousTransactions: [],
-  });
-  if (!resolved) return futureAccountSafeRow(row, accountIds);
-
-  const ownerLabel = resolved.ownerId === 'household'
-    ? 'Joint'
-    : (state?.people || []).find((person) => person.id === resolved.ownerId)?.label || row.paidByLabel || '';
-  const confirmationIssues = (row.confirmationIssues || []).filter((issue) => issue !== 'account');
-  return {
-    ...row,
-    account: resolved.id,
-    accountLabel: resolved.label,
-    accountOwnerId: resolved.ownerId || 'unassigned',
-    accountOwnerLabel: ownerLabel,
-    confirmationIssues,
-    needsConfirmation: confirmationIssues.length > 0,
+    // Keep the historical account label as reconciliation evidence. The
+    // current account id is cleared because it no longer exists in Settings.
+    accountLabel: row.accountLabel || '',
+    accountOwnerId: row.accountOwnerId || 'unassigned',
+    accountOwnerLabel: row.accountOwnerLabel || '',
   };
 }
 
@@ -111,9 +87,9 @@ export function recurringBillSetup(state, targetMonthKey) {
   const targetBills = (state?.txnsByMonth?.[targetMonthKey] || [])
     .filter((transaction) => transaction.type === 'expense' && transaction.expenseClass === 'fixed');
   const accountIds = new Set((state?.accounts || []).map((account) => account.id));
-  const futureBillKey = (row) => recurringBillKey(futureExpenseAccountSafeRow(row, state));
+  const futureBillKey = (row) => recurringBillKey(futureAccountSafeRow(row, accountIds));
   const candidates = dedupeCandidates(sourceBills, targetBills, futureBillKey)
-    .map(({ id, duplicate, row }) => ({ id, duplicate, transaction: futureExpenseAccountSafeRow(row, state) }));
+    .map(({ id, duplicate, row }) => ({ id, duplicate, transaction: futureAccountSafeRow(row, accountIds) }));
 
   const sourceIncome = (state?.incomeByMonth?.[sourceMonthKey] || [])
     .filter((record) => recurringIncomeMode(record) !== 'manual')
@@ -151,12 +127,13 @@ export function buildRecurringBillCopies(state, targetMonthKey, selectedIds, idF
   const accounts = Object.fromEntries((state?.accounts || []).map((account) => [account.id, account]));
   return setup.candidates.flatMap(({ id, transaction, duplicate }) => {
     if (duplicate || !selected.has(id)) return [];
-    const account = accounts[transaction.account];
-    const accountAvailable = transaction.account === 'unassigned' || Boolean(account);
-    const copiedAccountId = accountAvailable ? transaction.account : 'unassigned';
-    const ownerId = copiedAccountId === 'unassigned'
-      ? 'unassigned'
-      : account?.ownerId || transaction.accountOwnerId || 'unassigned';
+    const resolvedAccount = accounts[transaction.account] || resolveOwnedExpenseAccount(transaction, {
+      accounts: Object.values(accounts),
+      people: Object.values(people),
+      previousTransactions: [],
+    });
+    const copiedAccountId = resolvedAccount?.id || 'unassigned';
+    const ownerId = resolvedAccount?.ownerId || 'unassigned';
     const copied = normaliseTransaction({
       ...transaction,
       id: idFactory('txn'),
@@ -164,10 +141,10 @@ export function buildRecurringBillCopies(state, targetMonthKey, selectedIds, idF
       paid: false,
       paidByLabel: transaction.paidBy === 'household' ? 'Joint' : people[transaction.paidBy]?.label || transaction.paidByLabel || '',
       account: copiedAccountId,
-      accountLabel: copiedAccountId === 'unassigned' ? '' : account?.label || transaction.accountLabel || transaction.account || '',
+      accountLabel: resolvedAccount?.label || transaction.accountLabel || '',
       accountOwnerId: ownerId,
       accountOwnerLabel: ownerLabel(ownerId, people),
-      confirmationIssues: ['date', ...(transaction.confirmationIssues || []).filter((issue) => issue === 'other'), ...(!accountAvailable ? ['account'] : [])],
+      confirmationIssues: ['date', ...(transaction.confirmationIssues || []).filter((issue) => issue === 'other'), ...(!resolvedAccount ? ['account'] : [])],
       dateConfirmed: false,
       needsConfirmation: true,
       source: 'month_copy',
