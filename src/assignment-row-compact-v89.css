@@ -1,0 +1,57 @@
+/* v89: keep payer/recipient and account assignment controls on one line on mobile.
+   Presentation only: no assignment, finance, storage or audit behaviour changes. */
+@media (max-width: 760px) {
+  section[aria-labelledby="income-list-title"] .assignment-line,
+  section[aria-labelledby="expenses-list-title"] .assignment-line {
+    flex-wrap: nowrap;
+    gap: 3px;
+    width: min(calc(100vw - 50px), calc(100% + 118px));
+    max-width: calc(100vw - 50px);
+    white-space: nowrap;
+    overflow: visible;
+  }
+
+  section[aria-labelledby="income-list-title"] .assignment-line > .assignment-select,
+  section[aria-labelledby="expenses-list-title"] .assignment-line > .assignment-select {
+    min-width: 0;
+    max-width: none;
+    height: 28px;
+    min-height: 28px;
+    padding: 3px 22px 3px 8px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  section[aria-labelledby="income-list-title"] .assignment-line > .assignment-select:first-of-type,
+  section[aria-labelledby="expenses-list-title"] .assignment-line > .assignment-select:first-of-type {
+    flex: 0 1 clamp(72px, 22vw, 92px);
+    width: clamp(72px, 22vw, 92px);
+  }
+
+  section[aria-labelledby="income-list-title"] .assignment-line > .assignment-select:last-of-type,
+  section[aria-labelledby="expenses-list-title"] .assignment-line > .assignment-select:last-of-type {
+    flex: 1 1 128px;
+    width: auto;
+  }
+}
+
+@media (max-width: 390px) {
+  section[aria-labelledby="income-list-title"] .assignment-line,
+  section[aria-labelledby="expenses-list-title"] .assignment-line {
+    width: min(calc(100vw - 44px), calc(100% + 110px));
+    max-width: calc(100vw - 44px);
+    gap: 2px;
+  }
+
+  section[aria-labelledby="income-list-title"] .assignment-line > .assignment-select,
+  section[aria-labelledby="expenses-list-title"] .assignment-line > .assignment-select {
+    padding-inline: 7px 20px;
+    font-size: 10.5px;
+  }
+
+  section[aria-labelledby="income-list-title"] .assignment-line > .assignment-select:first-of-type,
+  section[aria-labelledby="expenses-list-title"] .assignment-line > .assignment-select:first-of-type {
+    flex-basis: 78px;
+    width: 78px;
+  }
+}
