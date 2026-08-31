@@ -25,6 +25,7 @@ import './mobile-nav-content-v67.css';
 import './mobile-nav-native-v68.css';
 import './mobile-nav-pixel-v69.css';
 import './mobile-nav-content-v70.css';
+import './mobile-header-compact-v72.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
