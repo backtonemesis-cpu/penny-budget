@@ -7,6 +7,7 @@ import {
   previousMonthKey,
   roundMoney,
 } from './finance.js';
+import { resolveOwnedExpenseAccount } from './account-reference-repair.js';
 
 function compareText(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -71,6 +72,32 @@ function futureAccountSafeRow(row, accountIds) {
   };
 }
 
+function futureExpenseAccountSafeRow(row, state) {
+  const accountIds = new Set((state?.accounts || []).map((account) => account.id));
+  if (!row?.account || row.account === 'unassigned' || accountIds.has(row.account)) return row;
+
+  const resolved = resolveOwnedExpenseAccount(row, {
+    accounts: state?.accounts || [],
+    people: state?.people || [],
+    previousTransactions: [],
+  });
+  if (!resolved) return futureAccountSafeRow(row, accountIds);
+
+  const ownerLabel = resolved.ownerId === 'household'
+    ? 'Joint'
+    : (state?.people || []).find((person) => person.id === resolved.ownerId)?.label || row.paidByLabel || '';
+  const confirmationIssues = (row.confirmationIssues || []).filter((issue) => issue !== 'account');
+  return {
+    ...row,
+    account: resolved.id,
+    accountLabel: resolved.label,
+    accountOwnerId: resolved.ownerId || 'unassigned',
+    accountOwnerLabel: ownerLabel,
+    confirmationIssues,
+    needsConfirmation: confirmationIssues.length > 0,
+  };
+}
+
 export function recurringBillSetup(state, targetMonthKey) {
   const sourceMonthKey = previousMonthKey(targetMonthKey);
   if (!sourceMonthKey) return {
@@ -84,9 +111,9 @@ export function recurringBillSetup(state, targetMonthKey) {
   const targetBills = (state?.txnsByMonth?.[targetMonthKey] || [])
     .filter((transaction) => transaction.type === 'expense' && transaction.expenseClass === 'fixed');
   const accountIds = new Set((state?.accounts || []).map((account) => account.id));
-  const futureBillKey = (row) => recurringBillKey(futureAccountSafeRow(row, accountIds));
+  const futureBillKey = (row) => recurringBillKey(futureExpenseAccountSafeRow(row, state));
   const candidates = dedupeCandidates(sourceBills, targetBills, futureBillKey)
-    .map(({ id, duplicate, row }) => ({ id, duplicate, transaction: futureAccountSafeRow(row, accountIds) }));
+    .map(({ id, duplicate, row }) => ({ id, duplicate, transaction: futureExpenseAccountSafeRow(row, state) }));
 
   const sourceIncome = (state?.incomeByMonth?.[sourceMonthKey] || [])
     .filter((record) => recurringIncomeMode(record) !== 'manual')
