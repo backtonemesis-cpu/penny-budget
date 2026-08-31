@@ -72,13 +72,13 @@ const newFunding = `function FundingBalanceEditor({ row, monthKey, canEdit, onCo
         inputMode="decimal"
         step="0.01"
         value={draft}
-        placeholder="TBC"
+        placeholder="0.00"
         aria-invalid={Boolean(error)}
         onChange={(event) => { setDraft(event.target.value); if (error) setError(''); }}
         onBlur={commit}
       />
       {error && <small className="form-error" role="alert">{error}</small>}
-      <small>{editable ? 'Positive and negative balances are supported. Clear the field to return this balance to TBC.' : 'Assign a bill-paying account before entering a balance.'}</small>
+      <small>{editable ? 'If left blank, Penny treats the balance as zero. Positive and negative balances are supported.' : 'Assign a bill-paying account before entering a balance.'}</small>
     </div>
   );
 }`;
