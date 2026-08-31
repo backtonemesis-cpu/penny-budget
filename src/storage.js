@@ -255,7 +255,7 @@ export function mergeImportedMonths(currentState, incomingState, monthKeys, now 
     else delete budgetsByMonth[monthKey];
   });
 
-  return migrateAndRepair({
+  return migrateState({
     ...current,
     version: CURRENT_STATE_VERSION,
     txnsByMonth,
