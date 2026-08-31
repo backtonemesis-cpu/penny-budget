@@ -5,6 +5,7 @@ import {
   isValidMonthKey,
   migrateState,
 } from './finance.js';
+import { repairAccountReferences } from './account-reference-repair.js';
 
 export const STORAGE_KEY = 'penny_state';
 export const ROLLBACK_STORAGE_KEY = 'penny_state_before_last_import';
@@ -43,6 +44,10 @@ function isStateCandidate(value) {
 function hasFutureStateVersion(value) {
   const version = Number(value?.version);
   return Number.isFinite(version) && version > CURRENT_STATE_VERSION;
+}
+
+function migrateAndRepair(value, now = new Date()) {
+  return repairAccountReferences(migrateState(value, now), now);
 }
 
 function mergeById(existing = [], incoming = []) {
@@ -110,7 +115,7 @@ export function loadState(storage, now = new Date()) {
         recoveryRequired: true,
       };
     }
-    return { state: migrateState(parsed, now), warning: '', recoveryRequired: false };
+    return { state: migrateAndRepair(parsed, now), warning: '', recoveryRequired: false };
   } catch {
     return {
       state: createBlankState(),
@@ -161,7 +166,7 @@ export function loadRollbackState(storage, now = new Date()) {
   }
   if (!isStateCandidate(parsed)) throw new Error('The automatic recovery copy is not a recognised Penny state.');
   if (hasFutureStateVersion(parsed)) throw new Error('The automatic recovery copy was created by a newer Penny data format. Update Penny before restoring it.');
-  return migrateState(parsed, now);
+  return migrateAndRepair(parsed, now);
 }
 
 export function clearRollbackState(storage) {
@@ -206,7 +211,7 @@ function parseRawBackup(text) {
 
 export function parseBackupPackage(text, now = new Date()) {
   const { parsed, candidate } = parseRawBackup(text);
-  const state = migrateState(candidate, now);
+  const state = migrateAndRepair(candidate, now);
   const requestedMonths = Array.isArray(parsed.mergeMonths)
     ? [...new Set(parsed.mergeMonths.filter(isValidMonthKey))]
     : [];
@@ -223,8 +228,8 @@ function tagImportedRows(rows = []) {
 }
 
 export function mergeImportedMonths(currentState, incomingState, monthKeys, now = new Date()) {
-  const current = migrateState(currentState, now);
-  const incoming = migrateState(incomingState, now);
+  const current = migrateAndRepair(currentState, now);
+  const incoming = migrateAndRepair(incomingState, now);
   const validMonths = [...new Set((monthKeys || []).filter(isValidMonthKey))];
   if (!validMonths.length) return current;
 

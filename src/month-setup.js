@@ -7,6 +7,7 @@ import {
   previousMonthKey,
   roundMoney,
 } from './finance.js';
+import { resolveOwnedExpenseAccount } from './account-reference-repair.js';
 
 function compareText(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -65,9 +66,11 @@ function futureAccountSafeRow(row, accountIds) {
   return {
     ...row,
     account: 'unassigned',
-    accountLabel: '',
-    accountOwnerId: 'unassigned',
-    accountOwnerLabel: '',
+    // Keep the historical account label as reconciliation evidence. The
+    // current account id is cleared because it no longer exists in Settings.
+    accountLabel: row.accountLabel || '',
+    accountOwnerId: row.accountOwnerId || 'unassigned',
+    accountOwnerLabel: row.accountOwnerLabel || '',
   };
 }
 
@@ -124,12 +127,13 @@ export function buildRecurringBillCopies(state, targetMonthKey, selectedIds, idF
   const accounts = Object.fromEntries((state?.accounts || []).map((account) => [account.id, account]));
   return setup.candidates.flatMap(({ id, transaction, duplicate }) => {
     if (duplicate || !selected.has(id)) return [];
-    const account = accounts[transaction.account];
-    const accountAvailable = transaction.account === 'unassigned' || Boolean(account);
-    const copiedAccountId = accountAvailable ? transaction.account : 'unassigned';
-    const ownerId = copiedAccountId === 'unassigned'
-      ? 'unassigned'
-      : account?.ownerId || transaction.accountOwnerId || 'unassigned';
+    const resolvedAccount = accounts[transaction.account] || resolveOwnedExpenseAccount(transaction, {
+      accounts: Object.values(accounts),
+      people: Object.values(people),
+      previousTransactions: [],
+    });
+    const copiedAccountId = resolvedAccount?.id || 'unassigned';
+    const ownerId = resolvedAccount?.ownerId || 'unassigned';
     const copied = normaliseTransaction({
       ...transaction,
       id: idFactory('txn'),
@@ -137,10 +141,10 @@ export function buildRecurringBillCopies(state, targetMonthKey, selectedIds, idF
       paid: false,
       paidByLabel: transaction.paidBy === 'household' ? 'Joint' : people[transaction.paidBy]?.label || transaction.paidByLabel || '',
       account: copiedAccountId,
-      accountLabel: copiedAccountId === 'unassigned' ? '' : account?.label || transaction.accountLabel || transaction.account || '',
+      accountLabel: resolvedAccount?.label || transaction.accountLabel || '',
       accountOwnerId: ownerId,
       accountOwnerLabel: ownerLabel(ownerId, people),
-      confirmationIssues: ['date', ...(transaction.confirmationIssues || []).filter((issue) => issue === 'other'), ...(!accountAvailable ? ['account'] : [])],
+      confirmationIssues: ['date', ...(transaction.confirmationIssues || []).filter((issue) => issue === 'other'), ...(!resolvedAccount ? ['account'] : [])],
       dateConfirmed: false,
       needsConfirmation: true,
       source: 'month_copy',
