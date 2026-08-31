@@ -1,4 +1,5 @@
 import { MAX_AUDIT_ENTRIES, createId, previousMonthKey } from './finance.js';
+import { getMonthAccounts, getMonthPeople } from './month-scope.js';
 
 function normaliseLabel(value) {
   return String(value || '')
@@ -79,9 +80,9 @@ export function resolveOwnedExpenseAccount(transaction, { accounts = [], people 
   if (matchedIds.size === 1) return accountMap.get([...matchedIds][0]);
   if (matchedIds.size > 1) return null;
 
-  // Owner-only fallback is intentionally allowed only when Settings contains
-  // exactly one account for that payer. Multiple accounts remain TBC rather
-  // than being guessed.
+  // Owner-only fallback is intentionally allowed only when the selected
+  // month contains exactly one account for that payer. Multiple accounts
+  // remain TBC rather than being guessed.
   return ownerCandidates.length === 1 ? ownerCandidates[0] : null;
 }
 
@@ -101,27 +102,34 @@ function repairOneExpense(row, resolvedAccount, people) {
 
 export function repairAccountReferences(state, now = new Date()) {
   if (!state || typeof state !== 'object') return state;
-  const accounts = Array.isArray(state.accounts) ? state.accounts : [];
-  const people = Array.isArray(state.people) ? state.people : [];
-  const activeAccountIds = new Set(accounts.map((account) => account.id));
   const monthKeys = Object.keys(state.txnsByMonth || {}).sort();
-  if (!accounts.length || !monthKeys.length) return state;
+  if (!monthKeys.length) return state;
 
   const repairedByMonth = {};
   const repairs = [];
 
   monthKeys.forEach((monthKey) => {
-    const previousRows = repairedByMonth[previousMonthKey(monthKey)] || state.txnsByMonth?.[previousMonthKey(monthKey)] || [];
+    const accounts = getMonthAccounts(state, monthKey);
+    const people = getMonthPeople(state, monthKey);
+    const activeAccountIds = new Set(accounts.map((account) => account.id));
+    const previousKey = previousMonthKey(monthKey);
+    const previousRows = repairedByMonth[previousKey] || state.txnsByMonth?.[previousKey] || [];
     const rows = state.txnsByMonth?.[monthKey] || [];
+
     repairedByMonth[monthKey] = rows.map((row) => {
       const accountMissing = !row.account || row.account === 'unassigned' || !activeAccountIds.has(row.account);
-      if (row.type !== 'expense' || row.expenseClass !== 'fixed' || !accountMissing) return row;
+      if (row.type !== 'expense' || row.expenseClass !== 'fixed' || !accountMissing || !accounts.length) return row;
 
       const resolved = resolveOwnedExpenseAccount(row, { accounts, people, previousTransactions: previousRows });
       if (!resolved || resolved.id === row.account) return row;
 
       const after = repairOneExpense(row, resolved, people);
-      repairs.push({ monthKey, before: row, after });
+      repairs.push({
+        monthKey,
+        before: row,
+        after,
+        ownerDisplay: personLabel(people, after.accountOwnerId, after.paidByLabel),
+      });
       return after;
     });
   });
@@ -129,14 +137,14 @@ export function repairAccountReferences(state, now = new Date()) {
   if (!repairs.length) return state;
 
   const at = now instanceof Date && !Number.isNaN(now.getTime()) ? now.toISOString() : new Date().toISOString();
-  const auditEntries = repairs.map(({ monthKey, before, after }) => ({
+  const auditEntries = repairs.map(({ monthKey, before, after, ownerDisplay }) => ({
     id: createId('audit'),
     at,
     action: 'account_reference_repair',
     entityType: 'expense',
     entityId: after.id || '',
     monthKey,
-    label: `Resolved ${after.desc || 'expense'} account to ${personLabel(people, after.accountOwnerId, after.paidByLabel)} · ${after.accountLabel}`,
+    label: `Resolved ${after.desc || 'expense'} account to ${ownerDisplay || 'TBC'} · ${after.accountLabel}`,
     before,
     after,
   }));
