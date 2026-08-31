@@ -17,8 +17,8 @@ if (!app.includes("from './money-input.js'")) {
   );
 }
 
-// Record entry: validate the exact decimal string before JavaScript converts it
-// to Number. This prevents silent cent/penny corruption on very large values.
+// Validate the decimal string before converting it to Number so values that
+// cannot retain exact penny precision are rejected instead of silently changed.
 replaceRequired(
   `    const hasPositiveAmount = Number(amount) > 0;\n    if (!hasPositiveAmount && !(mode === 'income' && incomeStatus === 'expected')) {\n      setFormError('Enter an amount greater than zero.');\n      return;\n    }`,
   `    const amountProvided = String(amount ?? '').trim() !== '';\n    const amountCheck = amountProvided ? validateMoneyInput(amount) : { ok: false, code: 'required' };\n    if (amountProvided && !amountCheck.ok) {\n      setFormError(moneyValidationMessage(amountCheck, 'Amount'));\n      return;\n    }\n    const hasPositiveAmount = Boolean(amountCheck.ok);\n    if (!hasPositiveAmount && !(mode === 'income' && incomeStatus === 'expected')) {\n      setFormError(moneyValidationMessage(amountCheck, 'Amount'));\n      return;\n    }`,
@@ -35,9 +35,8 @@ replaceRequired(
   'expense safe amount value',
 );
 
-// Duplicate category names are unsafe because the two choices become
-// indistinguishable in Settings and the expense dropdown. Existing duplicates
-// are left untouched for audit/history; only new duplicates are blocked.
+// Preserve any duplicate categories already in historical data, but stop users
+// from creating another indistinguishable name (case/whitespace insensitive).
 replaceRequired(
   `function CategoryManager({ categories, state, mutate }) {\n  const [name, setName] = useState('');\n  const [icon, setIcon] = useState('🏷️');\n  const [defaultClass, setDefaultClass] = useState('variable');\n  const add = () => {\n    const label = name.trim();\n    if (!label) return;`,
   `function CategoryManager({ categories, state, mutate }) {\n  const [name, setName] = useState('');\n  const [icon, setIcon] = useState('🏷️');\n  const [defaultClass, setDefaultClass] = useState('variable');\n  const [error, setError] = useState('');\n  const add = () => {\n    const label = name.trim().replace(/\\s+/g, ' ');\n    if (!label) return;\n    const duplicate = categories.find((category) => normaliseComparableLabel(category.label) === normaliseComparableLabel(label));\n    if (duplicate) {\n      setError('A category named “' + duplicate.label + '” already exists. Choose a different name.');\n      return;\n    }\n    setError('');`,
@@ -54,50 +53,49 @@ replaceRequired(
   'category duplicate feedback',
 );
 
-// Savings rows: do not coerce negative/invalid values to zero and then close.
-// Keep the editor open and identify the exact field problem.
+// Final v40/v44 savings editor: reject invalid/negative/unsafe balance inputs,
+// leave the editor open, and show the precise field error.
 replaceRequired(
-  `  const [editing, setEditing] = useState(account.label === 'New savings account');\n  const [label, setLabel] = useState(account.label);\n  const [balance, setBalance] = useState(String(account.balance || ''));`,
-  `  const [editing, setEditing] = useState(account.label === 'New savings account');\n  const [label, setLabel] = useState(account.label);\n  const [balance, setBalance] = useState(String(account.balance || ''));\n  const [balanceError, setBalanceError] = useState('');`,
+  `  const [editing, setEditing] = useState(false);\n  const [balance, setBalance] = useState(String(account.balance || ''));\n  useEffect(() => setBalance(String(account.balance || '')), [account.balance]);`,
+  `  const [editing, setEditing] = useState(false);\n  const [balance, setBalance] = useState(String(account.balance || ''));\n  const [balanceError, setBalanceError] = useState('');\n  useEffect(() => setBalance(String(account.balance || '')), [account.balance]);`,
   'savings balance error state',
 );
 replaceRequired(
-  `  const save = () => {\n    if (!canEdit) return;\n    const nextLabel = label.trim() || account.label;\n    const nextBalance = Math.max(0, Number(balance) || 0);\n    if (nextLabel !== account.label || nextBalance !== account.balance) {\n      onCommit({ label: nextLabel.slice(0, 80), balance: nextBalance });\n    }\n    setEditing(false);\n  };`,
-  `  const save = () => {\n    if (!canEdit) return;\n    const nextLabel = label.trim() || account.label;\n    const balanceText = String(balance ?? '').trim();\n    const balanceCheck = balanceText ? validateMoneyInput(balanceText, { allowZero: true }) : { ok: true, value: 0 };\n    if (!balanceCheck.ok) {\n      setBalanceError(moneyValidationMessage(balanceCheck, 'Balance'));\n      return;\n    }\n    setBalanceError('');\n    const nextBalance = balanceCheck.value;\n    if (nextLabel !== account.label || nextBalance !== account.balance) {\n      onCommit({ label: nextLabel.slice(0, 80), balance: nextBalance });\n    }\n    setEditing(false);\n  };`,
+  `  const save = () => {\n    if (!canEdit) return;\n    const nextBalance = Math.max(0, Number(balance) || 0);\n    if (nextBalance !== account.balance) onCommit({ balance: nextBalance });\n    setEditing(false);\n  };`,
+  `  const save = () => {\n    if (!canEdit) return;\n    const balanceText = String(balance ?? '').trim();\n    const balanceCheck = balanceText ? validateMoneyInput(balanceText, { allowZero: true }) : { ok: true, value: 0 };\n    if (!balanceCheck.ok) {\n      setBalanceError(moneyValidationMessage(balanceCheck, 'Balance'));\n      return;\n    }\n    setBalanceError('');\n    const nextBalance = balanceCheck.value;\n    if (nextBalance !== account.balance) onCommit({ balance: nextBalance });\n    setEditing(false);\n  };`,
   'savings balance validation',
 );
 replaceRequired(
-  `  const cancel = () => {\n    setLabel(account.label);\n    setBalance(String(account.balance || ''));\n    setEditing(false);\n  };`,
-  `  const cancel = () => {\n    setLabel(account.label);\n    setBalance(String(account.balance || ''));\n    setBalanceError('');\n    setEditing(false);\n  };`,
-  'savings balance cancel reset',
-);
-replaceRequired(
-  `            <input className="savings-edit-input savings-balance-input" id={\`saving-balance-\${account.id}\`} type="number" inputMode="decimal" min="0" step="0.01" value={balance} placeholder="0.00" onChange={(event) => setBalance(event.target.value)} />`,
-  `            <input className="savings-edit-input savings-balance-input" id={\`saving-balance-\${account.id}\`} type="number" inputMode="decimal" min="0" step="0.01" value={balance} placeholder="0.00" aria-invalid={Boolean(balanceError)} onChange={(event) => { setBalance(event.target.value); if (balanceError) setBalanceError(''); }} />\n            {balanceError && <small className="form-error" role="alert">{balanceError}</small>}`,
+  `            <input id={\`saving-balance-\${account.id}\`} type="number" inputMode="decimal" min="0" step="0.01" value={balance} placeholder="0.00" onChange={(event) => setBalance(event.target.value)} />`,
+  `            <input id={\`saving-balance-\${account.id}\`} type="number" inputMode="decimal" min="0" step="0.01" value={balance} placeholder="0.00" aria-invalid={Boolean(balanceError)} onChange={(event) => { setBalance(event.target.value); if (balanceError) setBalanceError(''); }} />\n            {balanceError && <small className="form-error" role="alert">{balanceError}</small>}`,
   'savings balance feedback',
 );
+replaceRequired(
+  `<button className="secondary-button" onClick={() => { setBalance(String(account.balance || '')); setEditing(false); }}>Cancel</button>`,
+  `<button className="secondary-button" onClick={() => { setBalance(String(account.balance || '')); setBalanceError(''); setEditing(false); }}>Cancel</button>`,
+  'savings balance cancel reset',
+);
 
-// Savings Goal / Monthly Contribution: explicit invalid/negative feedback.
+// Savings goal and monthly contribution use the same exact-money validator.
 replaceRequired(
   `function NumberField({ label, value, onCommit }) {\n  const id = \`field-\${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`;\n  const [draft, setDraft] = useState(String(value || ''));\n  useEffect(() => setDraft(String(value || '')), [value]);\n  const commit = () => {\n    const next = Math.max(0, Number(draft) || 0);\n    if (next !== value) onCommit(next);\n  };\n  return (\n    <div className="field">\n      <label htmlFor={id}>{label}</label>\n      <input id={id} type="number" inputMode="decimal" min="0" step="0.01" value={draft} placeholder="0.00" onChange={(event) => setDraft(event.target.value)} onBlur={commit} />\n    </div>\n  );\n}`,
   `function NumberField({ label, value, onCommit }) {\n  const id = \`field-\${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`;\n  const [draft, setDraft] = useState(String(value || ''));\n  const [error, setError] = useState('');\n  useEffect(() => setDraft(String(value || '')), [value]);\n  const commit = () => {\n    const text = String(draft ?? '').trim();\n    const check = text ? validateMoneyInput(text, { allowZero: true }) : { ok: true, value: 0 };\n    if (!check.ok) {\n      setError(moneyValidationMessage(check, label));\n      return;\n    }\n    setError('');\n    if (check.value !== value) onCommit(check.value);\n  };\n  return (\n    <div className="field">\n      <label htmlFor={id}>{label}</label>\n      <input id={id} type="number" inputMode="decimal" min="0" step="0.01" value={draft} placeholder="0.00" aria-invalid={Boolean(error)} onChange={(event) => { setDraft(event.target.value); if (error) setError(''); }} onBlur={commit} />\n      {error && <small className="form-error" role="alert">{error}</small>}\n    </div>\n  );\n}`,
   'savings goal validation',
 );
 
-// Make month setup explicit about the meaning of the Savings snapshot switch.
+// Explain the month-setup savings switch precisely. With the snapshot off,
+// neither balances nor the selected month's savings-account definitions copy.
 replaceRequired(
   `      <p className="section-note">Carry forward planning records from {sourceLabel}. Bills start Unpaid. Regular income starts Expected. Child Benefit and Child Maintenance keep the previous amount; pay and variable benefits carry forward with Amount TBC until confirmed. Actual day-to-day spending, transfers and bank balances are never copied.</p>`,
   `      <p className="section-note">Carry forward planning records from {sourceLabel}. Bills start Unpaid. Regular income starts Expected. Child Benefit and Child Maintenance keep the previous amount; pay and variable benefits carry forward with Amount TBC until confirmed. Actual day-to-day spending, transfers and bank balances are never copied. Savings snapshot is separate: if you switch it off, Penny does not copy the savings account definitions or their balances, so Savings for the new month starts empty.</p>`,
   'month setup savings explanation',
 );
-
 replaceRequired(
   `        {canEdit && !displayedSavingsAccounts.length && <div className="empty savings-settings-hint">Add savings accounts in Settings first.</div>}`,
   `        {canEdit && !displayedSavingsAccounts.length && <div className="empty savings-settings-hint">No savings accounts are set up for this month. If Savings snapshot was off during month setup, account definitions were intentionally not copied. Add them in Settings.</div>}`,
   'savings empty-state explanation',
 );
 
-// Final safety assertions so later transforms cannot silently regress these fixes.
 if (!app.includes('PENNY_V88_FINANCIAL_VALIDATION')) throw new Error('v88 money validation import missing.');
 if (!app.includes("moneyValidationMessage(amountCheck, 'Amount')")) throw new Error('v88 record amount validation missing.');
 if (!app.includes('A category named “')) throw new Error('v88 duplicate category feedback missing.');
