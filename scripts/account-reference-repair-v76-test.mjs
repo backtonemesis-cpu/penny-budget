@@ -8,13 +8,20 @@ const people = [
   { id: 'vesta', label: 'Vesta' },
 ];
 
-const accounts = [
+const septemberAccounts = [
   { id: 'santander', label: 'Santander', ownerId: 'marius' },
+  { id: 'natwest', label: 'NatWest', ownerId: 'vesta' },
   { id: 'chase', label: 'Chase', ownerId: 'marius' },
+  { id: 'cash', label: 'Cash', ownerId: 'household' },
   { id: 'credit-card', label: 'Credit Card', ownerId: 'marius' },
   { id: 'lloyds-marius', label: 'Lloyds Marius', ownerId: 'marius' },
-  { id: 'natwest', label: 'NatWest', ownerId: 'vesta' },
   { id: 'lloyds-vesta', label: 'Lloyds Vesta', ownerId: 'vesta' },
+];
+
+const augustAccounts = [
+  { id: 'legacy-lloyds', label: 'Lloyds', ownerId: 'unassigned' },
+  { id: 'santander', label: 'Santander', ownerId: 'marius' },
+  { id: 'natwest', label: 'NatWest', ownerId: 'vesta' },
 ];
 
 function expense(overrides = {}) {
@@ -47,6 +54,7 @@ const augustMarius = expense({
   accountLabel: 'Lloyds',
   date: '2026-08-03',
   desc: 'Lloyds bill M',
+  confirmationIssues: ['date'],
 });
 const augustVesta = expense({
   id: 'aug-v',
@@ -55,6 +63,7 @@ const augustVesta = expense({
   accountLabel: 'Lloyds',
   date: '2026-08-04',
   desc: 'Lloyds bill V',
+  confirmationIssues: ['date'],
 });
 const septemberMarius = expense({
   id: 'sep-m',
@@ -70,9 +79,21 @@ const septemberVesta = expense({
 });
 
 const state = {
-  version: 10,
+  version: 11,
   people,
-  accounts,
+  accounts: augustAccounts,
+  peopleByMonth: {
+    '2026-08': people,
+    '2026-09': people,
+  },
+  accountsByMonth: {
+    '2026-08': augustAccounts,
+    '2026-09': septemberAccounts,
+  },
+  hiddenCatsByMonth: {
+    '2026-08': [],
+    '2026-09': [],
+  },
   txnsByMonth: {
     '2026-08': [augustMarius, augustVesta],
     '2026-09': [septemberMarius, septemberVesta],
@@ -91,13 +112,15 @@ const state = {
 };
 
 const repaired = repairAccountReferences(state, new Date('2026-08-31T12:45:00Z'));
-assert.equal(repaired.txnsByMonth['2026-08'][0].account, 'lloyds-marius');
-assert.equal(repaired.txnsByMonth['2026-08'][1].account, 'lloyds-vesta');
+assert.equal(repaired.txnsByMonth['2026-08'][0].account, 'legacy-lloyds', 'Historical August setup must remain unchanged');
+assert.equal(repaired.txnsByMonth['2026-08'][1].account, 'legacy-lloyds', 'Historical August setup must remain unchanged');
 assert.equal(repaired.txnsByMonth['2026-09'][0].account, 'lloyds-marius');
 assert.equal(repaired.txnsByMonth['2026-09'][1].account, 'lloyds-vesta');
+assert.equal(repaired.txnsByMonth['2026-09'][0].amount, septemberMarius.amount, 'Repair must not change amount');
+assert.equal(repaired.txnsByMonth['2026-09'][0].paid, septemberMarius.paid, 'Repair must not change paid status');
 assert.deepEqual(repaired.txnsByMonth['2026-09'][0].confirmationIssues, ['date']);
 assert.equal(repaired.txnsByMonth['2026-09'][0].needsConfirmation, true, 'Date evidence must remain outstanding');
-assert.ok(repaired.auditLog.some((entry) => entry.action === 'account_reference_repair'), 'Repairs must be audit logged');
+assert.ok(repaired.auditLog.some((entry) => entry.action === 'account_reference_repair' && entry.monthKey === '2026-09'), 'Repairs must be audit logged');
 
 const septemberSummary = monthSummary(repaired, '2026-09');
 assert.equal(septemberSummary.hasAmbiguousFundingAccounts, false, 'Owner-specific Lloyds accounts must not collapse into TBC');
@@ -113,7 +136,7 @@ const copies = buildRecurringBillCopies(futureState, '2026-09', ['aug-m', 'aug-v
 assert.equal(copies.length, 2);
 assert.equal(copies.find((row) => row.paidBy === 'marius').account, 'lloyds-marius');
 assert.equal(copies.find((row) => row.paidBy === 'vesta').account, 'lloyds-vesta');
-assert.ok(copies.every((row) => !row.confirmationIssues.includes('account')), 'Future copies must preserve a uniquely resolved account');
+assert.ok(copies.every((row) => !row.confirmationIssues.includes('account')), 'Future copies must preserve a uniquely resolved target-month account');
 assert.ok(copies.every((row) => row.confirmationIssues.includes('date')), 'Future copies must still require exact-date confirmation');
 
 const ambiguousAccounts = [
@@ -125,7 +148,7 @@ assert.equal(ambiguous, null, 'Penny must not guess when more than one owner-spe
 
 const ownerOnlyAmbiguous = resolveOwnedExpenseAccount(
   expense({ id: 'no-label', paidBy: 'marius', account: 'missing', accountLabel: '' }),
-  { accounts: accounts.filter((account) => account.ownerId === 'marius'), people, previousTransactions: [] },
+  { accounts: septemberAccounts.filter((account) => account.ownerId === 'marius'), people, previousTransactions: [] },
 );
 assert.equal(ownerOnlyAmbiguous, null, 'Penny must not choose among several accounts using payer alone');
 
