@@ -1,0 +1,44 @@
+/* v65: compact iPhone-style bottom navigation while preserving the safe area. */
+.app {
+  padding-bottom: calc(58px + env(safe-area-inset-bottom));
+}
+
+.nav {
+  gap: 3px;
+  padding: 2px max(7px, env(safe-area-inset-right)) calc(2px + env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-left));
+}
+
+.nav button {
+  min-height: 48px;
+  gap: 2px;
+  border-radius: 10px;
+  padding: 3px 1px 2px;
+}
+
+.nav button::before {
+  width: 20px;
+  height: 20px;
+}
+
+.nav button::after {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.nav button.active {
+  background: rgba(96, 165, 250, 0.11);
+}
+
+.nav button:active {
+  background: rgba(96, 165, 250, 0.17);
+}
+
+@media (max-width: 390px) {
+  .nav {
+    gap: 2px;
+  }
+
+  .nav button::after {
+    font-size: 9.8px;
+  }
+}
