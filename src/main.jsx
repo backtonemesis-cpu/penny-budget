@@ -33,6 +33,7 @@ import './desktop-month-picker-v75.css';
 import './assignment-row-compact-v89.css';
 import './add-hub-v92.css';
 import './add-hub-v93.css';
+import './add-hub-v94.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
