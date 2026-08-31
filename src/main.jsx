@@ -29,6 +29,7 @@ import './mobile-header-compact-v72.css';
 import './mobile-month-selector-v73.css';
 import './mobile-month-label-v74.css';
 import './desktop-month-picker-v75.css';
+import './regression-cleanup-v76.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
