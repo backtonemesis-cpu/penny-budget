@@ -19,7 +19,7 @@ export function recurringBillKey(transaction) {
     compareText(transaction.desc),
     compareText(transaction.category),
     compareText(transaction.paidBy),
-    compareText(transaction.account),
+    compareText(transaction.accountLabel || transaction.account),
   ].join('::');
 }
 
