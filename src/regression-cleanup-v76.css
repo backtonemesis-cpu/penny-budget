@@ -1,0 +1,169 @@
+/* v76: restore the compact Settings and transfer-plan presentation after later UI releases. */
+
+/* App Version is release plumbing, not a user setting. Keep it out of the visible menu. */
+.wide-modal > .settings-section:first-of-type {
+  display: none !important;
+}
+
+/* Settings should be operational, not documentation-heavy. Recovery warnings remain visible separately. */
+.wide-modal > .settings-section > .section-note {
+  display: none !important;
+}
+
+.wide-modal > .settings-section {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.wide-modal > .settings-section h3 {
+  margin-bottom: 9px;
+}
+
+/* Keep account/people controls visually aligned on desktop too. */
+.wide-modal .settings-row,
+.wide-modal .account-settings-row {
+  align-items: center;
+}
+
+.wide-modal .account-settings-row > input,
+.wide-modal .account-settings-row > select,
+.wide-modal .account-settings-row > button {
+  min-height: 44px;
+}
+
+/* Transfer-plan owner warning should be compact, not a large card inside a card. */
+.attention-card > .compact-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 5px;
+  padding: 9px 12px;
+  border-radius: 10px;
+}
+
+.attention-card > .compact-warning strong {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.attention-card > .compact-warning span {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+/* Ambiguous/TBC accounts use a dedicated two-part row instead of forcing explanatory text into the balance cell. */
+.attention-card .transfer-account-row:has(.account-resolution-inline) > .grow {
+  grid-template-columns: minmax(180px, 0.8fr) minmax(300px, 2fr);
+  grid-template-rows: auto auto;
+  gap: 9px 12px;
+}
+
+.attention-card .transfer-account-row:has(.account-resolution-inline) .row-title {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
+.attention-card .transfer-account-row:has(.account-resolution-inline) .funding-math > span:first-child {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.attention-card .transfer-account-row:has(.account-resolution-inline) .funding-math > span:nth-child(2),
+.attention-card .transfer-account-row:has(.account-resolution-inline) .funding-math > span:last-child {
+  display: none !important;
+}
+
+.attention-card .account-resolution-inline {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 3px 12px;
+  min-width: 0;
+  min-height: 58px;
+  margin: 0;
+  border: 1px solid rgba(245, 185, 66, 0.34);
+  border-radius: 11px;
+  padding: 9px 12px;
+  background: rgba(245, 185, 66, 0.07);
+}
+
+.attention-card .account-resolution-inline strong {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.attention-card .account-resolution-inline span {
+  grid-column: 1;
+  grid-row: 2;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.attention-card .account-resolution-inline .secondary-button {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  min-height: 38px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .wide-modal > .settings-section {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  .attention-card > .compact-warning {
+    display: block;
+    padding: 8px 10px;
+  }
+
+  .attention-card > .compact-warning strong {
+    white-space: normal;
+  }
+
+  .attention-card > .compact-warning span {
+    display: block;
+    margin-top: 2px;
+  }
+
+  .attention-card .transfer-account-row:has(.account-resolution-inline) > .grow {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+
+  .attention-card .transfer-account-row:has(.account-resolution-inline) .row-title,
+  .attention-card .transfer-account-row:has(.account-resolution-inline) .funding-math > span:first-child,
+  .attention-card .account-resolution-inline {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .attention-card .account-resolution-inline {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  .attention-card .account-resolution-inline strong,
+  .attention-card .account-resolution-inline span,
+  .attention-card .account-resolution-inline .secondary-button {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .attention-card .account-resolution-inline .secondary-button {
+    justify-self: stretch;
+    width: 100%;
+    margin-top: 5px;
+  }
+}
