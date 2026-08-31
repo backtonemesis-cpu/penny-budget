@@ -96,4 +96,23 @@ if (!app.includes('PENNY_V93_PURE_SETTINGS_ADD_HUB')) throw new Error('v93 marke
 if (!app.includes('>People</button>') || !app.includes('>Accounts</button>')) throw new Error('v93 four-tab Add hub missing.');
 
 await writeFile(appPath, app);
+
+// Older regression files correctly protected the old architecture. Update only
+// their UI expectations now that People/Accounts intentionally moved out of Settings.
+const settingsAuditPath = 'scripts/settings-menu-audit.mjs';
+let settingsAudit = await readFile(settingsAuditPath, 'utf8');
+settingsAudit = settingsAudit.replace(
+  "for (const heading of ['App Version', 'Household People', 'Accounts', 'Categories', 'Change History', 'Backup and Recovery']) {\n  assert.ok(appSource.includes(heading), `Settings must retain the ${heading} area.`);\n}",
+  "for (const heading of ['App Version', 'Categories', 'Change History', 'Backup and Recovery']) {\n  assert.ok(appSource.includes(heading), `Settings must retain the ${heading} area.`);\n}\nconst settingsModalStart = appSource.indexOf('function SettingsModal(');\nconst settingsModalEnd = appSource.indexOf('\\nfunction ', settingsModalStart + 20);\nconst settingsModalSource = appSource.slice(settingsModalStart, settingsModalEnd > settingsModalStart ? settingsModalEnd : appSource.length);\nassert.doesNotMatch(settingsModalSource, /<h3>Household People<\\/h3>/, 'Settings must not record household people.');\nassert.doesNotMatch(settingsModalSource, /<h3>Accounts<\\/h3>/, 'Settings must not record bank or card accounts.');\nassert.doesNotMatch(settingsModalSource, /<h3>Savings Accounts<\\/h3>/, 'Settings must not record savings account definitions.');",
+);
+await writeFile(settingsAuditPath, settingsAudit);
+
+const v92TestPath = 'scripts/add-hub-v92-test.mjs';
+let v92Test = await readFile(v92TestPath, 'utf8');
+v92Test = v92Test.replace(
+  "assert.match(app, /Advanced account management in Settings/, 'Settings must remain available as an administrative fallback');",
+  "assert.doesNotMatch(app, /Advanced account management in Settings/, 'People and account recording must no longer route back through Settings');",
+);
+await writeFile(v92TestPath, v92Test);
+
 console.log('PENNY_V93 pure Settings and four-tab Add hub applied');
