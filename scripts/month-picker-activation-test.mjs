@@ -12,6 +12,7 @@ const root = {
   },
 };
 
+const originalMatchMedia = globalThis.matchMedia;
 const uninstall = installMonthPickerActivation(root);
 assert.equal(typeof clickHandler, 'function', 'month picker activation should install a click handler');
 
@@ -26,14 +27,23 @@ const target = {
   },
 };
 
+globalThis.matchMedia = () => ({ matches: false });
 clickHandler({ target });
-assert.equal(opened, 1, 'clicking the month input should explicitly open the native picker when supported');
+assert.equal(opened, 1, 'mobile month input should explicitly open the native picker when supported');
 
+globalThis.matchMedia = () => ({ matches: true });
+clickHandler({ target });
+assert.equal(opened, 1, 'desktop must not invoke the native picker because the v75 Penny picker owns desktop selection');
+
+globalThis.matchMedia = () => ({ matches: false });
 input.disabled = true;
 clickHandler({ target });
 assert.equal(opened, 1, 'disabled month inputs must not open the picker');
 
 uninstall();
 assert.equal(removedHandler, clickHandler, 'cleanup should remove the installed click handler');
+
+if (originalMatchMedia) globalThis.matchMedia = originalMatchMedia;
+else delete globalThis.matchMedia;
 
 console.log('month picker activation regression test passed');
