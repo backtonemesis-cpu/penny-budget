@@ -5,12 +5,12 @@ const app = await readFile('src/App.jsx', 'utf8');
 const css = await readFile('src/add-hub-v94.css', 'utf8');
 const main = await readFile('src/main.jsx', 'utf8');
 
-assert.match(app, /PENNY_V94_UNIFORM_ADD_MENU/, 'v94 marker must be present after postinstall');
-assert.match(app, /onClick=\{\(\) => openRecord\(\{ mode: 'menu' \}\)\}/, 'Header + Add must open the chooser first');
-assert.match(app, /mode === 'menu'/, 'Record modal must have a chooser mode');
-assert.match(app, /aria-label="Choose what to add"/, 'Chooser must be explicitly labelled');
+assert.match(app, /PENNY_V94_UNIFORM_ADD_MENU/, 'v94 base marker must remain present after postinstall');
+assert.match(app, /onClick=\{\(\) => openRecord\(\{ mode: 'people' \}\)\}/, 'Header + Add must open the direct four-tab workspace on People');
+assert.doesNotMatch(app, /mode === 'menu'/, 'The superseded intermediate chooser must not return');
+assert.doesNotMatch(app, /aria-label="Choose what to add"/, 'The superseded chooser cards must not return');
 for (const label of ['People', 'Accounts', 'Income', 'Expense']) {
-  assert.match(app, new RegExp(`<strong>${label}<\\/strong>`), `Chooser must include ${label}`);
+  assert.match(app, new RegExp(`>${label}<\\/button>`), `The Add workspace must retain the ${label} tab`);
 }
 
 assert.doesNotMatch(app, /title="Add people" onClose=\{onClose\} initialFocusId="add-person-name"/, 'People must not auto-focus the name field');
@@ -31,10 +31,8 @@ assert.match(settings, /Categories/, 'Settings must retain Categories');
 assert.match(settings, /Backup and Recovery/, 'Settings must retain Backup and Recovery');
 
 assert.match(main, /import '\.\/add-hub-v94\.css';/, 'v94 CSS must load after the previous Add styles');
-assert.match(css, /\.add-menu-grid \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/, 'Desktop chooser must use large menu cards');
-assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.add-menu-grid \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/, 'Mobile chooser must use full-width stacked menu cards');
 assert.match(css, /\.record-tabs \{[\s\S]*width: 100%/, 'Section navigation must span the Add modal width');
 assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.record-tabs \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/, 'Mobile section navigation must use roomy 2x2 buttons');
-assert.match(css, /\.quick-setup-wrap,[\s\S]*\.quick-setup-actions \{[\s\S]*display: none !important;/, 'Cross-entry People/Account shortcuts must not appear inside other Add areas');
+assert.match(css, /\.quick-setup-wrap,[\s\S]*\.quick-setup-actions \{[\s\S]*display: none !important;/, 'Cross-entry People/Account shortcuts must stay hidden');
 
-console.log('v94 uniform Add chooser, no-autofocus flow and Settings-only regression passed');
+console.log('v94/v95 direct Add workspace, no-autofocus flow and Settings-only regression passed');
