@@ -45,6 +45,8 @@ jobs:
         run: node scripts/month-scope-v28-test.mjs
       - name: Run transfer-plan layout regression
         run: node scripts/transfer-plan-layout-test.mjs
+      - name: Run dedicated Transfer Plan tab regression
+        run: node scripts/transfer-plan-tab-test.mjs
       - name: Audit accessibility source
         run: node scripts/source-audit.mjs accessibility
       - name: Audit storage source
