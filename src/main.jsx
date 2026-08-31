@@ -20,6 +20,7 @@ import './savings-account-master.css';
 import './overview-four-card-flow.css';
 import './transfer-plan-tab.css';
 import './mobile-nav-compact-v65.css';
+import './mobile-nav-lower-v66.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
