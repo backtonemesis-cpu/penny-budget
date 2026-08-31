@@ -1,0 +1,28 @@
+/* v69: pixel-match the iPhone app-switcher bottom-bar footprint to the supplied TikTok/Messenger reference.
+   Standard iPhones use a 45px total Penny nav box: 1px top border + 44px tap target.
+   Only any safe-area inset above the standard 34px reference is added back. */
+@media (max-width: 760px) {
+  .app {
+    padding-bottom: calc(45px + max(0px, calc(env(safe-area-inset-bottom) - 34px)));
+  }
+
+  .nav {
+    box-sizing: border-box;
+    height: calc(45px + max(0px, calc(env(safe-area-inset-bottom) - 34px)));
+    min-height: calc(45px + max(0px, calc(env(safe-area-inset-bottom) - 34px)));
+    max-height: calc(45px + max(0px, calc(env(safe-area-inset-bottom) - 34px)));
+    padding-top: 0;
+    padding-bottom: max(0px, calc(env(safe-area-inset-bottom) - 34px));
+    align-items: center;
+  }
+
+  .nav button {
+    height: 44px;
+    min-height: 44px;
+    max-height: 44px;
+    transform: none;
+    gap: 1px;
+    padding: 1px 1px 0;
+    border-radius: 9px;
+  }
+}
