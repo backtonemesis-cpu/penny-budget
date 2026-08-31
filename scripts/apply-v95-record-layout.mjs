@@ -2,6 +2,9 @@ import { readFile, writeFile } from 'node:fs/promises';
 
 const path = 'build/record-date-layout.js';
 let text = await readFile(path, 'utf8');
+// The legacy build helper is checked in with CRLF. Normalise only this source
+// helper before applying the small v95 compatibility change.
+text = text.replace(/\r\n/g, '\n');
 
 const oldIncomeBlock = `  const incomeStart = output.indexOf(incomeMarker, nextRecordModalStart);\n  const incomeTypeLabel = '<label htmlFor="income-type">Income type</label>';\n  const incomeTypePos = output.indexOf(incomeTypeLabel, incomeStart);\n  if (incomeTypePos < 0) fail('Could not find the Income type field.');\n  const receivedGridPos = output.indexOf('<div className="form-grid">', incomeTypePos);\n  if (receivedGridPos < 0) fail('Could not find Received By / Account after Income type.');\n  const incomeInsert = lineStart(output, receivedGridPos);\n  output = output.slice(0, incomeInsert)\n    + conditionalDateBlock('income', dateBlock)\n    + output.slice(incomeInsert);`;
 
