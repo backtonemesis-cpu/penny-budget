@@ -10,19 +10,17 @@ function replaceOnce(text, search, replacement, label) {
 const path = 'src/App.jsx';
 let text = await readFile(path, 'utf8');
 
-text = replaceOnce(
-  text,
-  `        <SettingsModal\n          state={state}\n          allCategories={allCategories}`,
-  `        <SettingsModal\n          state={state}\n          monthKey={monthKey}\n          allCategories={allCategories}`,
-  'Settings monthKey prop',
-);
+if (!/\bmonthKey=\{monthKey\}/.test(text.slice(text.indexOf('<SettingsModal'), text.indexOf('<SettingsModal') + 500))) {
+  const next = text.replace(/(<SettingsModal\s*\n\s*state=\{state\})/, '$1\n          monthKey={monthKey}');
+  if (next === text) throw new Error('v80 missing anchor: Settings monthKey prop');
+  text = next;
+}
 
-text = replaceOnce(
-  text,
-  `function SettingsModal({ state, allCategories, accountOwnerOptions, recoveryRequired, rollbackAvailable, mutate, fileRef, onImport, onExport, onRestorePreviousImport, onErase, onClose }) {`,
-  `function SettingsModal({ state, monthKey, allCategories, accountOwnerOptions, recoveryRequired, rollbackAvailable, mutate, fileRef, onImport, onExport, onRestorePreviousImport, onErase, onClose }) {`,
-  'SettingsModal signature',
-);
+if (!text.includes('function SettingsModal({ state, monthKey,')) {
+  const next = text.replace('function SettingsModal({ state, ', 'function SettingsModal({ state, monthKey, ');
+  if (next === text) throw new Error('v80 missing anchor: SettingsModal signature');
+  text = next;
+}
 
 const globalSavingsSettings = `          <section className="settings-section">\n            <h3>Savings Accounts</h3>\n            <p className="section-note">Reusable savings-account names for monthly snapshots. Removing a name from Settings does not rewrite historical month snapshots.</p>\n            <ReferenceEditor field="savingsAccounts" items={state.savingsAccounts || []} state={state} mutate={mutate} placeholder="Savings account name" />\n          </section>`;
 const monthSavingsSettings = `          <section className="settings-section">\n            <SavingsSettingsEditor state={state} monthKey={monthKey} mutate={mutate} />\n          </section>`;
@@ -34,9 +32,6 @@ if (!text.includes('function SavingsSettingsEditor({ state, monthKey, mutate })'
   text = replaceOnce(text, anchor, `${component}${anchor}`, 'SavingsSettingsEditor component');
 }
 
-// The v40 Savings tab originally used a global reusable master list. Standalone
-// months must instead use only the selected month's savings rows. Remove the
-// global re-add path so a reset month stays genuinely blank.
 text = text.replace(
   `  const masterSavingsAccounts = state.savingsAccounts || [];\n  const usedIds = new Set(savingsAccounts.map((item) => item.id));\n  const availableAccounts = masterSavingsAccounts.filter((item) => !usedIds.has(item.id));\n  const [adding, setAdding] = useState(false);\n  const [selectedAccountId, setSelectedAccountId] = useState('');`,
   `  const masterSavingsAccounts = savingsAccounts;\n  const availableAccounts = [];`,
