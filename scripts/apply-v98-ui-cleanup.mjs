@@ -9,8 +9,14 @@ function replaceRequired(before, after, label) {
   app = app.replace(before, after);
 }
 
-// Account type is a required choice. Keep the blank value only as a hidden
-// placeholder and expose the three concise choices the user actually selects.
+function replaceRegexRequired(pattern, after, label) {
+  if (app.includes(after)) return;
+  if (!pattern.test(app)) throw new Error('v98 missing pattern: ' + label);
+  app = app.replace(pattern, after);
+}
+
+// Account type is a required choice. The blank value exists only as a hidden
+// initial state; the menu itself contains Debit, Credit and Savings.
 app = app.replaceAll('<option value="">Select account type</option>', '<option value="" disabled hidden></option>');
 app = app.replaceAll('<option value="credit">Credit card</option>', '<option value="credit">Credit</option>');
 app = app.replaceAll('<option value="savings">Savings account</option>', '<option value="savings">Savings</option>');
@@ -28,15 +34,16 @@ replaceRequired(
   'income account derives recipient',
 );
 
-// Cards show one owner-labelled account selector, not duplicate person + account selectors.
-replaceRequired(
-  `                <div className="record-meta assignment-line">Received by <AssignmentSelect value={record.receivedBy || 'unassigned'} displayValue={record.receivedByLabel || peopleMap[record.receivedBy]?.label || ''} placeholder="User" fieldLabel="Received by" options={personChoices} canEdit={canEdit} onAssign={(value) => onAssignIncome(record, 'receivedBy', value)} /> <span aria-hidden="true">·</span> <AssignmentSelect value={record.account || 'unassigned'} displayValue={ownedRecordAccountLabel(record, accountMap, peopleMap)} placeholder="Account" fieldLabel="Account" options={accountChoicesFor(record.receivedBy)} canEdit={canEdit} onAssign={(value) => onAssignIncome(record, 'account', value)} /></div>`,
+// Cards show one owner-labelled account selector. The regex anchors deliberately
+// tolerate earlier layout transforms that changed spacing or account-label helpers.
+replaceRegexRequired(
+  /<div className="record-meta assignment-line">Received by[\s\S]*?onAssign=\{\(value\) => onAssignIncome\(record, 'account', value\)\} \/><\/div>/,
   `                <div className="record-meta assignment-line"><AssignmentSelect value={record.account || 'unassigned'} displayValue={ownedRecordAccountLabel(record, accountMap, peopleMap)} placeholder="Account" fieldLabel="Received into account" options={accountChoicesFor('unassigned')} canEdit={canEdit} onAssign={(value) => onAssignIncome(record, 'account', value)} /></div>`,
   'single income card account selector',
 );
-replaceRequired(
-  `        <div className="record-meta assignment-line">Paid by <AssignmentSelect value={transaction.paidBy || 'unassigned'} displayValue={transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || ''} placeholder="User" fieldLabel="Paid by" options={peopleOptions} canEdit={canEdit} onAssign={(value) => onAssign(transaction, 'paidBy', value)} /> <span aria-hidden="true">·</span> <AssignmentSelect value={transaction.account || 'unassigned'} displayValue={accountLabel} placeholder="Account" fieldLabel="Account" options={accountOptions} canEdit={canEdit} onAssign={(value) => onAssign(transaction, 'account', value)} /></div>`,
-  `        <div className="record-meta assignment-line"><AssignmentSelect value={transaction.account || 'unassigned'} displayValue={accountLabel} placeholder="Account" fieldLabel="Paid from account" options={accountOptions} canEdit={canEdit} onAssign={(value) => onAssign(transaction, 'account', value)} /></div>`,
+replaceRegexRequired(
+  /<div className="record-meta assignment-line">Paid by[\s\S]*?onAssign=\{\(value\) => onAssign\(transaction, 'account', value\)\} \/><\/div>/,
+  `        <div className="record-meta assignment-line"><AssignmentSelect value={transaction.account || 'unassigned'} displayValue={ownedRecordAccountLabel(transaction, accountMap, peopleMap)} placeholder="Account" fieldLabel="Paid from account" options={accountOptions} canEdit={canEdit} onAssign={(value) => onAssign(transaction, 'account', value)} /></div>`,
   'single expense card account selector',
 );
 
