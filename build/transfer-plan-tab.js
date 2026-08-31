@@ -119,6 +119,46 @@ ${transferBlock}
 `;
 }
 
+function addOverviewNavigationProp(source) {
+  const signatureStart = source.indexOf('function Overview({');
+  const signatureEnd = source.indexOf('}) {', signatureStart);
+  if (!(signatureStart >= 0 && signatureEnd > signatureStart)) fail('Could not isolate the Overview signature.');
+  const signature = source.slice(signatureStart, signatureEnd + 4);
+  if (signature.includes('onOpenTransferPlan')) return source;
+  if (!signature.includes('onUpdateBankBalance')) fail('Overview no longer exposes the bank-balance update callback.');
+  const updatedSignature = signature.replace('onUpdateBankBalance', 'onOpenTransferPlan, onUpdateBankBalance');
+  return source.slice(0, signatureStart) + updatedSignature + source.slice(signatureEnd + 4);
+}
+
+function wireOverviewNavigation(source) {
+  const mainStart = source.indexOf('<main className="content">');
+  const overviewViewStart = source.indexOf("        {view === 'Overview' && (", mainStart);
+  const transactionsViewStart = source.indexOf("        {view === 'Transactions' && (", overviewViewStart);
+  if (!(mainStart >= 0 && overviewViewStart > mainStart && transactionsViewStart > overviewViewStart)) {
+    fail('Could not isolate the Overview view wiring.');
+  }
+  const overviewView = source.slice(overviewViewStart, transactionsViewStart);
+  if (overviewView.includes('onOpenTransferPlan=')) return source;
+
+  const callback = 'onUpdateBankBalance={updateTransferBankBalance}';
+  const callbackPos = source.indexOf(callback, overviewViewStart);
+  if (!(callbackPos >= overviewViewStart && callbackPos < transactionsViewStart)) fail('Could not find the Overview bank-balance callback.');
+  const lineStart = source.lastIndexOf('\n', callbackPos) + 1;
+  const indent = source.slice(lineStart, callbackPos);
+  const insertion = `${indent}onOpenTransferPlan={() => setView('Transfer Plan')}\n`;
+  return source.slice(0, lineStart) + insertion + source.slice(lineStart);
+}
+
+function replacePrimaryNav(source) {
+  const fourItemYearNav = "{['Overview', 'Transactions', 'Savings', 'Year'].map((item) => (";
+  const threeItemNav = "{['Overview', 'Transactions', 'Savings'].map((item) => (";
+  const transferNav = "{['Overview', 'Transactions', 'Savings', 'Transfer Plan'].map((item) => (";
+  if (source.includes(transferNav)) return source;
+  if (source.includes(fourItemYearNav)) return source.replace(fourItemYearNav, transferNav);
+  if (source.includes(threeItemNav)) return source.replace(threeItemNav, transferNav);
+  fail('Could not replace the primary navigation with Transfer Plan.');
+}
+
 export function transformTransferPlanTab(source) {
   if (!source.includes('function App()') || !source.includes('function Overview(')) return source;
   if (source.includes('function TransferPlan(') && source.includes("'Transfer Plan'].map((item)")) return source;
@@ -137,16 +177,8 @@ export function transformTransferPlanTab(source) {
   }
 
   let output = source.slice(0, transferStart) + overviewSummaryCard() + source.slice(transferEnd);
-
-  const originalOverviewSignature = 'function Overview({ summary, month, year, peopleMap, accountMap, monthKey, monthSetup, canEditMonth, onUnlockMonth, onStartNewMonth, onUpdateBankBalance, onAddIncome, onAddExpense, onSeparateAccount }) {';
-  const updatedOverviewSignature = 'function Overview({ summary, month, year, peopleMap, accountMap, monthKey, monthSetup, canEditMonth, onUnlockMonth, onStartNewMonth, onOpenTransferPlan, onUpdateBankBalance, onAddIncome, onAddExpense, onSeparateAccount }) {';
-  if (!output.includes(originalOverviewSignature)) fail('Could not extend Overview with the Transfer Plan navigation action.');
-  output = output.replace(originalOverviewSignature, updatedOverviewSignature);
-
-  const overviewPropAnchor = "            onStartNewMonth={() => setModal({ kind: 'month-setup' })}\n            onUpdateBankBalance={updateTransferBankBalance}";
-  const overviewPropReplacement = "            onStartNewMonth={() => setModal({ kind: 'month-setup' })}\n            onOpenTransferPlan={() => setView('Transfer Plan')}\n            onUpdateBankBalance={updateTransferBankBalance}";
-  if (!output.includes(overviewPropAnchor)) fail('Could not attach the Transfer Plan action to Overview.');
-  output = output.replace(overviewPropAnchor, overviewPropReplacement);
+  output = addOverviewNavigationProp(output);
+  output = wireOverviewNavigation(output);
 
   const updatedFundingEditorStart = output.indexOf('\nfunction FundingBalanceEditor(', output.indexOf('function Overview('));
   if (updatedFundingEditorStart < 0) fail('Could not find the FundingBalanceEditor insertion point.');
@@ -180,17 +212,14 @@ export function transformTransferPlanTab(source) {
 
 `;
   output = output.slice(0, transactionsViewPos) + transferPlanView + output.slice(transactionsViewPos);
-
-  const originalNav = "{['Overview', 'Transactions', 'Savings', 'Year'].map((item) => (";
-  const transferNav = "{['Overview', 'Transactions', 'Savings', 'Transfer Plan'].map((item) => (";
-  if (!output.includes(originalNav)) fail('Could not replace the fourth primary navigation slot.');
-  output = output.replace(originalNav, transferNav);
+  output = replacePrimaryNav(output);
 
   const finalOverviewStart = output.indexOf('function Overview(');
   const finalTransferStart = output.indexOf('function TransferPlan(');
   const finalFundingStart = output.indexOf('function FundingBalanceEditor(');
   const finalOverview = output.slice(finalOverviewStart, finalTransferStart);
   const finalTransferPlan = output.slice(finalTransferStart, finalFundingStart);
+  const transferNav = "{['Overview', 'Transactions', 'Savings', 'Transfer Plan'].map((item) => (";
 
   if (finalOverview.includes('Start-of-Month Transfer Plan')) fail('The full transfer plan still exists inside Overview.');
   if (!finalOverview.includes('transfer-plan-overview-card')) fail('Overview is missing the compact Transfer Plan summary.');
