@@ -10,7 +10,16 @@ if (!finance.includes('getMonthAccounts(state, monthKey)')) {
 
 const monthSetupPath = 'src/month-setup.js';
 const monthSetupMarker = 'PENNY_V76_TARGET_MONTH_ACCOUNTS';
+const legacyEvidenceMarker = 'PENNY_V76_LEGACY_ACCOUNT_EVIDENCE';
 let monthSetup = await readFile(monthSetupPath, 'utf8');
+
+if (!monthSetup.includes(legacyEvidenceMarker)) {
+  const legacyLabelLine = "    accountLabel: row.accountLabel || '',";
+  const hiddenEvidenceLines = "    legacyAccountLabel: row.accountLabel || row.legacyAccountLabel || '', // PENNY_V76_LEGACY_ACCOUNT_EVIDENCE\n    accountLabel: '',";
+  if (!monthSetup.includes(legacyLabelLine)) throw new Error('v76 could not preserve stale account-label evidence safely.');
+  monthSetup = monthSetup.replace(legacyLabelLine, hiddenEvidenceLines);
+}
+
 if (!monthSetup.includes(monthSetupMarker)) {
   const billStart = monthSetup.indexOf('export function buildRecurringBillCopies(');
   const incomeStart = monthSetup.indexOf('export function buildRecurringIncomeCopies(', billStart);
@@ -22,5 +31,6 @@ if (!monthSetup.includes(monthSetupMarker)) {
   if (!refsPattern.test(billBlock)) throw new Error('v76 could not find source-month recurring bill references.');
   const updatedBillBlock = billBlock.replace(refsPattern, targetRefs);
   monthSetup = monthSetup.slice(0, billStart) + updatedBillBlock + monthSetup.slice(incomeStart);
-  await writeFile(monthSetupPath, monthSetup);
 }
+
+await writeFile(monthSetupPath, monthSetup);
