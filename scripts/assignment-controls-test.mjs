@@ -18,6 +18,7 @@ assert.match(app, /<RecordBadges record=\{transaction\} compact \/>/, 'Expense c
 assert.match(styles, /\.assignment-warning[\s\S]*var\(--amber\)/, 'Unassigned controls must use the existing yellow warning colour.');
 assert.match(releasePatch, /onEdit\(record, 'receivedBy'\)/, 'The generated Income Detail card must receive the same field-specific control.');
 assert.match(releasePatch, /onEdit\(transaction, \\'paidBy\\'\)/, 'The generated Expense Detail card must receive the same field-specific control.');
+assert.match(releasePatch, /Income Detail must expose an actionable recipient assignment/, 'The generated finance-source audit must check the new control instead of obsolete static text.');
 
 console.log('Assignment control regression checks passed.');
 

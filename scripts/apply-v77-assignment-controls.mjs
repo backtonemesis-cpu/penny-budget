@@ -33,5 +33,17 @@ if (!app.includes("onEdit(record, 'receivedBy')") || !app.includes("onEdit(trans
 }
 
 await writeFile(appPath, app);
+
+const sourceAuditPath = 'scripts/source-audit.mjs';
+let sourceAudit = await readFile(sourceAuditPath, 'utf8');
+sourceAudit = sourceAudit.replace(
+  "  assert.match(files.app, /Received by:/, 'Income Detail must expose the recipient.');\n  assert.match(files.app, /Account:/, 'Income Detail must expose the receiving account.');",
+  "  assert.match(files.app, /onEdit\\(record, 'receivedBy'\\)/, 'Income Detail must expose an actionable recipient assignment.');\n  assert.match(files.app, /onEdit\\(record, 'account'\\)/, 'Income Detail must expose an actionable receiving-account assignment.');",
+);
+if (!sourceAudit.includes('Income Detail must expose an actionable recipient assignment.')) {
+  throw new Error('v77 failed to update the generated Income Detail source audit.');
+}
+await writeFile(sourceAuditPath, sourceAudit);
+
 console.log('PENNY_V77_ASSIGNMENT_CONTROLS applied');
 
