@@ -103,13 +103,6 @@ if (!app.includes('PENNY_V84_INLINE_ASSIGNMENT')) {
 
   app = replaceOnce(
     app,
-    "      income: copies.income,\n      auditLabel: `Set up ${MONTHS[period.month]} ${period.year} from recurring records`,",
-    "      income: copies.income,\n      copyPeople: !(state.peopleByMonth?.[monthKey]?.length),\n      copyAccounts: !(state.accountsByMonth?.[monthKey]?.length),\n      auditLabel: `Set up ${MONTHS[period.month]} ${period.year} from recurring records`,",
-    'month setup must carry people and accounts into a blank target month',
-  );
-
-  app = replaceOnce(
-    app,
     "            peopleMap={peopleMap}\n            accountMap={accountMap}\n            canEdit={canEditMonth}",
     "            peopleMap={peopleMap}\n            accountMap={accountMap}\n            peopleOptions={peopleOptions}\n            accountOptions={accountOptions}\n            canEdit={canEditMonth}",
     'Transactions assignment options',
