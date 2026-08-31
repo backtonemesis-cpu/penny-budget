@@ -77,4 +77,19 @@ v93Test = v93Test.replace(
 );
 await writeFile(v93TestPath, v93Test);
 
+// The record-date layout plugin keys off the Add-record modal opening. v94
+// changes that opening to the uniform Income/Expense title and wide layout, so
+// update only those two transform anchors. The underlying record context/date
+// behaviour remains exactly the same.
+const recordLayoutPath = 'build/record-date-layout.js';
+let recordLayout = await readFile(recordLayoutPath, 'utf8');
+const oldRecordOpen = `  const recordModalOpen = "<SimpleModal title={existing ? 'Edit record' : 'Add record'} onClose={onClose} initialFocusId={{ paidBy: 'record-paid-by', receivedBy: 'income-received-by', account: mode === 'income' ? 'income-account' : 'record-account' }[focusField]}>";`;
+const newRecordOpen = `  const recordModalOpen = "<SimpleModal title={existing ? 'Edit record' : mode === 'income' ? 'Add income' : mode === 'expense' ? 'Add expense' : 'Add record'} onClose={onClose} wide={!lockedMode} initialFocusId={{ paidBy: 'record-paid-by', receivedBy: 'income-received-by', account: mode === 'income' ? 'income-account' : 'record-account' }[focusField]}>";`;
+const oldContextOpen = `  const contextualRecordModalOpen = "<SimpleModal title={existing ? 'Edit record' : 'Add record'} subtitle={recordContext} onClose={onClose} initialFocusId={{ paidBy: 'record-paid-by', receivedBy: 'income-received-by', account: mode === 'income' ? 'income-account' : 'record-account' }[focusField]}>";`;
+const newContextOpen = `  const contextualRecordModalOpen = "<SimpleModal title={existing ? 'Edit record' : mode === 'income' ? 'Add income' : mode === 'expense' ? 'Add expense' : 'Add record'} subtitle={recordContext} onClose={onClose} wide={!lockedMode} initialFocusId={{ paidBy: 'record-paid-by', receivedBy: 'income-received-by', account: mode === 'income' ? 'income-account' : 'record-account' }[focusField]}>";`;
+if (recordLayout.includes(oldRecordOpen)) recordLayout = recordLayout.replace(oldRecordOpen, newRecordOpen);
+if (recordLayout.includes(oldContextOpen)) recordLayout = recordLayout.replace(oldContextOpen, newContextOpen);
+if (!recordLayout.includes(newRecordOpen) || !recordLayout.includes(newContextOpen)) throw new Error('v94 could not align record-date layout transform anchors');
+await writeFile(recordLayoutPath, recordLayout);
+
 console.log('PENNY_V94 uniform Add chooser and pure Settings applied');
