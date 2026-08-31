@@ -1,0 +1,21 @@
+/* v68: shorten Penny's mobile bottom navigation to match the compact footprint
+   seen in native iPhone apps such as TikTok and Messenger, while retaining a
+   44px minimum tap target and a small guarded home-indicator clearance. */
+@media (max-width: 760px) {
+  .app {
+    padding-bottom: calc(54px + max(0px, calc(env(safe-area-inset-bottom) - 34px)));
+  }
+
+  .nav {
+    padding-top: 1px;
+    padding-bottom: max(8px, calc(env(safe-area-inset-bottom) - 26px));
+  }
+
+  .nav button {
+    min-height: 44px;
+    transform: none;
+    gap: 1px;
+    border-radius: 9px;
+    padding: 2px 1px 1px;
+  }
+}
