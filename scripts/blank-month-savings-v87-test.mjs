@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { migrateState } from '../src/finance.js';
+import { CURRENT_STATE_VERSION, migrateState } from '../src/finance.js';
 
 const now = new Date(2026, 9, 15, 12, 0, 0);
 
 const currentVersionState = {
-  version: 12,
+  version: CURRENT_STATE_VERSION,
   txnsByMonth: {},
   incomeByMonth: {},
   customCats: [],
@@ -33,12 +33,12 @@ assert.deepEqual(
 assert.deepEqual(
   (migratedCurrent.savingsAccounts || []).map((item) => item.label),
   ['Chase', 'Santander', 'Cash'],
-  'Resetting a month must not destroy the reusable savings-account master list used by other months.',
+  'Resetting one month must not destroy legacy reusable definitions that may still support other historical months.',
 );
 
 const legacyState = {
   ...currentVersionState,
-  version: 11,
+  version: Math.max(0, CURRENT_STATE_VERSION - 1),
   savingsAccounts: [
     { id: 'legacy_chase', label: 'Chase', balance: 321.45 },
   ],
@@ -47,7 +47,7 @@ const migratedLegacy = migrateState(legacyState, now);
 assert.equal(
   Object.values(migratedLegacy.savingsByMonth).flat().some((item) => item.label === 'Chase'),
   true,
-  'Pre-v12 legacy data must still be allowed to migrate its old savings-account snapshot once.',
+  'A genuinely older state format must still be allowed to migrate its legacy savings snapshot once.',
 );
 
-console.log('v87 blank-month savings regression passed');
+console.log('v87/v95 blank-month savings regression passed');
