@@ -73,24 +73,26 @@ function findConditionalEnd(source, start) {
 }
 
 function overviewSummaryCard() {
-  return `      {!summary.isComplete && summary.expenseTransactions.length > 0 && (
-        <button
-          type="button"
-          className="card transfer-plan-overview-card"
-          onClick={onOpenTransferPlan}
-          aria-label={\`Open Transfer Plan. ${'${(summary.hasUnconfirmedBankBalances || summary.hasAmbiguousFundingAccounts) ? \'Amount to transfer is still to be confirmed\' : `Transfer needed ${formatMoney(summary.totalTransferNeeded)}`}'}\`}
-        >
-          <div className="transfer-plan-overview-copy">
-            <span className="mini-label">Transfer Plan</span>
-            <strong>Start-of-month transfers</strong>
-          </div>
-          <div className="transfer-plan-overview-value">
-            <span className={\`money ${'${(summary.hasUnconfirmedBankBalances || summary.hasAmbiguousFundingAccounts) ? \'amber\' : summary.totalTransferNeeded > 0 ? \'amber\' : \'green\'}'}\`}>{${'(summary.hasUnconfirmedBankBalances || summary.hasAmbiguousFundingAccounts) ? \'TBC\' : formatMoney(summary.totalTransferNeeded)'}}</span>
-            <span>Transfer needed</span>
-          </div>
-          <span className="transfer-plan-overview-chevron" aria-hidden="true">›</span>
-        </button>
-      )}`;
+  return [
+    '      {!summary.isComplete && summary.expenseTransactions.length > 0 && (',
+    '        <button',
+    '          type="button"',
+    '          className="card transfer-plan-overview-card"',
+    '          onClick={onOpenTransferPlan}',
+    "          aria-label={`Open Transfer Plan. ${(summary.hasUnconfirmedBankBalances || summary.hasAmbiguousFundingAccounts) ? 'Amount to transfer is still to be confirmed' : `Transfer needed ${formatMoney(summary.totalTransferNeeded)}`}`}",
+    '        >',
+    '          <div className="transfer-plan-overview-copy">',
+    '            <span className="mini-label">Transfer Plan</span>',
+    '            <strong>Start-of-month transfers</strong>',
+    '          </div>',
+    '          <div className="transfer-plan-overview-value">',
+    "            <span className={`money ${(summary.hasUnconfirmedBankBalances || summary.hasAmbiguousFundingAccounts) ? 'amber' : summary.totalTransferNeeded > 0 ? 'amber' : 'green'}`}>{(summary.hasUnconfirmedBankBalances || summary.hasAmbiguousFundingAccounts) ? 'TBC' : formatMoney(summary.totalTransferNeeded)}</span>",
+    '            <span>Transfer needed</span>',
+    '          </div>',
+    '          <span className="transfer-plan-overview-chevron" aria-hidden="true">›</span>',
+    '        </button>',
+    '      )}',
+  ].join('\n');
 }
 
 function transferPlanComponent(transferBlock) {
