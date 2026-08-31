@@ -57,6 +57,8 @@ jobs:
         run: node scripts/mobile-nav-native-v68-test.mjs
       - name: Run pixel-match bottom navigation regression
         run: node scripts/mobile-nav-pixel-v69-test.mjs
+      - name: Run matched navigation content regression
+        run: node scripts/mobile-nav-content-v70-test.mjs
       - name: Audit accessibility source
         run: node scripts/source-audit.mjs accessibility
       - name: Audit storage source

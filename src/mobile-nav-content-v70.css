@@ -1,0 +1,20 @@
+/* v70: keep the v69 45px bottom-bar geometry, but scale the icon/label group
+   to match the visual weight of the supplied TikTok iPhone reference. */
+@media (max-width: 760px) {
+  .nav button {
+    justify-content: center;
+    gap: 0;
+    padding: 0 1px;
+  }
+
+  .nav button::before {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
+  }
+
+  .nav button::after {
+    font-size: 12px;
+    line-height: 1;
+  }
+}
