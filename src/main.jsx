@@ -27,6 +27,7 @@ import './mobile-nav-pixel-v69.css';
 import './mobile-nav-content-v70.css';
 import './mobile-header-compact-v72.css';
 import './mobile-month-selector-v73.css';
+import './mobile-month-label-v74.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
