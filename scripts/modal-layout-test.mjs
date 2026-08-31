@@ -41,9 +41,8 @@ assert.match(recordEditorCss, /#record-date::-webkit-date-and-time-value,[\s\S]*
 assert.match(recordEditorCss, /\.modal-head-copy \{[^}]*flex: 1 1 auto;[^}]*min-width: 0;/s, 'The sticky editor header must reserve a safe flexible track for record identity.');
 assert.match(recordEditorCss, /\.modal-context \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/s, 'Long Income or Expense identities must remain readable without colliding with Done.');
 assert.match(transformedApp, /const recordContext = existing[\s\S]*?Income[\s\S]*?Expense[\s\S]*?Transfer[\s\S]*?formatMoney/s, 'The shared record editor must build a persistent identity from record type, description and amount.');
-assert.match(transformedApp, /<SimpleModal title=\{existing \? 'Edit record' : 'Add record'\} subtitle=\{recordContext\} onClose=\{onClose\} initialFocusId=/, 'Income and Expense edits must pass their record identity and requested assignment focus into the sticky modal header.');
+assert.match(transformedApp, /<SimpleModal title=\{existing \? 'Edit record' : mode === 'income' \? 'Add income' : mode === 'expense' \? 'Add expense' : 'Add record'\} subtitle=\{recordContext\} onClose=\{onClose\} wide=\{!lockedMode\} initialFocusId=/, 'Income and Expense edits must preserve their record identity and assignment focus while new records use the uniform wide Add layout.');
 assert.match(transformedApp, /function SimpleModal\(\{ title, subtitle = '', onClose, children, wide = false, initialFocusId \}\)/, 'SimpleModal must accept the optional record identity and assignment focus without affecting other modal users.');
 assert.match(transformedApp, /\{subtitle && <div className="modal-context">\{subtitle\}<\/div>\}/, 'The record identity must stay visible in the sticky editor header while scrolling.');
 
 console.log('Penny mobile viewport, compact header, transfer plan, and shared Income/Expense editor regressions passed');
-
