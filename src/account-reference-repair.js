@@ -68,8 +68,11 @@ export function resolveOwnedExpenseAccount(transaction, { accounts = [], people 
   if (directIds.size === 1) return accountMap.get([...directIds][0]);
   if (directIds.size > 1) return null;
 
-  const evidenceLabels = [transaction.accountLabel, ...previousMatches.map((row) => row.accountLabel)]
-    .filter((label) => meaningfulLabel(label));
+  const evidenceLabels = [
+    transaction.accountLabel,
+    transaction.legacyAccountLabel,
+    ...previousMatches.flatMap((row) => [row.accountLabel, row.legacyAccountLabel]),
+  ].filter((label) => meaningfulLabel(label));
   const matchedIds = new Set();
   evidenceLabels.forEach((label) => {
     ownerCandidates.forEach((candidate) => {
