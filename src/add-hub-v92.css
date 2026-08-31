@@ -1,0 +1,54 @@
+.quick-setup-wrap {
+  margin-top: 0.35rem;
+}
+
+.quick-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.quick-setup-button {
+  min-height: 2.35rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line, #33415f);
+  border-radius: 0.7rem;
+  text-decoration: none;
+}
+
+.quick-setup-panel {
+  margin-top: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line, #33415f);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.quick-setup-panel .form-grid {
+  margin-bottom: 0.45rem;
+}
+
+.quick-setup-panel .mini-actions {
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 760px) {
+  .record-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .quick-setup-actions {
+    flex-wrap: nowrap;
+  }
+
+  .quick-setup-button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .quick-setup-panel {
+    padding: 0.65rem;
+  }
+}
