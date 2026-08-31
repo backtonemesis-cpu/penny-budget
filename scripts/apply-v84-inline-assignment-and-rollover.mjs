@@ -13,7 +13,91 @@ let app = await readFile(appPath, 'utf8');
 
 if (!app.includes('PENNY_V84_INLINE_ASSIGNMENT')) {
   const handlerAnchor = '  const toggleIncomeReceived = (record) => {';
-  const handlers = `  // PENNY_V84_INLINE_ASSIGNMENT\n  const assignmentOwnerCompatible = (account, personId) => {\n    if (!account || account.id === 'unassigned' || !personId || personId === 'unassigned') return true;\n    const ownerId = account.ownerId || 'unassigned';\n    if (personId === 'household') return ownerId === 'household' || ownerId === 'unassigned';\n    return ownerId === personId || ownerId === 'household' || ownerId === 'unassigned';\n  };\n\n  const assignExpenseReference = (transaction, field, value) => {\n    if (!canEditMonth) {\n      setMessage('This month is locked. Unlock corrections before changing assignments.');\n      return;\n    }\n    const nextValue = value || 'unassigned';\n    let draft = { ...transaction };\n    if (field === 'paidBy') {\n      const person = peopleOptions.find((item) => item.id === nextValue);\n      draft.paidBy = nextValue;\n      draft.paidByLabel = nextValue === 'unassigned' ? '' : person?.label || '';\n      const currentAccount = accountOptions.find((item) => item.id === draft.account);\n      if (currentAccount && !assignmentOwnerCompatible(currentAccount, nextValue)) {\n        draft.account = 'unassigned';\n        draft.accountLabel = '';\n        draft.accountOwnerId = 'unassigned';\n        draft.accountOwnerLabel = '';\n      }\n    } else if (field === 'account') {\n      const account = accountOptions.find((item) => item.id === nextValue);\n      if (nextValue !== 'unassigned' && !account) {\n        setMessage('That account is not available for this month.');\n        return;\n      }\n      if (account && !assignmentOwnerCompatible(account, draft.paidBy)) {\n        setMessage('Choose an account that matches the selected payer.');\n        return;\n      }\n      draft.account = nextValue;\n      draft.accountLabel = nextValue === 'unassigned' ? '' : account?.label || '';\n      draft.accountOwnerId = nextValue === 'unassigned' ? 'unassigned' : account?.ownerId || 'unassigned';\n      draft.accountOwnerLabel = nextValue === 'unassigned' ? '' : peopleOptions.find((item) => item.id === account?.ownerId)?.label || '';\n    } else return;\n    const next = normaliseTransaction(draft, state.customCats);\n    if (!next) return;\n    mutate({ type: 'UPDATE_TXN', monthKey: transaction.date.slice(0, 7), txn: next, auditLabel: \\`Assign \\${transaction.desc} \\${field === 'paidBy' ? 'payer' : 'account'}\\` });\n  };\n\n  const assignIncomeReference = (record, field, value) => {\n    if (!canEditMonth) {\n      setMessage('This month is locked. Unlock corrections before changing assignments.');\n      return;\n    }\n    const nextValue = value || 'unassigned';\n    let draft = { ...record };\n    if (field === 'receivedBy') {\n      const person = peopleOptions.find((item) => item.id === nextValue);\n      draft.receivedBy = nextValue;\n      draft.receivedByLabel = nextValue === 'unassigned' ? '' : person?.label || '';\n      const currentAccount = accountOptions.find((item) => item.id === draft.account);\n      if (currentAccount && !assignmentOwnerCompatible(currentAccount, nextValue)) {\n        draft.account = 'unassigned';\n        draft.accountLabel = '';\n        draft.accountOwnerId = 'unassigned';\n        draft.accountOwnerLabel = '';\n      }\n    } else if (field === 'account') {\n      const account = accountOptions.find((item) => item.id === nextValue);\n      if (nextValue !== 'unassigned' && !account) {\n        setMessage('That account is not available for this month.');\n        return;\n      }\n      if (account && !assignmentOwnerCompatible(account, draft.receivedBy)) {\n        setMessage('Choose an account that matches the selected recipient.');\n        return;\n      }\n      draft.account = nextValue;\n      draft.accountLabel = nextValue === 'unassigned' ? '' : account?.label || '';\n      draft.accountOwnerId = nextValue === 'unassigned' ? 'unassigned' : account?.ownerId || 'unassigned';\n      draft.accountOwnerLabel = nextValue === 'unassigned' ? '' : peopleOptions.find((item) => item.id === account?.ownerId)?.label || '';\n    } else return;\n    const next = normaliseIncomeRecord(draft, record.date.slice(0, 7));\n    if (!next) return;\n    mutate({ type: 'UPDATE_INCOME', monthKey: record.date.slice(0, 7), record: next, auditLabel: \\`Assign \\${record.description} \\${field === 'receivedBy' ? 'recipient' : 'account'}\\` });\n  };\n\n`;
+  const handlers = `  // PENNY_V84_INLINE_ASSIGNMENT
+  const assignmentOwnerCompatible = (account, personId) => {
+    if (!account || account.id === 'unassigned' || !personId || personId === 'unassigned') return true;
+    const ownerId = account.ownerId || 'unassigned';
+    if (personId === 'household') return ownerId === 'household' || ownerId === 'unassigned';
+    return ownerId === personId || ownerId === 'household' || ownerId === 'unassigned';
+  };
+
+  const assignExpenseReference = (transaction, field, value) => {
+    if (!canEditMonth) {
+      setMessage('This month is locked. Unlock corrections before changing assignments.');
+      return;
+    }
+    const nextValue = value || 'unassigned';
+    let draft = { ...transaction };
+    if (field === 'paidBy') {
+      const person = peopleOptions.find((item) => item.id === nextValue);
+      draft.paidBy = nextValue;
+      draft.paidByLabel = nextValue === 'unassigned' ? '' : person?.label || '';
+      const currentAccount = accountOptions.find((item) => item.id === draft.account);
+      if (currentAccount && !assignmentOwnerCompatible(currentAccount, nextValue)) {
+        draft.account = 'unassigned';
+        draft.accountLabel = '';
+        draft.accountOwnerId = 'unassigned';
+        draft.accountOwnerLabel = '';
+      }
+    } else if (field === 'account') {
+      const account = accountOptions.find((item) => item.id === nextValue);
+      if (nextValue !== 'unassigned' && !account) {
+        setMessage('That account is not available for this month.');
+        return;
+      }
+      if (account && !assignmentOwnerCompatible(account, draft.paidBy)) {
+        setMessage('Choose an account that matches the selected payer.');
+        return;
+      }
+      draft.account = nextValue;
+      draft.accountLabel = nextValue === 'unassigned' ? '' : account?.label || '';
+      draft.accountOwnerId = nextValue === 'unassigned' ? 'unassigned' : account?.ownerId || 'unassigned';
+      draft.accountOwnerLabel = nextValue === 'unassigned' ? '' : peopleOptions.find((item) => item.id === account?.ownerId)?.label || '';
+    } else return;
+    const next = normaliseTransaction(draft, state.customCats);
+    if (!next) return;
+    mutate({ type: 'UPDATE_TXN', monthKey: transaction.date.slice(0, 7), txn: next, auditLabel: 'Assign ' + transaction.desc + ' ' + (field === 'paidBy' ? 'payer' : 'account') });
+  };
+
+  const assignIncomeReference = (record, field, value) => {
+    if (!canEditMonth) {
+      setMessage('This month is locked. Unlock corrections before changing assignments.');
+      return;
+    }
+    const nextValue = value || 'unassigned';
+    let draft = { ...record };
+    if (field === 'receivedBy') {
+      const person = peopleOptions.find((item) => item.id === nextValue);
+      draft.receivedBy = nextValue;
+      draft.receivedByLabel = nextValue === 'unassigned' ? '' : person?.label || '';
+      const currentAccount = accountOptions.find((item) => item.id === draft.account);
+      if (currentAccount && !assignmentOwnerCompatible(currentAccount, nextValue)) {
+        draft.account = 'unassigned';
+        draft.accountLabel = '';
+        draft.accountOwnerId = 'unassigned';
+        draft.accountOwnerLabel = '';
+      }
+    } else if (field === 'account') {
+      const account = accountOptions.find((item) => item.id === nextValue);
+      if (nextValue !== 'unassigned' && !account) {
+        setMessage('That account is not available for this month.');
+        return;
+      }
+      if (account && !assignmentOwnerCompatible(account, draft.receivedBy)) {
+        setMessage('Choose an account that matches the selected recipient.');
+        return;
+      }
+      draft.account = nextValue;
+      draft.accountLabel = nextValue === 'unassigned' ? '' : account?.label || '';
+      draft.accountOwnerId = nextValue === 'unassigned' ? 'unassigned' : account?.ownerId || 'unassigned';
+      draft.accountOwnerLabel = nextValue === 'unassigned' ? '' : peopleOptions.find((item) => item.id === account?.ownerId)?.label || '';
+    } else return;
+    const next = normaliseIncomeRecord(draft, record.date.slice(0, 7));
+    if (!next) return;
+    mutate({ type: 'UPDATE_INCOME', monthKey: record.date.slice(0, 7), record: next, auditLabel: 'Assign ' + record.description + ' ' + (field === 'receivedBy' ? 'recipient' : 'account') });
+  };
+
+`;
   if (!app.includes(handlerAnchor)) throw new Error('v84 missing assignment handler insertion point.');
   app = app.replace(handlerAnchor, handlers + handlerAnchor);
 
@@ -46,7 +130,15 @@ if (!app.includes('PENNY_V84_INLINE_ASSIGNMENT')) {
   );
 
   const movementsAnchor = "  const movements = summary.transactions.filter((transaction) => transaction.type !== 'expense').filter((transaction) => `${transaction.desc} ${SPECIAL_TRANSACTION_META[transaction.type]?.label || ''}`.toLowerCase().includes(text));";
-  const choices = `${movementsAnchor}\n  const personChoices = (peopleOptions || []).filter((item) => item.id !== 'unassigned');\n  const accountChoicesFor = (personId) => (accountOptions || []).filter((account) => {\n    if (!account || account.id === 'unassigned') return false;\n    const ownerId = account.ownerId || 'unassigned';\n    if (!personId || personId === 'unassigned') return true;\n    if (personId === 'household') return ownerId === 'household' || ownerId === 'unassigned';\n    return ownerId === personId || ownerId === 'household' || ownerId === 'unassigned';\n  });`;
+  const choices = `${movementsAnchor}
+  const personChoices = (peopleOptions || []).filter((item) => item.id !== 'unassigned');
+  const accountChoicesFor = (personId) => (accountOptions || []).filter((account) => {
+    if (!account || account.id === 'unassigned') return false;
+    const ownerId = account.ownerId || 'unassigned';
+    if (!personId || personId === 'unassigned') return true;
+    if (personId === 'household') return ownerId === 'household' || ownerId === 'unassigned';
+    return ownerId === personId || ownerId === 'household' || ownerId === 'unassigned';
+  });`;
   app = replaceOnce(app, movementsAnchor, choices, 'Transactions assignment choice helpers');
 
   app = replaceOnce(
@@ -71,8 +163,28 @@ if (!app.includes('PENNY_V84_INLINE_ASSIGNMENT')) {
   const newExpenseLine = `        <div className="record-meta assignment-line">Paid by <AssignmentSelect value={transaction.paidBy || 'unassigned'} displayValue={transaction.paidByLabel || peopleMap[transaction.paidBy]?.label || ''} placeholder="User" fieldLabel="Paid by" options={peopleOptions} canEdit={canEdit} onAssign={(value) => onAssign(transaction, 'paidBy', value)} /> <span aria-hidden="true">·</span> <AssignmentSelect value={transaction.account || 'unassigned'} displayValue={accountLabel} placeholder="Account" fieldLabel="Account" options={accountOptions} canEdit={canEdit} onAssign={(value) => onAssign(transaction, 'account', value)} /></div>`;
   app = replaceOnce(app, oldExpenseLine, newExpenseLine, 'Expense inline assignment controls');
 
-  const oldAssignmentValue = `function AssignmentValue({ value, unassigned, fieldLabel, canEdit, onAssign }) {\n  if (!unassigned) return <span>{value}</span>;\n  return <button type="button" className="assignment-warning" disabled={!canEdit} aria-label={\`Assign ${fieldLabel}\`} onClick={onAssign}>Unassigned</button>;\n}`;
-  const newAssignmentSelect = `function AssignmentSelect({ value, displayValue, placeholder, fieldLabel, options = [], canEdit, onAssign }) {\n  const currentValue = value && value !== 'unassigned' ? value : 'unassigned';\n  const unassigned = currentValue === 'unassigned';\n  const label = unassigned ? placeholder : displayValue || options.find((item) => item.id === currentValue)?.displayLabel || options.find((item) => item.id === currentValue)?.label || currentValue;\n  if (!canEdit) return <span className={unassigned ? 'assignment-static-warning' : undefined}>{label}</span>;\n  const hasCurrentOption = options.some((item) => item.id === currentValue);\n  return (\n    <select\n      className={\`assignment-select${unassigned ? ' is-unassigned' : ''}\`}\n      aria-label={\`Select ${fieldLabel}\`}\n      value={currentValue}\n      onChange={(event) => onAssign(event.target.value)}\n    >\n      <option value="unassigned">{placeholder}</option>\n      {!unassigned && !hasCurrentOption && <option value={currentValue}>{label}</option>}\n      {options.filter((item) => item.id !== 'unassigned').map((item) => (\n        <option key={item.id} value={item.id}>{item.displayLabel || item.label}</option>\n      ))}\n    </select>\n  );\n}`;
+  const oldAssignmentValue = 'function AssignmentValue({ value, unassigned, fieldLabel, canEdit, onAssign }) {\n  if (!unassigned) return <span>{value}</span>;\n  return <button type="button" className="assignment-warning" disabled={!canEdit} aria-label={`Assign ${fieldLabel}`} onClick={onAssign}>Unassigned</button>;\n}';
+  const newAssignmentSelect = `function AssignmentSelect({ value, displayValue, placeholder, fieldLabel, options = [], canEdit, onAssign }) {
+  const currentValue = value && value !== 'unassigned' ? value : 'unassigned';
+  const unassigned = currentValue === 'unassigned';
+  const label = unassigned ? placeholder : displayValue || options.find((item) => item.id === currentValue)?.displayLabel || options.find((item) => item.id === currentValue)?.label || currentValue;
+  if (!canEdit) return <span className={unassigned ? 'assignment-static-warning' : undefined}>{label}</span>;
+  const hasCurrentOption = options.some((item) => item.id === currentValue);
+  return (
+    <select
+      className={'assignment-select' + (unassigned ? ' is-unassigned' : '')}
+      aria-label={'Select ' + fieldLabel}
+      value={currentValue}
+      onChange={(event) => onAssign(event.target.value)}
+    >
+      <option value="unassigned">{placeholder}</option>
+      {!unassigned && !hasCurrentOption && <option value={currentValue}>{label}</option>}
+      {options.filter((item) => item.id !== 'unassigned').map((item) => (
+        <option key={item.id} value={item.id}>{item.displayLabel || item.label}</option>
+      ))}
+    </select>
+  );
+}`;
   app = replaceOnce(app, oldAssignmentValue, newAssignmentSelect, 'AssignmentSelect component');
 
   await writeFile(appPath, app);
@@ -91,11 +203,143 @@ if (!monthSetup.includes('PENNY_V84_ROLLOVER_REFERENCES')) {
   const setupCopiesStart = monthSetup.indexOf('export function buildMonthSetupCopies(', incomeStart);
   if (!(billStart >= 0 && incomeStart > billStart && setupCopiesStart > incomeStart)) throw new Error('v84 could not isolate month-copy functions.');
 
-  const helpers = `// PENNY_V84_ROLLOVER_REFERENCES\nfunction normaliseReferenceEvidence(value) {\n  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\\s+/g, ' ');\n}\n\nfunction setupAccountOwnerCompatible(account, ownerId) {\n  if (!account || !ownerId || ownerId === 'unassigned') return true;\n  const accountOwnerId = account.ownerId || 'unassigned';\n  if (ownerId === 'household') return accountOwnerId === 'household' || accountOwnerId === 'unassigned';\n  return accountOwnerId === ownerId || accountOwnerId === 'household' || accountOwnerId === 'unassigned';\n}\n\nfunction setupReferenceLists(state, sourceMonthKey, targetMonthKey) {\n  const sourcePeople = getMonthPeople(state, sourceMonthKey);\n  const sourceAccounts = getMonthAccounts(state, sourceMonthKey);\n  const targetPeople = state?.peopleByMonth && Object.hasOwn(state.peopleByMonth, targetMonthKey)\n    ? getMonthPeople(state, targetMonthKey)\n    : [];\n  const targetAccounts = state?.accountsByMonth && Object.hasOwn(state.accountsByMonth, targetMonthKey)\n    ? getMonthAccounts(state, targetMonthKey)\n    : [];\n  return {\n    people: targetPeople.length ? targetPeople : sourcePeople,\n    accounts: targetAccounts.length ? targetAccounts : sourceAccounts,\n  };\n}\n\nfunction resolveSetupPerson(personId, personLabel, people) {\n  if (personId === 'household') return 'household';\n  if (personId && personId !== 'unassigned' && people.some((person) => person.id === personId)) return personId;\n  const evidence = normaliseReferenceEvidence(personLabel);\n  if (!evidence) return 'unassigned';\n  if (evidence === 'joint' || evidence === 'household') return 'household';\n  const matches = people.filter((person) => normaliseReferenceEvidence(person.label) === evidence);\n  return matches.length === 1 ? matches[0].id : 'unassigned';\n}\n\nfunction setupPersonLabel(personId, fallback, people) {\n  if (personId === 'household') return 'Joint';\n  return people.find((person) => person.id === personId)?.label || fallback || '';\n}\n\nfunction resolveSetupAccount(record, ownerId, accounts) {\n  const direct = accounts.find((account) => account.id === record.account && setupAccountOwnerCompatible(account, ownerId));\n  if (direct) return direct;\n  const evidence = [record.accountLabel, record.legacyAccountLabel].map(normaliseReferenceEvidence).filter(Boolean);\n  const matches = new Map();\n  accounts.filter((account) => setupAccountOwnerCompatible(account, ownerId)).forEach((account) => {\n    const candidate = normaliseReferenceEvidence(account.label);\n    if (!candidate) return;\n    if (evidence.some((label) => label === candidate || (label.length >= 4 && candidate.length >= 4 && (label.includes(candidate) || candidate.includes(label))))) {\n      matches.set(account.id, account);\n    }\n  });\n  if (matches.size === 1) return [...matches.values()][0];\n  if (matches.size > 1) return null;\n  if (ownerId && ownerId !== 'unassigned' && ownerId !== 'household') {\n    const owned = accounts.filter((account) => setupAccountOwnerCompatible(account, ownerId) && account.ownerId === ownerId);\n    if (owned.length === 1) return owned[0];\n  }\n  return null;\n}\n\n`;
+  const helpers = `// PENNY_V84_ROLLOVER_REFERENCES
+function normaliseReferenceEvidence(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\\s+/g, ' ');
+}
 
-  const billFunction = `export function buildRecurringBillCopies(state, targetMonthKey, selectedIds, idFactory = createId) {\n  const setup = recurringBillSetup(state, targetMonthKey);\n  const selected = new Set(Array.isArray(selectedIds) ? selectedIds : []);\n  const refs = setupReferenceLists(state, setup.sourceMonthKey, targetMonthKey);\n  return setup.candidates.flatMap(({ id, transaction, duplicate }) => {\n    if (duplicate || !selected.has(id)) return [];\n    const paidBy = resolveSetupPerson(transaction.paidBy, transaction.paidByLabel, refs.people);\n    const paidByLabel = setupPersonLabel(paidBy, transaction.paidByLabel, refs.people);\n    const resolvedAccount = resolveSetupAccount(transaction, paidBy, refs.accounts);\n    const copiedAccountId = resolvedAccount?.id || 'unassigned';\n    const ownerId = resolvedAccount?.ownerId || 'unassigned';\n    const copied = normaliseTransaction({\n      ...transaction,\n      id: idFactory('txn'),\n      date: recurringTargetDate(transaction.date, targetMonthKey),\n      paid: false,\n      paidBy,\n      paidByLabel,\n      account: copiedAccountId,\n      accountLabel: resolvedAccount?.label || '',\n      accountOwnerId: ownerId,\n      accountOwnerLabel: setupPersonLabel(ownerId, '', refs.people),\n      confirmationIssues: ['date', ...(transaction.confirmationIssues || []).filter((issue) => issue === 'other'), ...(paidBy === 'unassigned' ? ['paidBy'] : []), ...(!resolvedAccount ? ['account'] : [])],\n      dateConfirmed: false,\n      needsConfirmation: true,\n      source: 'month_copy',\n    }, state?.customCats || []);\n    return copied ? [copied] : [];\n  });\n}\n\n`;
+function setupAccountOwnerCompatible(account, ownerId) {
+  if (!account || !ownerId || ownerId === 'unassigned') return true;
+  const accountOwnerId = account.ownerId || 'unassigned';
+  if (ownerId === 'household') return accountOwnerId === 'household' || accountOwnerId === 'unassigned';
+  return accountOwnerId === ownerId || accountOwnerId === 'household' || accountOwnerId === 'unassigned';
+}
 
-  const incomeFunction = `export function buildRecurringIncomeCopies(state, targetMonthKey, selectedIds, idFactory = createId) {\n  const setup = recurringBillSetup(state, targetMonthKey);\n  const selected = new Set(Array.isArray(selectedIds) ? selectedIds : []);\n  const refs = setupReferenceLists(state, setup.sourceMonthKey, targetMonthKey);\n  return setup.incomeCandidates.flatMap(({ id, record, mode, duplicate }) => {\n    if (duplicate || !selected.has(id)) return [];\n    const receivedBy = resolveSetupPerson(record.receivedBy, record.receivedByLabel, refs.people);\n    const receivedByLabel = setupPersonLabel(receivedBy, record.receivedByLabel, refs.people);\n    const resolvedAccount = resolveSetupAccount(record, receivedBy, refs.accounts);\n    const copiedAccountId = resolvedAccount?.id || 'unassigned';\n    const ownerId = resolvedAccount?.ownerId || 'unassigned';\n    const amountConfirmed = mode === 'fixed';\n    const confirmationIssues = ['date', 'received', ...(amountConfirmed ? [] : ['amount'])];\n    if (receivedBy === 'unassigned') confirmationIssues.push('receivedBy');\n    if (!resolvedAccount) confirmationIssues.push('account');\n    const copied = normaliseIncomeRecord({\n      ...record,\n      id: idFactory('income'),\n      date: recurringTargetDate(record.date, targetMonthKey),\n      amount: amountConfirmed ? record.amount : 0,\n      amountConfirmed,\n      incomeStatus: 'expected',\n      recurrenceMode: mode,\n      receivedBy,\n      receivedByLabel,\n      account: copiedAccountId,\n      accountLabel: resolvedAccount?.label || '',\n      accountOwnerId: ownerId,\n      accountOwnerLabel: setupPersonLabel(ownerId, '', refs.people),\n      confirmationIssues,\n      dateConfirmed: false,\n      needsConfirmation: true,\n      source: 'month_copy',\n    }, targetMonthKey);\n    return copied ? [copied] : [];\n  });\n}\n\n`;
+function setupReferenceLists(state, sourceMonthKey, targetMonthKey) {
+  const sourcePeople = getMonthPeople(state, sourceMonthKey);
+  const sourceAccounts = getMonthAccounts(state, sourceMonthKey);
+  const targetPeople = state?.peopleByMonth && Object.hasOwn(state.peopleByMonth, targetMonthKey)
+    ? getMonthPeople(state, targetMonthKey)
+    : [];
+  const targetAccounts = state?.accountsByMonth && Object.hasOwn(state.accountsByMonth, targetMonthKey)
+    ? getMonthAccounts(state, targetMonthKey)
+    : [];
+  return {
+    people: targetPeople.length ? targetPeople : sourcePeople,
+    accounts: targetAccounts.length ? targetAccounts : sourceAccounts,
+  };
+}
+
+function resolveSetupPerson(personId, personLabel, people) {
+  if (personId === 'household') return 'household';
+  if (personId && personId !== 'unassigned' && people.some((person) => person.id === personId)) return personId;
+  const evidence = normaliseReferenceEvidence(personLabel);
+  if (!evidence) return 'unassigned';
+  if (evidence === 'joint' || evidence === 'household') return 'household';
+  const matches = people.filter((person) => normaliseReferenceEvidence(person.label) === evidence);
+  return matches.length === 1 ? matches[0].id : 'unassigned';
+}
+
+function setupPersonLabel(personId, fallback, people) {
+  if (personId === 'household') return 'Joint';
+  return people.find((person) => person.id === personId)?.label || fallback || '';
+}
+
+function resolveSetupAccount(record, ownerId, accounts) {
+  const direct = accounts.find((account) => account.id === record.account && setupAccountOwnerCompatible(account, ownerId));
+  if (direct) return direct;
+  const evidence = [record.accountLabel, record.legacyAccountLabel].map(normaliseReferenceEvidence).filter(Boolean);
+  const matches = new Map();
+  accounts.filter((account) => setupAccountOwnerCompatible(account, ownerId)).forEach((account) => {
+    const candidate = normaliseReferenceEvidence(account.label);
+    if (!candidate) return;
+    if (evidence.some((label) => label === candidate || (label.length >= 4 && candidate.length >= 4 && (label.includes(candidate) || candidate.includes(label))))) {
+      matches.set(account.id, account);
+    }
+  });
+  if (matches.size === 1) return [...matches.values()][0];
+  if (matches.size > 1) return null;
+  if (ownerId && ownerId !== 'unassigned' && ownerId !== 'household') {
+    const owned = accounts.filter((account) => setupAccountOwnerCompatible(account, ownerId) && account.ownerId === ownerId);
+    if (owned.length === 1) return owned[0];
+  }
+  return null;
+}
+
+`;
+
+  const billFunction = `export function buildRecurringBillCopies(state, targetMonthKey, selectedIds, idFactory = createId) {
+  const setup = recurringBillSetup(state, targetMonthKey);
+  const selected = new Set(Array.isArray(selectedIds) ? selectedIds : []);
+  const refs = setupReferenceLists(state, setup.sourceMonthKey, targetMonthKey);
+  return setup.candidates.flatMap(({ id, transaction, duplicate }) => {
+    if (duplicate || !selected.has(id)) return [];
+    const paidBy = resolveSetupPerson(transaction.paidBy, transaction.paidByLabel, refs.people);
+    const paidByLabel = setupPersonLabel(paidBy, transaction.paidByLabel, refs.people);
+    const resolvedAccount = resolveSetupAccount(transaction, paidBy, refs.accounts);
+    const copiedAccountId = resolvedAccount?.id || 'unassigned';
+    const ownerId = resolvedAccount?.ownerId || 'unassigned';
+    const copied = normaliseTransaction({
+      ...transaction,
+      id: idFactory('txn'),
+      date: recurringTargetDate(transaction.date, targetMonthKey),
+      paid: false,
+      paidBy,
+      paidByLabel,
+      account: copiedAccountId,
+      accountLabel: resolvedAccount?.label || '',
+      accountOwnerId: ownerId,
+      accountOwnerLabel: setupPersonLabel(ownerId, '', refs.people),
+      confirmationIssues: ['date', ...(transaction.confirmationIssues || []).filter((issue) => issue === 'other'), ...(paidBy === 'unassigned' ? ['paidBy'] : []), ...(!resolvedAccount ? ['account'] : [])],
+      dateConfirmed: false,
+      needsConfirmation: true,
+      source: 'month_copy',
+    }, state?.customCats || []);
+    return copied ? [copied] : [];
+  });
+}
+
+`;
+
+  const incomeFunction = `export function buildRecurringIncomeCopies(state, targetMonthKey, selectedIds, idFactory = createId) {
+  const setup = recurringBillSetup(state, targetMonthKey);
+  const selected = new Set(Array.isArray(selectedIds) ? selectedIds : []);
+  const refs = setupReferenceLists(state, setup.sourceMonthKey, targetMonthKey);
+  return setup.incomeCandidates.flatMap(({ id, record, mode, duplicate }) => {
+    if (duplicate || !selected.has(id)) return [];
+    const receivedBy = resolveSetupPerson(record.receivedBy, record.receivedByLabel, refs.people);
+    const receivedByLabel = setupPersonLabel(receivedBy, record.receivedByLabel, refs.people);
+    const resolvedAccount = resolveSetupAccount(record, receivedBy, refs.accounts);
+    const copiedAccountId = resolvedAccount?.id || 'unassigned';
+    const ownerId = resolvedAccount?.ownerId || 'unassigned';
+    const amountConfirmed = mode === 'fixed';
+    const confirmationIssues = ['date', 'received', ...(amountConfirmed ? [] : ['amount'])];
+    if (receivedBy === 'unassigned') confirmationIssues.push('receivedBy');
+    if (!resolvedAccount) confirmationIssues.push('account');
+    const copied = normaliseIncomeRecord({
+      ...record,
+      id: idFactory('income'),
+      date: recurringTargetDate(record.date, targetMonthKey),
+      amount: amountConfirmed ? record.amount : 0,
+      amountConfirmed,
+      incomeStatus: 'expected',
+      recurrenceMode: mode,
+      receivedBy,
+      receivedByLabel,
+      account: copiedAccountId,
+      accountLabel: resolvedAccount?.label || '',
+      accountOwnerId: ownerId,
+      accountOwnerLabel: setupPersonLabel(ownerId, '', refs.people),
+      confirmationIssues,
+      dateConfirmed: false,
+      needsConfirmation: true,
+      source: 'month_copy',
+    }, targetMonthKey);
+    return copied ? [copied] : [];
+  });
+}
+
+`;
 
   monthSetup = monthSetup.slice(0, billStart) + helpers + billFunction + incomeFunction + monthSetup.slice(setupCopiesStart);
   await writeFile(monthSetupPath, monthSetup);
@@ -104,7 +348,33 @@ if (!monthSetup.includes('PENNY_V84_ROLLOVER_REFERENCES')) {
 const stylesPath = 'src/styles.css';
 let styles = await readFile(stylesPath, 'utf8');
 if (!styles.includes('PENNY_V84_ASSIGNMENT_SELECT')) {
-  styles += `\n\n/* PENNY_V84_ASSIGNMENT_SELECT */\n.assignment-select {\n  min-height: 28px;\n  max-width: min(210px, 46vw);\n  border: 1px solid var(--border-soft);\n  border-radius: 999px;\n  padding: 3px 24px 3px 9px;\n  background: var(--surface-2);\n  color: var(--text);\n  font: inherit;\n  font-weight: 760;\n  line-height: 1.3;\n}\n.assignment-select.is-unassigned {\n  border-color: rgba(245,185,66,0.62);\n  background: rgba(245,185,66,0.12);\n  color: var(--amber);\n  font-weight: 800;\n}\n.assignment-select:disabled { cursor: not-allowed; opacity: 0.72; }\n.assignment-static-warning { color: var(--amber); font-weight: 800; }\n@media (max-width: 480px) {\n  .assignment-select { max-width: 42vw; font-size: 11px; }\n}\n`;
+  styles += `
+
+/* PENNY_V84_ASSIGNMENT_SELECT */
+.assignment-select {
+  min-height: 28px;
+  max-width: min(210px, 46vw);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 3px 24px 3px 9px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 760;
+  line-height: 1.3;
+}
+.assignment-select.is-unassigned {
+  border-color: rgba(245,185,66,0.62);
+  background: rgba(245,185,66,0.12);
+  color: var(--amber);
+  font-weight: 800;
+}
+.assignment-select:disabled { cursor: not-allowed; opacity: 0.72; }
+.assignment-static-warning { color: var(--amber); font-weight: 800; }
+@media (max-width: 480px) {
+  .assignment-select { max-width: 42vw; font-size: 11px; }
+}
+`;
   await writeFile(stylesPath, styles);
 }
 
