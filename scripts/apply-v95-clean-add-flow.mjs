@@ -9,8 +9,6 @@ function replaceRequired(before, after, label) {
   app = app.replace(before, after);
 }
 
-// + Add should open the real four-tab workspace directly, starting on People,
-// with no intermediate chooser and no automatic field focus.
 replaceRequired(
   `            onClick={() => openRecord({ mode: 'menu' })}`,
   `            onClick={() => openRecord({ mode: 'people' })}`,
@@ -24,8 +22,6 @@ if (menuStart >= 0) {
   app = app.slice(0, menuStart) + app.slice(peopleStart);
 }
 
-// People: keep the field genuinely empty and remove success banners that add
-// noise after the new person is already visible in the list below.
 replaceRequired(
   `      setSetupNotice('“' + person.label + '” added to this month.');`,
   `      setSetupNotice('');`,
@@ -36,14 +32,8 @@ replaceRequired(
   `<input id="add-person-name" value={quickPersonName} onChange={(event) => { setQuickPersonName(event.target.value); setSetupError(''); setSetupNotice(''); }} />`,
   'People blank input',
 );
-replaceRequired(
-  `        {setupNotice && <div className="setup-notice" role="status">{setupNotice}</div>}\n`,
-  ``,
-  'People setup notice display',
-);
+replaceRequired(`        {setupNotice && <div className="setup-notice" role="status">{setupNotice}</div>}\n`, ``, 'People setup notice display');
 
-// Account creation starts deliberately blank. Nothing is silently assumed about
-// account type or ownership.
 replaceRequired(`  const [quickAccountType, setQuickAccountType] = useState('debit');`, `  const [quickAccountType, setQuickAccountType] = useState('');`, 'quick account type blank');
 replaceRequired(`  const [quickAccountOwner, setQuickAccountOwner] = useState('household');`, `  const [quickAccountOwner, setQuickAccountOwner] = useState('');`, 'quick account owner blank');
 replaceRequired(`  const [accountTypeDraft, setAccountTypeDraft] = useState('debit');`, `  const [accountTypeDraft, setAccountTypeDraft] = useState('');`, 'account type blank');
@@ -54,13 +44,11 @@ replaceRequired(
   `    setQuickAccountOwner('');`,
   'quick account owner reset blank',
 );
-
 replaceRequired(
   `      setAccountNameDraft('');\n      setSetupNotice(kindLabel + ' “' + nextAccount.label + '” added to this month.');`,
   `      setAccountNameDraft('');\n      setAccountTypeDraft('');\n      setAccountOwnerDraft('');\n      setSetupNotice('');`,
   'Account add reset without confirmation banner',
 );
-
 replaceRequired(`<label htmlFor="add-account-name">Account name</label>`, `<label htmlFor="add-account-name">Bank account name</label>`, 'bank account name label');
 replaceRequired(
   `<input id="add-account-name" value={accountNameDraft} onChange={(event) => { setAccountNameDraft(event.target.value); if (setupError) setSetupError(''); }} placeholder="Lloyds, Santander, Emergency Fund…" />`,
@@ -78,8 +66,6 @@ replaceRequired(
   'account owner blank selector',
 );
 
-// People belong only in People. Remove the cross-entry person creator from the
-// Account panel, rather than merely hiding it with CSS.
 const accountModeStart = app.indexOf(`  if (!lockedMode && mode === 'account') {`);
 const saveStart = app.indexOf(`  const save = () => {`, accountModeStart);
 if (!(accountModeStart >= 0 && saveStart > accountModeStart)) throw new Error('v95 could not isolate Account mode');
@@ -91,11 +77,13 @@ if (ownerHelpersStart >= 0) {
   accountBlock = accountBlock.slice(0, ownerHelpersStart) + accountBlock.slice(accountReturn);
 }
 const quickOwnerUiStart = accountBlock.indexOf(`        <div className="quick-setup-actions">`);
-const accountErrorAnchor = accountBlock.indexOf(`        {setupError && quickAdd !== 'account-owner-person' && <div className="form-error" role="alert">{setupError}</div>}`);
+const accountErrorText = `        {setupError && quickAdd !== 'account-owner-person' && <div className="form-error" role="alert">{setupError}</div>}`;
+const accountErrorAnchor = accountBlock.indexOf(accountErrorText);
 if (quickOwnerUiStart >= 0) {
   if (accountErrorAnchor < 0) throw new Error('v95 could not remove Account + Add person UI');
-  const replacement = `        {setupError && <div className="form-error" role="alert">{setupError}</div>}`;
-  accountBlock = accountBlock.slice(0, quickOwnerUiStart) + replacement + accountBlock.slice(accountErrorAnchor + `        {setupError && quickAdd !== 'account-owner-person' && <div className="form-error" role="alert">{setupError}</div>}`.length);
+  accountBlock = accountBlock.slice(0, quickOwnerUiStart)
+    + `        {setupError && <div className="form-error" role="alert">{setupError}</div>}`
+    + accountBlock.slice(accountErrorAnchor + accountErrorText.length);
 }
 accountBlock = accountBlock.replace(
   `<button className="primary-button" disabled={!accountNameDraft.trim()} onClick={addAccountFromHub}>Add account</button>`,
@@ -103,12 +91,13 @@ accountBlock = accountBlock.replace(
 );
 app = app.slice(0, accountModeStart) + accountBlock + app.slice(saveStart);
 
-// Income and Expense should use their own tabs, not hidden quick-setup shortcuts.
+// These legacy quick-setup helpers are no longer rendered, but strip their
+// explanatory placeholders too so future refactors cannot accidentally expose them.
+app = app.replaceAll(' placeholder="Name"', '');
+app = app.replaceAll(' placeholder="Lloyds, Santander…"', '');
 app = app.replaceAll(`          {renderQuickSetup()}\n`, '');
 app = app.replaceAll(`      <button className="text-button" type="button" onClick={onOpenSettings}>Manage people, accounts and categories in Settings</button>\n`, '');
 
-// Typed fields should start visually empty. For Income, one field is enough:
-// the single Income type text is the record's visible description and type.
 replaceRequired(
   `<label htmlFor="record-description">Description</label>`,
   `<label htmlFor="record-description">{mode === 'income' ? 'Income type' : 'Description'}</label>`,
@@ -139,16 +128,12 @@ replaceRequired(`          incomeType,`, `          incomeType: description,`, '
 const oldIncomeTypeField = `          <div className="field">\n            <label htmlFor="income-type">Income type</label>\n            <input id="income-type" value={incomeType} onChange={(event) => setIncomeType(event.target.value)} placeholder="Employment, Benefits, Child Benefit…" />\n          </div>\n`;
 if (!app.includes(oldIncomeTypeField)) throw new Error('v95 missing separate Income type field');
 app = app.replace(oldIncomeTypeField, '');
-
-// Do not repeat the same value as title and metadata for new single-field income.
 replaceRequired(
   `<div className="record-meta">{recordDateLabel(record)} · {record.incomeType}</div>`,
   `<div className="record-meta">{recordDateLabel(record)}{record.incomeType && record.incomeType !== record.description ? \` · \${record.incomeType}\` : ''}</div>`,
   'income list duplicate metadata suppression',
 );
 
-// Settings is configuration only, and Savings empty-state must point to the new
-// Add workflow rather than to the removed Settings account editor.
 app = app.replaceAll(
   `No savings accounts are set up for this month. If Savings snapshot was off during month setup, account definitions were intentionally not copied. Add them in Settings.`,
   `No savings accounts are set up for this month. If Savings snapshot was off during month setup, account definitions were intentionally not copied. Add them through + Add → Accounts.`,
@@ -161,9 +146,8 @@ if (settingsStart < 0) throw new Error('v95 SettingsModal missing');
 for (const forbidden of ['<MonthSavingsSettings', '<ReferenceEditor field="people"', '<ReferenceEditor field="accounts"', '<ReferenceEditor field="savingsAccounts"']) {
   if (settingsBlock.includes(forbidden)) throw new Error('v95 Settings still records people/accounts: ' + forbidden);
 }
-
 if (app.includes(`mode === 'menu'`) || app.includes('aria-label="Choose what to add"')) throw new Error('v95 extra Add chooser still present');
-if (app.includes('placeholder="Name"') || app.includes('placeholder="Lloyds, Santander, Emergency Fund…"') || app.includes('Paycheck, benefit or other source') || app.includes('Bill, merchant or note')) throw new Error('v95 explanatory placeholders still present');
+if (app.includes('Paycheck, benefit or other source') || app.includes('Bill, merchant or note')) throw new Error('v95 visible explanatory record placeholders still present');
 if (app.includes('Manage people, accounts and categories in Settings')) throw new Error('v95 obsolete Settings link still present');
 if (accountBlock.includes('+ Add person')) throw new Error('v95 Account panel still contains + Add person');
 
@@ -171,9 +155,6 @@ if (!app.includes('PENNY_V94_UNIFORM_ADD_MENU')) throw new Error('v95 requires v
 app = app.replace('PENNY_V94_UNIFORM_ADD_MENU', 'PENNY_V94_UNIFORM_ADD_MENU PENNY_V95_CLEAN_ADD_FLOW');
 await writeFile(appPath, app);
 
-// Fix the reset regression at the migration boundary. The earlier v87 guard
-// used a future hard-coded version 12, while the current stored format is lower,
-// so a just-cleared month could be rehydrated from the legacy global master list.
 const financePath = 'src/finance.js';
 let finance = await readFile(financePath, 'utf8');
 const oldHydration = `const canHydrateLegacySavingsSnapshot = !Number.isFinite(savedVersion) || savedVersion < 12;`;
@@ -184,8 +165,6 @@ if (!finance.includes(newHydration)) {
 }
 await writeFile(financePath, finance);
 
-// v94 intentionally rewrote this inherited regression to chooser-first. v95
-// deliberately supersedes that one point while preserving all other v93 checks.
 const v93TestPath = 'scripts/pure-settings-add-hub-v93-test.mjs';
 let v93Test = await readFile(v93TestPath, 'utf8');
 v93Test = v93Test.replace(
