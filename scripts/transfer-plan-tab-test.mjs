@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { transformPrimaryNavForTransferPlan } from '../build/primary-nav-v64.js';
 import { transformTransferPlanTab } from '../build/transfer-plan-tab.js';
 
 const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
-const transformed = transformTransferPlanTab(source);
+const normalizedSource = transformPrimaryNavForTransferPlan(source);
+const transformed = transformTransferPlanTab(normalizedSource);
 const css = await readFile(new URL('../src/transfer-plan-tab.css', import.meta.url), 'utf8');
 const mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8');
 
@@ -23,7 +25,8 @@ assert.match(transferPlan, /summary\.accountFundingPlan\.length \? summary\.acco
 assert.match(transferPlan, /onCommit=\{\(value\) => onUpdateBankBalance\(row\.account, value\)\}/, 'The existing bank-balance update action must remain unchanged.');
 assert.match(transformed, /view === 'Transfer Plan'/, 'App must render a dedicated Transfer Plan view.');
 assert.match(transformed, /onOpenTransferPlan=\{\(\) => setView\('Transfer Plan'\)\}/, 'Overview must navigate into the dedicated Transfer Plan view.');
-assert.match(transformed, /\['Overview', 'Transactions', 'Savings', 'Transfer Plan'\]\.map/, 'The fourth primary navigation slot must be Transfer Plan.');
+assert.match(transformed, /\['Overview', 'Transactions', 'Savings', 'Transfer Plan'\]\.map/, 'Primary navigation must expose Overview, Transactions, Savings and Transfer Plan.');
+assert.doesNotMatch(transformed, /\['Overview', 'Transactions', 'Year'\]\.map/, 'The postinstall three-item navigation must not survive into production.');
 assert.doesNotMatch(transformed, /\['Overview', 'Transactions', 'Savings', 'Year'\]\.map/, 'Year must no longer occupy the fourth primary navigation slot.');
 
 assert.match(mainSource, /import '\.\/transfer-plan-tab\.css';/, 'The Transfer Plan navigation and summary styles must be loaded.');
