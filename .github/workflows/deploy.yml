@@ -43,6 +43,8 @@ jobs:
         run: node scripts/month-clear-test.mjs
       - name: Run standalone month architecture regression
         run: node scripts/month-scope-v28-test.mjs
+      - name: Run account reference repair regression
+        run: node scripts/account-reference-repair-v76-test.mjs
       - name: Run transfer-plan layout regression
         run: node scripts/transfer-plan-layout-test.mjs
       - name: Run dedicated Transfer Plan tab regression
