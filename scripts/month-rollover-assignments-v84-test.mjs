@@ -116,7 +116,7 @@ assert.match(app, /Received by <AssignmentSelect[\s\S]*placeholder="User"/, 'Inc
 assert.match(app, /placeholder="Account"/, 'Cards must identify the missing account field directly.');
 assert.match(app, /onAssignTransaction=\{assignExpenseReference\}/, 'Expense assignment dropdowns must save directly from the card.');
 assert.match(app, /onAssignIncome=\{assignIncomeReference\}/, 'Income assignment dropdowns must save directly from the card.');
-assert.match(app, /copyPeople: !\(state\.peopleByMonth\?\.\[monthKey\]\?\.length\)/, 'Set Up Month must carry people into a blank target month.');
-assert.match(app, /copyAccounts: !\(state\.accountsByMonth\?\.\[monthKey\]\?\.length\)/, 'Set Up Month must carry accounts into a blank target month.');
+assert.match(app, /copyPeople: Boolean\(selection\.copyPeople \|\| selection\.copyAccounts\)/, 'Set Up Month must carry selected people into the target month.');
+assert.match(app, /copyAccounts: Boolean\(selection\.copyAccounts\)/, 'Set Up Month must carry selected accounts into the target month.');
 
 console.log('v84 inline assignment and month rollover regression passed');
