@@ -1,0 +1,42 @@
+/* v73: keep the native month selector on one centred line in the compact mobile header. */
+@media (max-width: 760px) {
+  .month-input {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 44px;
+    text-align: center;
+  }
+
+  .month-input::-webkit-datetime-edit {
+    display: flex;
+    width: 100%;
+    height: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    padding: 0;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  .month-input::-webkit-datetime-edit-fields-wrapper {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    padding: 0;
+    white-space: nowrap;
+  }
+
+  .month-input::-webkit-datetime-edit-month-field,
+  .month-input::-webkit-datetime-edit-year-field {
+    flex: 0 0 auto;
+    padding: 0;
+    white-space: nowrap;
+  }
+}
