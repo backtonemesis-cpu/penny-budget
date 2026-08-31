@@ -38,10 +38,57 @@ await writeFile('src/finance.js', finance);
 
 let app = await readFile('src/App.jsx', 'utf8');
 
-const oldFunding = `function FundingBalanceEditor({ row, monthKey, canEdit, onCommit }) {\n  const [draft, setDraft] = useState(row.hasCurrentBalance ? String(row.currentBalance) : '');\n  useEffect(() => setDraft(row.hasCurrentBalance ? String(row.currentBalance) : ''), [row.hasCurrentBalance, row.currentBalance]);\n  const editable = canEdit && row.account && row.account !== 'unassigned';\n  const commit = () => {\n    if (!editable) return;\n    const trimmed = draft.trim();\n    if (!trimmed) {\n      if (row.hasCurrentBalance) onCommit(null);\n      return;\n    }\n    const parsed = Number(trimmed);\n    if (!Number.isFinite(parsed) || parsed < 0) {\n      setDraft(row.hasCurrentBalance ? String(row.currentBalance) : '');\n      return;\n    }\n    if (!row.hasCurrentBalance || parsed !== row.currentBalance) onCommit(parsed);\n  };\n  return (\n    <div className=\"funding-balance-editor\">\n      <label htmlFor={\`funding-balance-\${monthKey}-\${row.account}\`}>Current bank balance</label>\n      <input\n        id={\`funding-balance-\${monthKey}-\${row.account}\`}\n        disabled={!editable}\n        type=\"number\"\n        inputMode=\"decimal\"\n        min=\"0\"\n        step=\"0.01\"\n        value={draft}\n        placeholder=\"TBC\"\n        onChange={(event) => setDraft(event.target.value)}\n        onBlur={commit}\n      />\n      <small>{editable ? 'Clear the field to return this balance to TBC.' : 'Assign a bill-paying account before entering a balance.'}</small>\n    </div>\n  );\n}`;
+const newFunding = `function FundingBalanceEditor({ row, monthKey, canEdit, onCommit }) {
+  const [draft, setDraft] = useState(row.hasCurrentBalance ? String(row.currentBalance) : '');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    setDraft(row.hasCurrentBalance ? String(row.currentBalance) : '');
+    setError('');
+  }, [row.hasCurrentBalance, row.currentBalance]);
+  const editable = canEdit && row.account && row.account !== 'unassigned';
+  const commit = () => {
+    if (!editable) return;
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setError('');
+      if (row.hasCurrentBalance) onCommit(null);
+      return;
+    }
+    const check = validateMoneyInput(trimmed, { allowZero: true, allowNegative: true });
+    if (!check.ok) {
+      setError(moneyValidationMessage(check, 'Current bank balance'));
+      return;
+    }
+    setError('');
+    if (!row.hasCurrentBalance || check.value !== row.currentBalance) onCommit(check.value);
+  };
+  return (
+    <div className="funding-balance-editor">
+      <label htmlFor={\`funding-balance-\${monthKey}-\${row.account}\`}>Current bank balance</label>
+      <input
+        id={\`funding-balance-\${monthKey}-\${row.account}\`}
+        disabled={!editable}
+        type="number"
+        inputMode="decimal"
+        step="0.01"
+        value={draft}
+        placeholder="TBC"
+        aria-invalid={Boolean(error)}
+        onChange={(event) => { setDraft(event.target.value); if (error) setError(''); }}
+        onBlur={commit}
+      />
+      {error && <small className="form-error" role="alert">{error}</small>}
+      <small>{editable ? 'Positive and negative balances are supported. Clear the field to return this balance to TBC.' : 'Assign a bill-paying account before entering a balance.'}</small>
+    </div>
+  );
+}`;
 
-const newFunding = `function FundingBalanceEditor({ row, monthKey, canEdit, onCommit }) {\n  const [draft, setDraft] = useState(row.hasCurrentBalance ? String(row.currentBalance) : '');\n  const [error, setError] = useState('');\n  useEffect(() => {\n    setDraft(row.hasCurrentBalance ? String(row.currentBalance) : '');\n    setError('');\n  }, [row.hasCurrentBalance, row.currentBalance]);\n  const editable = canEdit && row.account && row.account !== 'unassigned';\n  const commit = () => {\n    if (!editable) return;\n    const trimmed = draft.trim();\n    if (!trimmed) {\n      setError('');\n      if (row.hasCurrentBalance) onCommit(null);\n      return;\n    }\n    const check = validateMoneyInput(trimmed, { allowZero: true, allowNegative: true });\n    if (!check.ok) {\n      setError(moneyValidationMessage(check, 'Current bank balance'));\n      return;\n    }\n    setError('');\n    if (!row.hasCurrentBalance || check.value !== row.currentBalance) onCommit(check.value);\n  };\n  return (\n    <div className=\"funding-balance-editor\">\n      <label htmlFor={\`funding-balance-\${monthKey}-\${row.account}\`}>Current bank balance</label>\n      <input\n        id={\`funding-balance-\${monthKey}-\${row.account}\`}\n        disabled={!editable}\n        type=\"number\"\n        inputMode=\"decimal\"\n        step=\"0.01\"\n        value={draft}\n        placeholder=\"TBC\"\n        aria-invalid={Boolean(error)}\n        onChange={(event) => { setDraft(event.target.value); if (error) setError(''); }}\n        onBlur={commit}\n      />\n      {error && <small className=\"form-error\" role=\"alert\">{error}</small>}\n      <small>{editable ? 'Positive and negative balances are supported. Clear the field to return this balance to TBC.' : 'Assign a bill-paying account before entering a balance.'}</small>\n    </div>\n  );\n}`;
-app = replaceRequired(app, oldFunding, newFunding, 'Transfer Plan signed bank balance editor');
+if (!app.includes("validateMoneyInput(trimmed, { allowZero: true, allowNegative: true })")) {
+  const fundingStart = app.indexOf('function FundingBalanceEditor(');
+  const fundingEnd = app.indexOf('\nfunction SummaryRow(', fundingStart);
+  if (fundingStart < 0 || fundingEnd < 0) throw new Error('v90 missing FundingBalanceEditor function boundary');
+  app = app.slice(0, fundingStart) + newFunding + app.slice(fundingEnd);
+}
 
 app = replaceRequired(
   app,
@@ -56,7 +103,7 @@ app = replaceRequired(
   'Savings signed balance input',
 );
 
-if (!app.includes('allowNegative: true')) throw new Error('v90 signed balance UI validation missing.');
+if ((app.match(/allowNegative: true/g) || []).length < 2) throw new Error('v90 signed balance UI validation missing.');
 if (!state.includes('PENNY_V90_SIGNED_BALANCES') || !finance.includes('PENNY_V90_SIGNED_BALANCES')) throw new Error('v90 signed balance persistence patch missing.');
 await writeFile('src/App.jsx', app);
 
