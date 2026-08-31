@@ -3,13 +3,13 @@ import { readFile, writeFile } from 'node:fs/promises';
 const appPath = 'src/App.jsx';
 let app = await readFile(appPath, 'utf8');
 
-// Once payer is derived from the selected account, the expense card must offer
-// all month accounts rather than filtering choices by the old payer first.
-const oldExpenseOptions = `accountOptions={accountChoicesFor(transaction.paidBy)}`;
-const newExpenseOptions = `accountOptions={accountChoicesFor('unassigned')}`;
-if (!app.includes(newExpenseOptions)) {
-  if (!app.includes(oldExpenseOptions)) throw new Error('v98 audit alignment missing ExpenseRow account-choice anchor');
-  app = app.replace(oldExpenseOptions, newExpenseOptions);
+// Payer / recipient now comes from the selected account, so transaction cards
+// must show all month accounts. The owner-labelled option itself is the evidence.
+const filteredChoices = /const accountChoicesFor = \(personId\) => \(accountOptions \|\| \[\]\)\.filter\(\(account\) => \{[\s\S]*?\n  \}\);/;
+const allChoices = `const accountChoicesFor = () => (accountOptions || []).filter((account) => account && account.id !== 'unassigned');`;
+if (!app.includes(allChoices)) {
+  if (!filteredChoices.test(app)) throw new Error('v98 audit alignment missing accountChoicesFor helper');
+  app = app.replace(filteredChoices, allChoices);
 }
 await writeFile(appPath, app);
 
