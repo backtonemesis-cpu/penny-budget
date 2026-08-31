@@ -1,0 +1,119 @@
+/* v64: Transfer Plan is a dedicated primary view; Overview keeps only a compact summary. */
+.transfer-plan-overview-card {
+  appearance: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  border-color: rgba(245, 185, 66, 0.38);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.transfer-plan-overview-card:hover,
+.transfer-plan-overview-card:focus-visible {
+  border-color: rgba(245, 185, 66, 0.72);
+}
+
+.transfer-plan-overview-copy,
+.transfer-plan-overview-value {
+  min-width: 0;
+}
+
+.transfer-plan-overview-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.transfer-plan-overview-copy strong {
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-plan-overview-value {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+}
+
+.transfer-plan-overview-value .money {
+  font-size: 21px;
+  font-weight: 820;
+  line-height: 1;
+}
+
+.transfer-plan-overview-value > span:last-child {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.transfer-plan-overview-chevron {
+  color: var(--muted);
+  font-size: 28px;
+  line-height: 1;
+  text-align: right;
+}
+
+.transfer-plan-empty {
+  min-height: 120px;
+}
+
+/* Use the fourth mobile-nav slot for Transfer Plan. Loaded after mobile-navigation.css. */
+.nav button:nth-child(4) {
+  display: flex !important;
+  --nav-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h13'/%3E%3Cpath d='m14 4 3 3-3 3'/%3E%3Cpath d='M20 17H7'/%3E%3Cpath d='m10 14-3 3 3 3'/%3E%3C/g%3E%3C/svg%3E") !important;
+}
+
+.nav button:nth-child(4)::after {
+  content: "Transfer Plan" !important;
+}
+
+@media (max-width: 760px) {
+  .transfer-plan-overview-card {
+    grid-template-columns: minmax(0, 1fr) auto 14px;
+    gap: 7px;
+    padding: 12px;
+  }
+
+  .transfer-plan-overview-copy strong {
+    font-size: 14px;
+  }
+
+  .transfer-plan-overview-value .money {
+    font-size: 19px;
+  }
+
+  .transfer-plan-overview-chevron {
+    font-size: 24px;
+  }
+
+  .nav button:nth-child(4)::after {
+    font-size: 9.8px;
+  }
+}
+
+@media (max-width: 390px) {
+  .transfer-plan-overview-copy strong {
+    font-size: 13px;
+  }
+
+  .transfer-plan-overview-value .money {
+    font-size: 18px;
+  }
+
+  .nav button:nth-child(4)::after {
+    font-size: 9.2px;
+    letter-spacing: -0.04em;
+  }
+}
