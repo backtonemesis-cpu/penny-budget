@@ -59,6 +59,8 @@ jobs:
         run: node scripts/mobile-nav-pixel-v69-test.mjs
       - name: Run matched navigation content regression
         run: node scripts/mobile-nav-content-v70-test.mjs
+      - name: Run desktop month picker regression
+        run: node scripts/desktop-month-picker-v75-test.mjs
       - name: Audit accessibility source
         run: node scripts/source-audit.mjs accessibility
       - name: Audit storage source
