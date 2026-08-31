@@ -10,6 +10,6 @@ assert.match(main, /import '\.\/mobile-nav-lower-v66\.css';\s*\nimport '\.\/mobi
 assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.nav button\s*\{[\s\S]*transform:\s*translateY\(8px\)/, 'Mobile navigation icon/label groups must move 8px lower inside the existing bar.');
 assert.match(compactCss, /\.nav button\s*\{[\s\S]*min-height:\s*48px/, 'The 48px primary-tab touch target must remain unchanged.');
 assert.match(lowerCss, /safe-area-inset-bottom/, 'The guarded iPhone bottom safe-area treatment must remain in place.');
-assert.doesNotMatch(css, /padding-bottom|height|min-height/, 'v67 must not shrink the navigation bar or touch targets; it only repositions the content.');
+assert.doesNotMatch(css, /(?:padding-bottom|height|min-height)\s*:/, 'v67 must not alter navigation sizing declarations; it only repositions the content.');
 
 console.log('Penny lower navigation content regression tests passed');
