@@ -25,13 +25,14 @@ assert.match(transferPlan, /summary\.accountFundingPlan\.length \? summary\.acco
 assert.match(transferPlan, /onCommit=\{\(value\) => onUpdateBankBalance\(row\.account, value\)\}/, 'The existing bank-balance update action must remain unchanged.');
 assert.match(transformed, /view === 'Transfer Plan'/, 'App must render a dedicated Transfer Plan view.');
 assert.match(transformed, /onOpenTransferPlan=\{\(\) => setView\('Transfer Plan'\)\}/, 'Overview must navigate into the dedicated Transfer Plan view.');
-assert.match(transformed, /\['Overview', 'Transactions', 'Savings', 'Transfer Plan'\]\.map/, 'Primary navigation must expose Overview, Transactions, Savings and Transfer Plan.');
+assert.match(transformed, /\['Overview', 'Transactions', 'Savings', 'Transfer Plan'\]\.map/, 'Primary navigation must expose Overview, Transactions, Savings and Transfer Plan internally.');
 assert.doesNotMatch(transformed, /\['Overview', 'Transactions', 'Year'\]\.map/, 'The postinstall three-item navigation must not survive into production.');
 assert.doesNotMatch(transformed, /\['Overview', 'Transactions', 'Savings', 'Year'\]\.map/, 'Year must no longer occupy the fourth primary navigation slot.');
 
 assert.match(mainSource, /import '\.\/transfer-plan-tab\.css';/, 'The Transfer Plan navigation and summary styles must be loaded.');
 assert.match(css, /\.nav button:nth-child\(4\) \{[^}]*display: flex !important;/s, 'The fourth navigation slot must be explicitly visible.');
-assert.match(css, /\.nav button:nth-child\(4\)::after \{[^}]*content: "Transfer Plan" !important;/s, 'The fourth navigation slot must be labelled Transfer Plan.');
+assert.match(css, /\.nav button:nth-child\(4\)::after \{[^}]*content: "Transfers" !important;/s, 'The fourth visible navigation label must be Transfers.');
+assert.doesNotMatch(css, /\.nav button:nth-child\(4\)::after \{[^}]*font-size:/s, 'Transfers must inherit the same navigation label size as the other primary tabs.');
 assert.match(css, /transfer-plan-overview-card/, 'The compact Overview summary must have dedicated presentation rules.');
 
 console.log('Penny dedicated Transfer Plan tab regression tests passed');
