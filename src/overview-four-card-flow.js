@@ -7,6 +7,17 @@ function setText(root, selector, text) {
   if (node && node.textContent !== text) node.textContent = text;
 }
 
+function syncValueTone(targetCard, sourceCard) {
+  const target = targetCard?.querySelector('.value');
+  const source = sourceCard?.querySelector('.value');
+  if (!target || !source) return;
+  const tones = ['green', 'red', 'amber', 'accent', 'neutral'];
+  tones.forEach((tone) => target.classList.remove(tone));
+  tones.forEach((tone) => {
+    if (source.classList.contains(tone)) target.classList.add(tone);
+  });
+}
+
 function applyOverviewFourCardFlow() {
   if (!overviewIsActive()) return;
 
@@ -40,6 +51,7 @@ function applyOverviewFourCardFlow() {
   const projectedValue = heroCards[1].querySelector('.value')?.textContent || '£0.00';
   setText(totalCard, '.label', 'Total savings');
   setText(totalCard, '.value', projectedValue);
+  syncValueTone(totalCard, heroCards[1]);
 
   heroGrid.classList.add('overview-legacy-savings-hidden');
   metricGrid.classList.add('overview-four-card-grid');
