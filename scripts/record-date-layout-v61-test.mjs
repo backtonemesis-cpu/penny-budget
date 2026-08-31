@@ -10,7 +10,8 @@ const modal = transformed.slice(start, end);
 
 assert.ok(start >= 0 && end > start, 'RecordModal must be present');
 assert.equal((modal.match(/id="record-date"/g) || []).length, 3, 'Expense, income and transfer must each render one Exact date control');
-assert.equal((modal.match(/Exact date not confirmed/g) || []).length, 3, 'Each record mode must retain the TBC date control');
+assert.equal((modal.match(/Exact date not confirmed/g) || []).length, 0, 'Exact date must use a blank optional field rather than a second TBC checkbox');
+assert.doesNotMatch(modal, /disabled=\{!dateConfirmed\}/, 'Blank date fields must remain directly editable.');
 
 const expenseStart = modal.indexOf("{mode === 'expense' && (");
 const expenseCategory = modal.indexOf('<label htmlFor="record-category">Category</label>', expenseStart);
@@ -20,11 +21,10 @@ assert.ok(expenseStart >= 0 && expenseCategory > expenseStart && expenseDate > e
   'Expense Exact date must be directly after Category and before Expense type');
 
 const incomeStart = modal.indexOf("{mode === 'income' && (");
-const incomeType = modal.indexOf('<label htmlFor="income-type">Income type</label>', incomeStart);
-const incomeDate = modal.indexOf('<label htmlFor="record-date">Exact date</label>', incomeType);
-const receivedBy = modal.indexOf('label="Received By"', incomeDate);
-assert.ok(incomeStart >= 0 && incomeType > incomeStart && incomeDate > incomeType && receivedBy > incomeDate,
-  'Income Exact date must be directly after Income type and before Received By');
+const incomeDate = modal.indexOf('<label htmlFor="record-date">Exact date</label>', incomeStart);
+const receivedAccount = modal.indexOf('label="Received into account"', incomeDate);
+assert.ok(incomeStart >= 0 && incomeDate > incomeStart && receivedAccount > incomeDate,
+  'Income Exact date must be before Received into account');
 
 const movementStart = modal.indexOf("{mode === 'movement' && (");
 const movementDate = modal.indexOf('<label htmlFor="record-date">Exact date</label>', movementStart);
@@ -32,4 +32,4 @@ assert.ok(movementStart >= 0 && movementDate > movementStart, 'Transfer mode mus
 
 assert.ok(!transformed.includes("installExactDateAction"), 'Compiled App source must not depend on the removed DOM date workaround');
 
-console.log('Record date layout v61 checks passed.');
+console.log('Record date layout checks passed.');
