@@ -1,21 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
-const financePath = 'src/finance.js';
-const financeMarker = 'PENNY_V76_MONTH_ACCOUNT_SUMMARY';
-let finance = await readFile(financePath, 'utf8');
-if (!finance.includes(financeMarker)) {
-  const monthScopeImport = /import\s*\{([^}]*)\}\s*from '\.\/month-scope\.js';[^\n]*/;
-  const match = finance.match(monthScopeImport);
-  if (!match) throw new Error('v76 could not find the month-scope finance import.');
-  const names = match[1].split(',').map((item) => item.trim()).filter(Boolean);
-  if (!names.includes('getMonthAccounts')) names.unshift('getMonthAccounts');
-  finance = finance.replace(monthScopeImport, `import { ${names.join(', ')} } from './month-scope.js'; // PENNY_V28_MONTH_SCOPED`);
-
-  const summaryTarget = "  const masterAccounts = Object.fromEntries((state?.accounts || []).map((account) => [account.id, account]));";
-  const summaryReplacement = "  const masterAccounts = Object.fromEntries(getMonthAccounts(state, monthKey).map((account) => [account.id, account])); // PENNY_V76_MONTH_ACCOUNT_SUMMARY";
-  if (!finance.includes(summaryTarget)) throw new Error('v76 could not find the Transfer Plan master-account source.');
-  finance = finance.replace(summaryTarget, summaryReplacement);
-  await writeFile(financePath, finance);
+// v28 already makes monthSummary use getMonthAccounts(state, monthKey).
+// v76 only needs to make recurring bill copies prefer an explicitly prepared
+// target-month account list when that month has its own owner-specific setup.
+const finance = await readFile('src/finance.js', 'utf8');
+if (!finance.includes('getMonthAccounts(state, monthKey)')) {
+  throw new Error('v76 safety check failed: Transfer Plan is not using selected-month accounts.');
 }
 
 const monthSetupPath = 'src/month-setup.js';
