@@ -26,7 +26,9 @@ if (transformed.includes('          <div className="month-control">\n           
 }
 
 const css = await readFile('src/desktop-month-picker-v75.css', 'utf8');
-if (!css.includes('@media (min-width: 761px)')) throw new Error('v75 desktop picker is not desktop-only.');
+if (!css.includes('@media (min-width: 761px), (hover: hover) and (pointer: fine)')) {
+  throw new Error('desktop picker must activate for a fine-pointer laptop even when zoom/scaling makes the CSS viewport narrow.');
+}
 if (!css.includes('.penny-month-selector .penny-month-native')) throw new Error('v75 does not hide the native picker on desktop.');
 if (!css.includes('grid-template-columns: repeat(4')) throw new Error('v75 month grid is not four columns.');
 if (!css.includes('.desktop-month-grid button.selected')) throw new Error('v75 has no selected-month styling.');
@@ -34,4 +36,4 @@ if (!css.includes('.desktop-month-grid button.selected')) throw new Error('v75 h
 const mobileCss = await readFile('src/mobile-month-label-v74.css', 'utf8');
 if (!mobileCss.includes('@media (max-width: 760px)')) throw new Error('v75 must preserve the native mobile month picker path.');
 
-console.log('v75 desktop month picker regression passed');
+console.log('v86 desktop month picker regression passed');

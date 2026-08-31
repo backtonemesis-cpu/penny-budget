@@ -1,10 +1,16 @@
-/* v75: Penny-designed desktop month/year picker. Mobile keeps the native iOS month wheel. */
+/* v86: Penny-designed desktop month/year picker. Mobile keeps the native iOS month wheel. */
 .desktop-month-trigger,
 .desktop-month-popover {
   display: none;
 }
 
-@media (min-width: 761px) {
+/*
+ * Do not decide "desktop" by width alone. A laptop browser can have a narrow
+ * CSS viewport because of Windows display scaling, browser zoom, or a resized
+ * window. In that case the old 761px breakpoint exposed Chrome's native month
+ * picker. Fine-pointer/hover devices should still get Penny's desktop picker.
+ */
+@media (min-width: 761px), (hover: hover) and (pointer: fine) {
   .penny-month-selector {
     position: relative;
   }

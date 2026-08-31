@@ -17,6 +17,7 @@ const uninstall = installMonthPickerActivation(root);
 assert.equal(typeof clickHandler, 'function', 'month picker activation should install a click handler');
 
 let opened = 0;
+let lastMediaQuery = '';
 const input = {
   disabled: false,
   showPicker() { opened += 1; },
@@ -27,13 +28,21 @@ const target = {
   },
 };
 
-globalThis.matchMedia = () => ({ matches: false });
+globalThis.matchMedia = (query) => {
+  lastMediaQuery = query;
+  return { matches: false };
+};
 clickHandler({ target });
-assert.equal(opened, 1, 'mobile month input should explicitly open the native picker when supported');
+assert.equal(opened, 1, 'touch/mobile month input should explicitly open the native picker when supported');
+assert.match(lastMediaQuery, /pointer: fine/, 'desktop ownership must consider fine-pointer laptops rather than width alone');
 
-globalThis.matchMedia = () => ({ matches: true });
+globalThis.matchMedia = (query) => {
+  lastMediaQuery = query;
+  return { matches: true };
+};
 clickHandler({ target });
-assert.equal(opened, 1, 'desktop must not invoke the native picker because the v75 Penny picker owns desktop selection');
+assert.equal(opened, 1, 'desktop/fine-pointer devices must not invoke the native picker because Penny owns desktop selection');
+assert.match(lastMediaQuery, /min-width: 761px/, 'existing wide desktop ownership must remain supported');
 
 globalThis.matchMedia = () => ({ matches: false });
 input.disabled = true;
