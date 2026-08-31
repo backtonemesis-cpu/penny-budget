@@ -1,0 +1,7 @@
+/* v67: visually lower the icon/label group within the existing iPhone bottom bar.
+   The bar height and guarded safe-area allowance remain unchanged. */
+@media (max-width: 760px) {
+  .nav button {
+    transform: translateY(8px);
+  }
+}
