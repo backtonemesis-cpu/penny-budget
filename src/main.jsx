@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import { installMonthClearControl } from './month-clear.js';
+import { installMonthPickerActivation } from './month-picker-activation.js';
 import { installCategorySettingsCleanup } from './category-settings-cleanup.js';
 import { installUniformEmptyStates } from './empty-state-uniform.js';
 import { installOverviewFourCardFlow } from './overview-four-card-flow.js';
@@ -92,6 +93,7 @@ function renderApp() {
     </React.StrictMode>,
   );
   installMonthClearControl();
+  installMonthPickerActivation();
   installCategorySettingsCleanup();
   installUniformEmptyStates();
   installOverviewFourCardFlow();
