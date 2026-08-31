@@ -1,0 +1,53 @@
+/* v72: compact mobile header. Presentation only; keep all controls and logic intact. */
+@media (max-width: 760px) {
+  .header {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .header-row {
+    grid-template-columns: max-content minmax(0, 1fr) 44px 58px;
+    column-gap: 6px;
+    min-height: 56px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .brand {
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .month-control {
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .month-input {
+    height: 44px;
+    min-height: 44px;
+    padding-block: 0;
+    padding-inline: 4px;
+    border-radius: 12px;
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .icon-button,
+  .add-button {
+    height: 44px;
+    min-height: 44px;
+    border-radius: 12px;
+  }
+
+  .icon-button {
+    width: 44px;
+    font-size: 18px;
+  }
+
+  .add-button {
+    width: 58px;
+    padding-inline: 4px;
+    font-size: 13px;
+    line-height: 1;
+  }
+}
