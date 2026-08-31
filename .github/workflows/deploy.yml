@@ -49,6 +49,8 @@ jobs:
         run: node scripts/transfer-plan-tab-test.mjs
       - name: Run compact mobile navigation regression
         run: node scripts/mobile-nav-compact-test.mjs
+      - name: Run lower bottom navigation regression
+        run: node scripts/mobile-nav-lower-v66-test.mjs
       - name: Audit accessibility source
         run: node scripts/source-audit.mjs accessibility
       - name: Audit storage source

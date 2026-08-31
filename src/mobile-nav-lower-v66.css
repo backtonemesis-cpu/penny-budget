@@ -1,0 +1,8 @@
+/* v66: reduce unused space beneath bottom-nav labels on iPhone while retaining a guarded home-indicator clearance. */
+.app {
+  padding-bottom: calc(58px + max(0px, calc(env(safe-area-inset-bottom) - 14px)));
+}
+
+.nav {
+  padding-bottom: calc(2px + max(0px, calc(env(safe-area-inset-bottom) - 14px)));
+}
