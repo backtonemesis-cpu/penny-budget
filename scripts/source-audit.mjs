@@ -43,7 +43,8 @@ function accessibilityAudit() {
   assert.doesNotMatch(files.index, /wss?:\/\//, 'CSP must not open unneeded websocket origins.');
   assert.match(files.index, /referrer.*no-referrer/, 'Financial app must not leak navigation referrers.');
   assert.match(files.app, /label="Paid By"/);
-  assert.match(files.app, /label="Received By"/);
+  assert.match(files.app, /label="Received into account"/, 'Income must expose the owner-labelled destination account selector to assistive technology.');
+  assert.doesNotMatch(files.app, /label="Received By"/, 'Income must not expose a redundant second ownership selector.');
   assert.match(files.app, /querySelectorAll\('button:not\(\[disabled\]\)/, 'Modal must contain a keyboard focus trap.');
   assert.match(files.app, /previouslyFocused/, 'Modal must remember the opener for focus restoration.');
   assert.match(files.app, /document\.contains\(previouslyFocused\).*previouslyFocused\.focus\(\)/s, 'Modal must restore focus to the opener when possible.');
