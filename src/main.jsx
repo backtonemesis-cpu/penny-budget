@@ -22,6 +22,7 @@ import './transfer-plan-tab.css';
 import './mobile-nav-compact-v65.css';
 import './mobile-nav-lower-v66.css';
 import './mobile-nav-content-v67.css';
+import './mobile-nav-native-v68.css';
 
 let releaseCheckPromise = null;
 let lastReleaseCheckAt = 0;
